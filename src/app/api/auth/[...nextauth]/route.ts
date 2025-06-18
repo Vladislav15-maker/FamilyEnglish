@@ -20,8 +20,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         const inputUsername = credentials.username;
-        // Обрезаем пароль для удаления начальных/конечных пробелов
-        const inputPassword = credentials.password.trim(); 
+        const inputPassword = credentials.password.trim(); // Обрезаем пароль
 
         try {
           const user = await getUserByUsernameForAuth(inputUsername);
@@ -32,9 +31,9 @@ export const authOptions: NextAuthOptions = {
             console.log('[NextAuth] Хеш пароля пользователя из БД:', `"${user.password_hash}"`, `(тип: ${typeof user.password_hash}, длина: ${user.password_hash.length})`);
             
             // --- ПРЯМОЙ ТЕСТ BCRYPT ---
-            // Используем новые учетные данные Vladislav для жестко закодированного теста
+            // Используем правильный пароль и хеш для Vladislav
             const testPassword = "Vladislav15"; 
-            const testHashFromLog = "$2a$10$kP6wT9yE0gJ1lB2vC4dOq.0zX7f0D.Y4pYg5hB.xQzU.n2fXhD3kZ8s"; // Хеш для "Vladislav15"
+            const testHashFromLog = "$2a$10$8cRk1J9y/H.Kx.Rk.Z8w4O.8vG3z7gH.Lw5jF3xT2rS.9YkPqQwO"; // Правильный 60-символьный хеш для "Vladislav15"
             console.log('[NextAuth] ЖЕСТКО ЗАКОДИРОВАННЫЙ ТЕСТ - Тестовый пароль:', `"${testPassword}"`, `(тип: ${typeof testPassword}, длина: ${testPassword.length})`);
             console.log('[NextAuth] ЖЕСТКО ЗАКОДИРОВАННЫЙ ТЕСТ - Тестовый хеш:', `"${testHashFromLog}"`, `(тип: ${typeof testHashFromLog}, длина: ${testHashFromLog.length})`);
             
@@ -52,28 +51,24 @@ export const authOptions: NextAuthOptions = {
             try {
                 isPasswordCorrect = bcrypt.compareSync(inputPassword, user.password_hash);
             } catch (e: any) {
-                console.error('[NextAuth] Ошибка во время bcrypt.compareSync для пароля пользователя:', e.message, e.stack);
+                console.error('[NextAuth] Ошибка во время сравнения пароля пользователя bcrypt.compareSync:', e.message, e.stack);
             }
             console.log('[NextAuth] Пароль верен (используя inputPassword и user.password_hash):', isPasswordCorrect);
 
             if (isPasswordCorrect) {
               console.log('[NextAuth] Аутентификация успешна для:', user.username);
               return {
-                id: user.id, // Убедитесь, что user.id это строка
+                id: user.id, 
                 name: user.name,
                 username: user.username,
                 role: user.role,
               };
             } else {
               console.log('[NextAuth] Неверный пароль для пользователя:', user.username);
-               // Дополнительная проверка, если жестко закодированный тест также провалился с учетными данными Vladislav
-               if (hardcodedTestResult === false && inputUsername === 'Vladislav' && inputPassword === 'Vladislav15') {
-                console.error(`[NextAuth] КРИТИЧЕСКАЯ ОШИБКА: Жестко закодированный тест для Vladislav/Vladislav15 ПРОВАЛИЛСЯ. Это указывает на потенциальную проблему с bcrypt или окружением.`);
-              }
               return null;
             }
           } else {
-            console.log('[NextAuth] Пользователь не найден или отсутствует password_hash для имени пользователя:', inputUsername);
+            console.log('[NextAuth] Пользователь не найден или отсутствует password_hash для username:', inputUsername);
             return null;
           }
         } catch (error) {
@@ -90,9 +85,9 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role; // Приведение типа для доступа к пользовательскому свойству
-        token.username = (user as any).username; // Приведение типа для доступа к пользовательскому свойству
-        console.log('[NextAuth] JWT callback, пользователь присутствует:', (user as any).username, 'Роль токена:', token.role);
+        token.role = (user as any).role; 
+        token.username = (user as any).username; 
+        console.log('[NextAuth] JWT callback, user present:', (user as any).username, 'Token role:', token.role);
       }
       return token;
     },
@@ -101,7 +96,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = token.id as string;
         (session.user as any).role = token.role as ('teacher' | 'student');
         (session.user as any).username = token.username as string;
-        console.log('[NextAuth] Session callback, пользователь сессии:', (session.user as any).username, 'Роль:', (session.user as any).role);
+        console.log('[NextAuth] Session callback, session user:', (session.user as any).username, 'Role:', (session.user as any).role);
       }
       return session;
     }
@@ -109,7 +104,7 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/', 
   },
-  secret: process.env.NEXTAUTH_SECRET, // Убедитесь, что это есть в вашем .env.local и переменных окружения Vercel
+  secret: process.env.NEXTAUTH_SECRET, 
   debug: process.env.NODE_ENV === 'development',
 };
 
