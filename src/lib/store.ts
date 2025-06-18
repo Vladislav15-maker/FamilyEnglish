@@ -14,9 +14,8 @@ export async function getUserByUsernameForAuth(username: string): Promise<UserFo
       return null;
     }
     const user = result.rows[0];
-    // Важно: id должен быть строкой для NextAuth
     const userIdAsString = typeof user.id === 'string' ? user.id : String(user.id);
-    console.log('[Store] User found in DB:', user.username, 'Password hash from DB:', `"${user.password_hash}"`, 'Role:', user.role, 'ID:', userIdAsString);
+    console.log('[Store] User found in DB:', user.username, 'Password hash from DB (first 10 chars):', user.password_hash ? user.password_hash.substring(0,10) + "..." : "N/A", 'Role:', user.role, 'ID:', userIdAsString);
     return {
       id: userIdAsString,
       username: user.username,
@@ -33,7 +32,6 @@ export async function getUserByUsernameForAuth(username: string): Promise<UserFo
 }
 
 // Эта функция больше не нужна, так как регистрация удалена.
-// Оставляем ее закомментированной или удаляем, чтобы избежать случайного вызова.
 /*
 export async function createUserInDb(userData: {
   name: string;
@@ -43,35 +41,6 @@ export async function createUserInDb(userData: {
   email?: string;
 }): Promise<UserForAuth | null> {
   console.warn('[Store] createUserInDb is deprecated and should not be called as registration is removed.');
-  // const saltRounds = 10;
-  // const passwordHash = await bcrypt.hash(userData.passwordPlain, saltRounds);
-  // console.log(`[Store] Hashed password for ${userData.username}: ${passwordHash}`);
-  // try {
-  //   const result = await sql`
-  //     INSERT INTO users (name, username, password_hash, role, email)
-  //     VALUES (${userData.name}, ${userData.username}, ${passwordHash}, ${userData.role}, ${userData.email || null})
-  //     RETURNING id, username, password_hash, role, name, email, created_at;
-  //   `;
-  //   if (result.rows.length === 0) return null;
-  //   const newUser = result.rows[0];
-  //   return {
-  //     id: newUser.id,
-  //     username: newUser.username,
-  //     password_hash: newUser.password_hash,
-  //     role: newUser.role as 'teacher' | 'student',
-  //     name: newUser.name,
-  //     email: newUser.email,
-  //     created_at: newUser.created_at
-  //   };
-  // } catch (error) {
-  //   console.error('[Store] Failed to create user in DB:', error);
-  //   // Проверяем на ошибку уникальности constraint (например, username или email уже существует)
-  //   if ((error as any).code === '23505') { // PostgreSQL unique_violation
-  //       // Можно выбросить специфическую ошибку или вернуть null/маркер
-  //       console.error('[Store] Unique constraint violation:', (error as any).constraint_name);
-  //   }
-  //   return null; // Или throw error;
-  // }
   return null;
 }
 */
@@ -85,7 +54,6 @@ export async function findUserById(userId: string): Promise<User | undefined> {
       return undefined;
     }
     const user = result.rows[0];
-    // Важно: id должен быть строкой
     const userIdAsString = typeof user.id === 'string' ? user.id : String(user.id);
     return {
         id: userIdAsString,
@@ -132,7 +100,7 @@ export async function getStudentRoundProgress(studentId: string, unitId: string,
         unitId: row.unit_id,
         roundId: row.round_id,
         score: row.score,
-        attempts: row.attempts, // JSONB приходит как объект/массив
+        attempts: row.attempts, 
         completed: row.completed,
         timestamp: Number(row.timestamp)
     };
@@ -162,7 +130,7 @@ export async function getAllStudentProgress(studentIdFilter: string): Promise<St
         unitId: row.unit_id,
         roundId: row.round_id,
         score: row.score,
-        attempts: row.attempts, // JSONB приходит как объект/массив
+        attempts: row.attempts, 
         completed: row.completed,
         timestamp: Number(row.timestamp)
     }));
@@ -174,13 +142,28 @@ export async function getAllStudentProgress(studentIdFilter: string): Promise<St
 
 
 export async function saveStudentRoundProgress(progress: StudentRoundProgress): Promise<void> {
-  console.log(`[Store] saveStudentRoundProgress for student ${progress.studentId}, unit ${progress.unitId}, round ${progress.roundId}`);
+  console.log(`[Store] Attempting to save student round progress. Data received:`);
+  console.log(`[Store] Student ID: ${progress.studentId} (type: ${typeof progress.studentId})`);
+  console.log(`[Store] Unit ID: ${progress.unitId} (type: ${typeof progress.unitId})`);
+  console.log(`[Store] Round ID: ${progress.roundId} (type: ${typeof progress.roundId})`);
+  console.log(`[Store] Score: ${progress.score} (type: ${typeof progress.score})`);
+  console.log(`[Store] Completed: ${progress.completed} (type: ${typeof progress.completed})`);
+  console.log(`[Store] Timestamp (original): ${progress.timestamp} (type: ${typeof progress.timestamp})`);
+  const attemptsCount = progress.attempts ? (Array.isArray(progress.attempts) ? progress.attempts.length : 'N/A or not an array') : 'N/A or null';
+  console.log(`[Store] Attempts count: ${attemptsCount}`);
+  if (progress.attempts && Array.isArray(progress.attempts) && progress.attempts.length > 0) {
+    console.log(`[Store] First attempt detail: wordId=${progress.attempts[0].wordId}, userAnswer=${progress.attempts[0].userAnswer}, correct=${progress.attempts[0].correct}`);
+  }
+
   try {
     const timestampToSave = typeof progress.timestamp === 'number' ? progress.timestamp : new Date(progress.timestamp).getTime();
+    console.log(`[Store] Timestamp to save (numeric): ${timestampToSave}`);
     const attemptsJson = JSON.stringify(progress.attempts);
+    console.log(`[Store] Attempts JSON (first 200 chars): ${attemptsJson.substring(0, 200)}${attemptsJson.length > 200 ? '...' : ''}`);
+
     await sql`
       INSERT INTO student_progress (student_id, unit_id, round_id, score, attempts, completed, timestamp)
-      VALUES (${progress.studentId}, ${progress.unitId}, ${progress.roundId}, ${progress.score}, ${attemptsJson}, ${progress.completed}, ${timestampToSave})
+      VALUES (${progress.studentId}, ${progress.unitId}, ${progress.roundId}, ${progress.score}, ${attemptsJson}::jsonb, ${progress.completed}, ${timestampToSave})
       ON CONFLICT (student_id, unit_id, round_id)
       DO UPDATE SET
         score = EXCLUDED.score,
@@ -188,8 +171,15 @@ export async function saveStudentRoundProgress(progress: StudentRoundProgress): 
         completed = EXCLUDED.completed,
         timestamp = EXCLUDED.timestamp;
     `;
+    console.log(`[Store] Successfully saved/updated progress for student ${progress.studentId}, round ${progress.roundId}`);
   } catch (error) {
-    console.error('[Store] Failed to save student round progress:', error);
+    console.error('[Store] Failed to save student round progress. Details:');
+    const dbError = error as any;
+    console.error(`[Store] Error Code: ${dbError.code}`);
+    console.error(`[Store] Error Message: ${dbError.message}`);
+    // console.error(`[Store] Error Stack: ${dbError.stack}`); // Stack может быть очень длинным
+    console.error(`[Store] Error Constraint: ${dbError.constraint}`); // Полезно для ошибок FK или Unique
+    console.error(`[Store] Error Detail: ${dbError.detail}`);
     throw error;
   }
 }
@@ -208,7 +198,7 @@ export async function getOfflineScoresForStudent(studentId: string): Promise<Off
         teacherId: row.teacher_id,
         score: row.score as 2 | 3 | 4 | 5,
         notes: row.notes,
-        date: row.date // Предполагается, что date уже строка (TIMESTAMPTZ Postgres -> string)
+        date: row.date 
     }));
   } catch (error) {
     console.error('[Store] Failed to get offline scores for student:', error);
@@ -261,7 +251,6 @@ export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | '
   }
 }
 
-// Эта функция не нужна для работы с постоянной базой данных.
 export function resetStore() {
   console.warn("[Store] resetStore is a no-op when using a persistent database.");
 }
