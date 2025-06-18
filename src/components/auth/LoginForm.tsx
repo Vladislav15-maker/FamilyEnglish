@@ -77,7 +77,7 @@ export default function LoginForm() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                placeholder="например, vladislav_teacher"
+                placeholder="Vladislav"
                 className="text-base"
                 autoComplete="username"
               />
