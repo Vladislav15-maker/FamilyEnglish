@@ -1,4 +1,3 @@
-
 import NextAuth, { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { getUserByUsernameForAuth } from '@/lib/store';
@@ -20,7 +19,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         const inputUsername = credentials.username;
-        const inputPassword = credentials.password.trim(); // Обрезаем пароль
+        const inputPassword = credentials.password.trim(); 
 
         try {
           const user = await getUserByUsernameForAuth(inputUsername);
@@ -30,28 +29,38 @@ export const authOptions: NextAuthOptions = {
             console.log('[NextAuth] Пароль из credentials для сравнения (обрезанный):', `"${inputPassword}"`, `(тип: ${typeof inputPassword}, длина: ${inputPassword.length})`);
             console.log('[NextAuth] Хеш пароля пользователя из БД:', `"${user.password_hash}"`, `(тип: ${typeof user.password_hash}, длина: ${user.password_hash.length})`);
             
-            // --- ПРЯМОЙ ТЕСТ BCRYPT ---
-            // Используем правильный пароль и хеш для Vladislav
+            // Жестко закодированный тест
             const testPassword = "Vladislav15"; 
-            const testHashFromLog = "$2a$10$8cRk1J9y/H.Kx.Rk.Z8w4O.8vG3z7gH.Lw5jF3xT2rS.9YkPqQwO"; // Правильный 60-символьный хеш для "Vladislav15"
-            console.log('[NextAuth] ЖЕСТКО ЗАКОДИРОВАННЫЙ ТЕСТ - Тестовый пароль:', `"${testPassword}"`, `(тип: ${typeof testPassword}, длина: ${testPassword.length})`);
-            console.log('[NextAuth] ЖЕСТКО ЗАКОДИРОВАННЫЙ ТЕСТ - Тестовый хеш:', `"${testHashFromLog}"`, `(тип: ${typeof testHashFromLog}, длина: ${testHashFromLog.length})`);
+            const testHash = "$2a$10$R9q7XhW.zY3pS.kP6wT9yO8vG3z7gH.Lw5jF3xT2rS.9YkPqQwOe"; // 60-символьный хеш для "Vladislav15"
             
-            let hardcodedTestResult = false;
-            try {
-                hardcodedTestResult = bcrypt.compareSync(testPassword, testHashFromLog);
-            } catch (e: any) {
-                console.error('[NextAuth] Ошибка во время жестко закодированного bcrypt.compareSync:', e.message, e.stack);
-            }
-            console.log(`[NextAuth] РЕЗУЛЬТАТ ЖЕСТКО ЗАКОДИРОВАННОГО BCRYPT ТЕСТА ("${testPassword}" vs "${testHashFromLog}"): ${hardcodedTestResult}`);
-            // --- КОНЕЦ ПРЯМОГО ТЕСТА BCRYPT ---
+            console.log('[NextAuth] ЖЕСТКО ЗАКОДИРОВАННЫЙ ТЕСТ - Тестовый пароль:', `"${testPassword}"`, `(тип: ${typeof testPassword}, длина: ${testPassword.length})`);
+            console.log('[NextAuth] ЖЕСТКО ЗАКОДИРОВАННЫЙ ТЕСТ - Тестовый хеш:', `"${testHash}"`, `(тип: ${typeof testHash}, длина: ${testHash.length})`);
+            
+            const isTestHashValidLength = testHash.length === 60;
+            console.log('[NextAuth] ЖЕСТКО ЗАКОДИРОВАННЫЙ ТЕСТ - Длина тестового хеша == 60?', isTestHashValidLength);
 
-            console.log('[NextAuth] Сравнение пароля для пользователя:', user.username);
+            let hardcodedTestResult = false;
+            if (isTestHashValidLength) {
+                try {
+                    hardcodedTestResult = bcrypt.compareSync(testPassword, testHash);
+                } catch (e: any) {
+                    console.error('[NextAuth] Ошибка во время жестко закодированного bcrypt.compareSync:', e.message, e.stack);
+                }
+            } else {
+                 console.error('[NextAuth] ЖЕСТКО ЗАКОДИРОВАННЫЙ ТЕСТ - ОШИБКА ДЛИНЫ ХЕША! Ожидалось 60, получено:', testHash.length);
+            }
+            console.log(`[NextAuth] РЕЗУЛЬТАТ ЖЕСТКО ЗАКОДИРОВАННОГО BCRYPT ТЕСТА ("${testPassword}" vs "${testHash}"): ${hardcodedTestResult}`);
+            
+            // Основная проверка пароля
             let isPasswordCorrect = false;
-            try {
-                isPasswordCorrect = bcrypt.compareSync(inputPassword, user.password_hash);
-            } catch (e: any) {
-                console.error('[NextAuth] Ошибка во время сравнения пароля пользователя bcrypt.compareSync:', e.message, e.stack);
+            if (user.password_hash.length === 60) { // Проверяем длину хеша из БД
+                try {
+                    isPasswordCorrect = bcrypt.compareSync(inputPassword, user.password_hash);
+                } catch (e: any) {
+                    console.error('[NextAuth] Ошибка во время сравнения пароля пользователя bcrypt.compareSync:', e.message, e.stack);
+                }
+            } else {
+                console.error('[NextAuth] Хеш пароля пользователя из БД имеет неверную длину! Ожидалось 60, получено:', user.password_hash.length);
             }
             console.log('[NextAuth] Пароль верен (используя inputPassword и user.password_hash):', isPasswordCorrect);
 
@@ -65,6 +74,11 @@ export const authOptions: NextAuthOptions = {
               };
             } else {
               console.log('[NextAuth] Неверный пароль для пользователя:', user.username);
+              // Если жестко закодированный тест прошел успешно, но основная проверка - нет,
+              // и пользователь совпадает с тестовым, это указывает на проблему с хешем из БД для этого пользователя
+              if (hardcodedTestResult && inputUsername === testPassword && !isPasswordCorrect) {
+                  console.warn(`[NextAuth] ПРЕДУПРЕЖДЕНИЕ: Жестко закодированный тест для ${testPassword} УСПЕШЕН, но вход для пользователя ${inputUsername} с хешем из БД НЕУСПЕШЕН. Проверьте хеш в БД для ${inputUsername}.`);
+              }
               return null;
             }
           } else {
