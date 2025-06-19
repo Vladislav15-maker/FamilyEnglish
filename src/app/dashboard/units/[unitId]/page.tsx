@@ -6,7 +6,7 @@ import RoundCard from '@/components/curriculum/RoundCard';
 import { getUnitById } from '@/lib/curriculum-data';
 import type { Unit, Round, StudentRoundProgress } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
-import { getStudentRoundProgress as fetchStudentRoundProgress } from '@/lib/store'; // Mock store
+// DO NOT import getStudentRoundProgress or any store functions directly for client-side use
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, BookOpen, AlertCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,31 +22,46 @@ export default function UnitPage() {
   const [unit, setUnit] = useState<Unit | null>(null);
   const [roundsProgress, setRoundsProgress] = useState<Record<string, StudentRoundProgress | undefined>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (unitId) {
-      const currentUnit = getUnitById(unitId);
-      setUnit(currentUnit);
+    if (unitId && user && user.role === 'student') {
+      setIsLoading(true);
+      setError(null);
+      const currentUnitData = getUnitById(unitId);
+      setUnit(currentUnitData);
 
-      if (currentUnit && user && user.role === 'student') {
-        const fetchAllProgress = async () => {
-          const progressPromises = currentUnit.rounds.map(round =>
-            fetchStudentRoundProgress(user.id, unitId, round.id)
-          );
-          const results = await Promise.all(progressPromises);
-          const progressMap: Record<string, StudentRoundProgress | undefined> = {};
-          currentUnit.rounds.forEach((round, index) => {
-            progressMap[round.id] = results[index];
+      if (currentUnitData) {
+        // Fetch all progress for the student via API
+        fetch(`/api/progress/student/${user.id}`)
+          .then(res => {
+            if (!res.ok) {
+              throw new Error(`Failed to fetch student progress. Status: ${res.status}`);
+            }
+            return res.json();
+          })
+          .then((allStudentProgress: StudentRoundProgress[]) => {
+            const unitSpecificProgress = allStudentProgress.filter(p => p.unitId === unitId);
+            const progressMap: Record<string, StudentRoundProgress | undefined> = {};
+            currentUnitData.rounds.forEach(round => {
+              progressMap[round.id] = unitSpecificProgress.find(p => p.roundId === round.id);
+            });
+            setRoundsProgress(progressMap);
+          })
+          .catch(err => {
+            console.error("Failed to load student progress for unit:", err);
+            setError("Не удалось загрузить прогресс для этого юнита.");
+          })
+          .finally(() => {
+            setIsLoading(false);
           });
-          setRoundsProgress(progressMap);
-          setIsLoading(false);
-        };
-        fetchAllProgress();
       } else {
-        setIsLoading(false);
+        setIsLoading(false); // Unit data not found
       }
+    } else if (!user || user.role !== 'student') {
+        setIsLoading(false); // Not a student or no user
     }
-  }, [unitId, user]);
+  }, [unitId, user]); // user dependency ensures re-fetch if user logs in/out
 
   if (isLoading) {
     return (
@@ -60,6 +75,18 @@ export default function UnitPage() {
           {[1, 2].map(i => <RoundCardSkeleton key={i} />)}
         </div>
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+       <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Ошибка загрузки прогресса</AlertTitle>
+          <AlertDescription>
+            {error} <Link href="/dashboard/units" className="underline">Вернуться к списку юнитов.</Link>
+          </AlertDescription>
+        </Alert>
     );
   }
 
