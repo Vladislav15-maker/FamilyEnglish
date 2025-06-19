@@ -31,7 +31,6 @@ export const authOptions: NextAuthOptions = {
             console.log('[NextAuth] Хеш пароля пользователя из БД (строка):', `"${user.password_hash}"`, `(тип: ${typeof user.password_hash}, длина: ${user.password_hash.length})`);
             
             let isPasswordCorrect = false;
-            // bcryptjs should handle different prefixes like $2a$, $2b$, $2y$ automatically if the hash structure is valid
             if (user.password_hash.length === 60) { 
                 try {
                     isPasswordCorrect = bcrypt.compareSync(inputPassword, user.password_hash);
