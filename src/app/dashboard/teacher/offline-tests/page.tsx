@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getAllStudents, getAllOfflineScores } from '@/lib/store';
+// DO NOT import store functions directly
 import type { User, OfflineTestScore } from '@/lib/types';
 import OfflineTestForm from '@/components/teacher/OfflineTestForm';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,39 +18,57 @@ export default function TeacherOfflineTestsPage() {
   const [students, setStudents] = useState<User[]>([]);
   const [scores, setScores] = useState<OfflineTestScore[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchScores = useCallback(() => {
-    setIsLoading(true);
-    getAllOfflineScores()
-      .then(data => {
-        // Sort by date descending
-        setScores(data.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-      })
-      .catch(error => {
-        console.error("Failed to load offline scores:", error);
-      })
-      .finally(() => setIsLoading(false));
+  const fetchStudents = useCallback(async () => {
+    try {
+      const res = await fetch('/api/teacher/students'); // New API to get all students
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to fetch students. Status: ${res.status}`);
+      }
+      const studentsData: User[] = await res.json();
+      setStudents(studentsData);
+    } catch (err) {
+      console.error("Failed to load students from API:", err);
+      setError("Не удалось загрузить список учеников. " + (err as Error).message);
+    }
+  }, []);
+
+  const fetchScores = useCallback(async () => {
+    try {
+      const res = await fetch('/api/offline-scores/all'); // New API to get all offline scores
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to fetch offline scores. Status: ${res.status}`);
+      }
+      const scoresData: OfflineTestScore[] = await res.json();
+      setScores(scoresData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    } catch (err) {
+      console.error("Failed to load offline scores from API:", err);
+      setError((prevError) => prevError ? `${prevError}\nНе удалось загрузить историю оценок. ${(err as Error).message}` : `Не удалось загрузить историю оценок. ${(err as Error).message}`);
+    }
   }, []);
 
   useEffect(() => {
     if (user && user.role === 'teacher') {
       setIsLoading(true);
-      getAllStudents()
-        .then(studentsData => {
-          setStudents(studentsData);
-          fetchScores(); // Fetch scores after students are loaded
+      setError(null);
+      Promise.all([fetchStudents(), fetchScores()])
+        .catch(err => {
+          // Errors are handled within fetchStudents/fetchScores and set to error state
         })
-        .catch(error => {
-          console.error("Failed to load students:", error);
-          setIsLoading(false);
-        });
+        .finally(() => setIsLoading(false));
+    } else if (user && user.role !== 'teacher') {
+      setIsLoading(false);
+      setError("Доступ запрещен.");
     } else {
-        setIsLoading(false);
+      setIsLoading(false); // No user yet
     }
-  }, [user, fetchScores]);
+  }, [user, fetchStudents, fetchScores]);
 
 
-  if (isLoading && !scores.length) { // Show skeleton only on initial load or if scores are empty during load
+  if (isLoading && !scores.length && students.length === 0) { 
     return (
       <div className="space-y-8">
         <div className="flex items-center space-x-3">
@@ -83,6 +101,18 @@ export default function TeacherOfflineTestsPage() {
         </Alert>
       );
   }
+  
+  if (error && (!students.length || !scores.length)) { // Show general error if loading critical data failed
+    return (
+       <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Ошибка загрузки</AlertTitle>
+          <AlertDescription>
+            {error.split('\n').map((line, i) => <p key={i}>{line}</p>)}
+          </AlertDescription>
+        </Alert>
+    );
+  }
 
 
   return (
@@ -91,8 +121,18 @@ export default function TeacherOfflineTestsPage() {
         <CheckSquare className="h-10 w-10 text-primary" />
         <h1 className="text-4xl font-bold font-headline">Управление Оффлайн Тестами</h1>
       </div>
+      {error && (students.length > 0 || scores.length > 0) &&  ( // Show partial error if some data loaded
+         <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Ошибка при загрузке части данных</AlertTitle>
+            <AlertDescription>
+              {error.split('\n').map((line, i) => <p key={i}>{line}</p>)}
+              Некоторые данные могут быть неактуальны.
+            </AlertDescription>
+          </Alert>
+      )}
 
-      <div className="grid md:grid-cols-2 gap-8 items-start"> {/* Changed from md:grid-cols-3 */}
+      <div className="grid md:grid-cols-2 gap-8 items-start"> 
         <div className="md:col-span-1">
           {students.length > 0 ? (
             <OfflineTestForm students={students} onScoreAdded={fetchScores} />
@@ -114,7 +154,7 @@ export default function TeacherOfflineTestsPage() {
           )}
         </div>
 
-        <div className="md:col-span-1"> {/* Changed from md:col-span-2 */}
+        <div className="md:col-span-1"> 
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>История Оценок</CardTitle>

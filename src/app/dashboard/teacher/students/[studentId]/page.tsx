@@ -3,22 +3,21 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { findUserById, getAllStudentProgress as fetchStudentProgressData, getOfflineScoresForStudent } from '@/lib/store';
+// DO NOT import store functions directly for client-side use
 import { curriculum } from '@/lib/curriculum-data';
-import type { User, StudentRoundProgress, Unit, Round, Word, OfflineTestScore } from '@/lib/types';
+import type { User, StudentRoundProgress, Unit, Round, OfflineTestScore } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award, MessageSquare } from 'lucide-react';
+import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from '@/components/ui/badge';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
-
 
 export default function TeacherStudentDetailPage() {
   const params = useParams();
@@ -30,23 +29,62 @@ export default function TeacherStudentDetailPage() {
   const [progress, setProgress] = useState<StudentRoundProgress[]>([]);
   const [offlineScores, setOfflineScores] = useState<OfflineTestScore[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (teacherUser && teacherUser.role === 'teacher' && studentId) {
       setIsLoading(true);
-      Promise.all([
-        findUserById(studentId),
-        fetchStudentProgressData(studentId),
-        getOfflineScoresForStudent(studentId)
-      ]).then(([studentData, progressData, offlineScoresData]) => {
-        setStudent(studentData || null);
-        setProgress(progressData);
-        setOfflineScores(offlineScoresData.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-      }).catch(error => {
-        console.error("Failed to load student details:", error);
-      }).finally(() => setIsLoading(false));
+      setError(null);
+
+      // Fetch student details (name, etc.)
+      // This would ideally be a separate API or part of a combined student detail API
+      // For now, we'll assume student name is available or can be fetched if needed
+      // We might need to enhance the students-overview API or create a new one if we only have ID.
+      // For simplicity, we'll try to find the student from a students list if available in a higher context or fetch it.
+      // Let's assume we need an API to get student by ID for their name.
+      // Or, if `StudentProgressRow` passed student object, we could use it.
+      // As a placeholder, we'll fetch student details along with progress.
+      // Ideally, one API call to get all student-specific data.
+
+      const fetchStudentData = async () => {
+        try {
+          // 1. Fetch student basic info (if not available from a previous page/context)
+          // This API endpoint doesn't exist yet. We'll mock it for now or fetch all students and filter.
+          // For now, we'll rely on the student ID and try to get progress & offline scores.
+          // The name can be fetched from a general student list API or passed.
+          // Let's assume an API to get student by ID:
+          const studentRes = await fetch(`/api/teacher/students/${studentId}`); // NEW API (to be created)
+          if (!studentRes.ok) throw new Error('Failed to fetch student details');
+          const studentData: User = await studentRes.json();
+          setStudent(studentData);
+
+          // 2. Fetch online progress
+          const progressRes = await fetch(`/api/progress/student/${studentId}`);
+          if (!progressRes.ok) throw new Error('Failed to fetch student online progress');
+          const progressData: StudentRoundProgress[] = await progressRes.json();
+          setProgress(progressData);
+
+          // 3. Fetch offline scores
+          const offlineScoresRes = await fetch(`/api/offline-scores/student/${studentId}`);
+          if (!offlineScoresRes.ok) throw new Error('Failed to fetch student offline scores');
+          const offlineScoresData: OfflineTestScore[] = await offlineScoresRes.json();
+          setOfflineScores(offlineScoresData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+          
+        } catch (err) {
+          console.error("Failed to load student details:", err);
+          setError((err as Error).message);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchStudentData();
+
+    } else if (!teacherUser || teacherUser.role !== 'teacher') {
+      setIsLoading(false);
+      setError("Access Denied.");
     } else {
-        setIsLoading(false);
+      setIsLoading(false); // No studentId or not a teacher
     }
   }, [teacherUser, studentId]);
 
@@ -67,6 +105,18 @@ export default function TeacherStudentDetailPage() {
         </Card>
       </div>
     );
+  }
+  
+  if (error) {
+     return (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Ошибка Загрузки</AlertTitle>
+          <AlertDescription>
+            {error} <Link href="/dashboard/teacher/students" className="underline">Вернуться к списку учеников.</Link>
+          </AlertDescription>
+        </Alert>
+      );
   }
   
   if (!teacherUser || teacherUser.role !== 'teacher') {
@@ -170,7 +220,7 @@ export default function TeacherStudentDetailPage() {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {roundProgress.attempts.map(attempt => {
+                                {roundProgress.attempts.map((attempt: any) => { // Type attempt properly if possible
                                   const wordDetail = roundWords.find(w => w.id === attempt.wordId);
                                   return (
                                     <TableRow key={attempt.wordId}>
@@ -194,9 +244,9 @@ export default function TeacherStudentDetailPage() {
                                 Детали по ответам не сохранены для этого раунда.
                             </CardContent>
                          )}
-                         {!roundProgress && (
+                         {(!roundProgress || (Array.isArray(roundProgress.attempts) && roundProgress.attempts.length === 0)) && !roundProgress?.completed && (
                             <CardContent className="p-4 text-sm text-muted-foreground">
-                                Ученик еще не проходил этот раунд.
+                                Ученик еще не проходил этот раунд или нет данных по ответам.
                             </CardContent>
                          )}
                       </Card>

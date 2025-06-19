@@ -1,23 +1,23 @@
 'use client';
 import { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import type { User } from '@/lib/types';
-import { addOfflineScore } from '@/lib/store';
+// DO NOT import addOfflineScore from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Check, Edit } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const offlineTestSchema = z.object({
   studentId: z.string().min(1, "Выберите ученика"),
-  score: z.coerce.number().min(2).max(5, "Оценка должна быть от 2 до 5"),
+  score: z.coerce.number().min(2, "Оценка должна быть от 2 до 5").max(5, "Оценка должна быть от 2 до 5"),
   notes: z.string().optional(),
 });
 
@@ -25,45 +25,61 @@ type OfflineTestFormValues = z.infer<typeof offlineTestSchema>;
 
 interface OfflineTestFormProps {
   students: User[];
-  onScoreAdded?: () => void; // Callback after score is successfully added
+  onScoreAdded?: () => void; 
 }
 
 export default function OfflineTestForm({ students, onScoreAdded }: OfflineTestFormProps) {
   const { toast } = useToast();
+  const { user: teacherUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  
   const form = useForm<OfflineTestFormValues>({
     resolver: zodResolver(offlineTestSchema),
     defaultValues: {
       studentId: '',
-      score: undefined, // Let placeholder show
+      score: undefined, 
       notes: '',
     },
   });
 
-  const { user: teacherUser } = useAuth(); // Assuming useAuth is available and gives teacher's ID
-
   const onSubmit = async (data: OfflineTestFormValues) => {
-    if (!teacherUser) {
-        toast({ title: "Ошибка", description: "Учитель не авторизован.", variant: "destructive" });
+    if (!teacherUser || teacherUser.role !== 'teacher') {
+        toast({ title: "Ошибка", description: "Только учитель может добавлять оценки.", variant: "destructive" });
         return;
     }
     setIsLoading(true);
     try {
-      await addOfflineScore({ ...data, teacherId: teacherUser.id });
+      const response = await fetch('/api/offline-scores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: data.studentId,
+          score: data.score,
+          notes: data.notes,
+          // teacherId will be inferred from session on the backend
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Неизвестная ошибка сервера" }));
+        throw new Error(errorData.error?.message || errorData.error || `Ошибка сервера: ${response.status}`);
+      }
+
+      const newScore = await response.json();
       toast({
         title: 'Оценка добавлена',
-        description: `Оценка ${data.score} для ученика успешно сохранена.`,
+        description: `Оценка ${newScore.score} для ученика успешно сохранена.`,
         variant: 'default'
       });
       form.reset();
-      onScoreAdded?.(); // Call callback if provided
+      onScoreAdded?.();
     } catch (error) {
       toast({
         title: 'Ошибка сохранения',
-        description: 'Не удалось сохранить оценку. Пожалуйста, попробуйте еще раз.',
+        description: (error as Error).message || 'Не удалось сохранить оценку. Пожалуйста, попробуйте еще раз.',
         variant: 'destructive',
       });
-      console.error("Failed to add offline score:", error);
+      console.error("Failed to add offline score via API:", error);
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +103,7 @@ export default function OfflineTestForm({ students, onScoreAdded }: OfflineTestF
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Ученик</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || ''} defaultValue={field.value || ''}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Выберите ученика" />
@@ -115,7 +131,6 @@ export default function OfflineTestForm({ students, onScoreAdded }: OfflineTestF
                   <FormControl>
                     <RadioGroup
                       onValueChange={(value) => field.onChange(Number(value))}
-                      defaultValue={field.value?.toString()}
                       value={field.value?.toString()}
                       className="flex space-x-4"
                     >
@@ -163,6 +178,3 @@ export default function OfflineTestForm({ students, onScoreAdded }: OfflineTestF
     </Card>
   );
 }
-
-// Need to import useAuth if it's not globally available or passed as prop
-import { useAuth } from '@/context/AuthContext';
