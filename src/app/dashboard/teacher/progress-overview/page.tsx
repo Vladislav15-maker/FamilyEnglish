@@ -137,80 +137,83 @@ export default function TeacherProgressOverviewPage() {
         <Card className="shadow-lg">
           <CardHeader> <CardTitle>Сводная таблица успеваемости</CardTitle> <CardDescription>Прогресс учеников по всем юнитам. Наведите на ячейку для деталей. Горизонтальная прокрутка доступна.</CardDescription> </CardHeader>
           <CardContent>
-            <ScrollArea className="w-full whitespace-nowrap">
-            <Table className="min-w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="sticky left-0 bg-card z-10 w-[200px] min-w-[200px] border-r">Ученик</TableHead>
-                  {curriculum.map(unit => ( <TableHead key={unit.id} className="text-center min-w-[180px] px-2">{unit.name}</TableHead> ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {studentsData.map(student => (
-                  <TableRow key={student.id}>
-                    <TableCell className="font-medium sticky left-0 bg-card z-10 border-r">{student.name}</TableCell>
-                    {curriculum.map(unit => {
-                      const progress = allProgressData[student.id]?.[unit.id];
-                      let cellContent: React.ReactNode = <Circle className="h-4 w-4 text-muted-foreground mx-auto" />;
-                      let tooltipTitle = `${student.name} - ${unit.name}: `;
-                      let tooltipRoundDetailsNodes: React.ReactNode[] = [];
-
-                      if (progress) {
-                        if (progress.unitCompleted) {
-                          cellContent = <CheckCircle className="h-5 w-5 text-green-500 mx-auto" />;
-                          tooltipTitle += `Завершен. Средний балл ${progress.unitAverageScore ?? 'N/A'}%.`;
-                        } else if (progress.unitAverageScore !== undefined) {
-                          const scoreColor = progress.unitAverageScore >= 80 ? 'text-green-600' : progress.unitAverageScore >= 50 ? 'text-yellow-600' : 'text-red-600';
-                          cellContent = <span className={`font-bold ${scoreColor}`}>{progress.unitAverageScore}%</span>;
-                          tooltipTitle += `В процессе. Средний балл по завершенным раундам ${progress.unitAverageScore}%.`;
-                        } else if (progress.hasProgress) {
-                           cellContent = <Circle className="h-4 w-4 text-yellow-500 mx-auto" />; // In progress but no completed rounds yet
-                           tooltipTitle += `В процессе (нет завершенных раундов).`;
-                        }
-                         else if (unit.rounds.length === 0) {
-                          cellContent = <MinusCircle className="h-4 w-4 text-muted-foreground mx-auto" />;
-                          tooltipTitle = `${unit.name}: Нет раундов.`;
-                        } else {
-                          cellContent = <Circle className="h-4 w-4 text-muted-foreground mx-auto" />;
-                          tooltipTitle += `Не начат.`;
-                        }
-
-                        if (unit.rounds.length > 0 && progress.roundsDetail && progress.roundsDetail.length > 0) {
-                          tooltipRoundDetailsNodes = progress.roundsDetail.map(rd => {
-                            const roundStatusText = rd.completed 
-                              ? `${rd.score}% (завершен)` 
-                              : (typeof rd.score === 'number' ? `${rd.score}% (в процессе)` : 'не начат');
-                            const Icon = rd.completed ? CheckCircle : (typeof rd.score === 'number' ? Circle : XCircle);
-                            const iconColor = rd.completed ? 'text-green-500' : (typeof rd.score === 'number' ? 'text-yellow-600' : 'text-red-500');
-                            return ( <li key={rd.roundName} className="flex items-center"> <Icon className={`h-3 w-3 mr-1.5 shrink-0 ${iconColor}`} /> {rd.roundName}: {roundStatusText} </li> );
-                          });
-                        } else if (unit.rounds.length > 0) {
-                           tooltipRoundDetailsNodes.push(<li key="no-round-data" className="text-xs italic">Нет данных по раундам.</li>);
-                        }
-                      } else {
-                          if (unit.rounds.length === 0) {
-                               cellContent = <MinusCircle className="h-4 w-4 text-muted-foreground mx-auto" />;
-                               tooltipTitle = `${unit.name}: Нет раундов.`;
-                          } else {
-                               tooltipTitle += `Нет данных.`;
-                          }
-                      }
-
-                      return (
-                        <TableCell key={unit.id} className="text-center min-w-[180px] px-2">
-                          <TooltipProvider delayDuration={100}> <Tooltip> <TooltipTrigger asChild> <div className="cursor-default p-2 min-h-[36px] flex items-center justify-center">{cellContent}</div> </TooltipTrigger> <TooltipContent className="max-w-xs text-sm"> <p className="font-semibold mb-1">{tooltipTitle}</p> {tooltipRoundDetailsNodes.length > 0 && ( <ul className="list-none pl-1 mt-1 space-y-0.5"> {tooltipRoundDetailsNodes} </ul> )} </TooltipContent> </Tooltip> </TooltipProvider>
-                        </TableCell>
-                      );
-                    })}
+            <TooltipProvider delayDuration={100}>
+              <ScrollArea className="w-full whitespace-nowrap">
+              <Table className="min-w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="sticky left-0 bg-card z-10 w-[200px] min-w-[200px] border-r">Ученик</TableHead>
+                    {curriculum.map(unit => ( <TableHead key={unit.id} className="text-center min-w-[180px] px-2">{unit.name}</TableHead> ))}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+                </TableHeader>
+                <TableBody>
+                  {studentsData.map(student => (
+                    <TableRow key={student.id}>
+                      <TableCell className="font-medium sticky left-0 bg-card z-10 border-r">{student.name}</TableCell>
+                      {curriculum.map(unit => {
+                        const progress = allProgressData[student.id]?.[unit.id];
+                        let cellContent: React.ReactNode = <Circle className="h-4 w-4 text-muted-foreground mx-auto" />;
+                        let tooltipTitle = `${student.name} - ${unit.name}: `;
+                        let tooltipRoundDetailsNodes: React.ReactNode[] = [];
+
+                        if (progress) {
+                          if (progress.unitCompleted) {
+                            cellContent = <CheckCircle className="h-5 w-5 text-green-500 mx-auto" />;
+                            tooltipTitle += `Завершен. Средний балл ${progress.unitAverageScore ?? 'N/A'}%.`;
+                          } else if (progress.unitAverageScore !== undefined) {
+                            const scoreColor = progress.unitAverageScore >= 80 ? 'text-green-600' : progress.unitAverageScore >= 50 ? 'text-yellow-600' : 'text-red-600';
+                            cellContent = <span className={`font-bold ${scoreColor}`}>{progress.unitAverageScore}%</span>;
+                            tooltipTitle += `В процессе. Средний балл по завершенным раундам ${progress.unitAverageScore}%.`;
+                          } else if (progress.hasProgress) {
+                             cellContent = <Circle className="h-4 w-4 text-yellow-500 mx-auto" />; // In progress but no completed rounds yet
+                             tooltipTitle += `В процессе (нет завершенных раундов).`;
+                          }
+                           else if (unit.rounds.length === 0) {
+                            cellContent = <MinusCircle className="h-4 w-4 text-muted-foreground mx-auto" />;
+                            tooltipTitle = `${unit.name}: Нет раундов.`;
+                          } else {
+                            cellContent = <Circle className="h-4 w-4 text-muted-foreground mx-auto" />;
+                            tooltipTitle += `Не начат.`;
+                          }
+
+                          if (unit.rounds.length > 0 && progress.roundsDetail && progress.roundsDetail.length > 0) {
+                            tooltipRoundDetailsNodes = progress.roundsDetail.map(rd => {
+                              const roundStatusText = rd.completed 
+                                ? `${rd.score}% (завершен)` 
+                                : (typeof rd.score === 'number' ? `${rd.score}% (в процессе)` : 'не начат');
+                              const Icon = rd.completed ? CheckCircle : (typeof rd.score === 'number' ? Circle : XCircle);
+                              const iconColor = rd.completed ? 'text-green-500' : (typeof rd.score === 'number' ? 'text-yellow-600' : 'text-red-500');
+                              return ( <li key={rd.roundName} className="flex items-center"> <Icon className={`h-3 w-3 mr-1.5 shrink-0 ${iconColor}`} /> {rd.roundName}: {roundStatusText} </li> );
+                            });
+                          } else if (unit.rounds.length > 0) {
+                             tooltipRoundDetailsNodes.push(<li key="no-round-data" className="text-xs italic">Нет данных по раундам.</li>);
+                          }
+                        } else {
+                            if (unit.rounds.length === 0) {
+                                 cellContent = <MinusCircle className="h-4 w-4 text-muted-foreground mx-auto" />;
+                                 tooltipTitle = `${unit.name}: Нет раундов.`;
+                            } else {
+                                 tooltipTitle += `Нет данных.`;
+                            }
+                        }
+
+                        return (
+                          <TableCell key={unit.id} className="text-center min-w-[180px] px-2">
+                            <Tooltip> <TooltipTrigger asChild> <div className="cursor-default p-2 min-h-[36px] flex items-center justify-center">{cellContent}</div> </TooltipTrigger> <TooltipContent className="max-w-xs text-sm"> <p className="font-semibold mb-1">{tooltipTitle}</p> {tooltipRoundDetailsNodes.length > 0 && ( <ul className="list-none pl-1 mt-1 space-y-0.5"> {tooltipRoundDetailsNodes} </ul> )} </TooltipContent> </Tooltip>
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            </TooltipProvider>
           </CardContent>
         </Card>
       )}
     </div>
   );
 }
+
