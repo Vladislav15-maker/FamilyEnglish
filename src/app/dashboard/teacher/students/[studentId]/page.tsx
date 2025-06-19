@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award } from 'lucide-react';
+import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award, TrendingUp, ListChecks, ClipboardCheck, Sigma } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -36,37 +36,23 @@ export default function TeacherStudentDetailPage() {
       setIsLoading(true);
       setError(null);
 
-      // Fetch student details (name, etc.)
-      // This would ideally be a separate API or part of a combined student detail API
-      // For now, we'll assume student name is available or can be fetched if needed
-      // We might need to enhance the students-overview API or create a new one if we only have ID.
-      // For simplicity, we'll try to find the student from a students list if available in a higher context or fetch it.
-      // Let's assume we need an API to get student by ID for their name.
-      // Or, if `StudentProgressRow` passed student object, we could use it.
-      // As a placeholder, we'll fetch student details along with progress.
-      // Ideally, one API call to get all student-specific data.
-
       const fetchStudentData = async () => {
         try {
-          // 1. Fetch student basic info (if not available from a previous page/context)
-          // This API endpoint doesn't exist yet. We'll mock it for now or fetch all students and filter.
-          // For now, we'll rely on the student ID and try to get progress & offline scores.
-          // The name can be fetched from a general student list API or passed.
-          // Let's assume an API to get student by ID:
-          const studentRes = await fetch(`/api/teacher/students/${studentId}`); // NEW API (to be created)
-          if (!studentRes.ok) throw new Error('Failed to fetch student details');
+          const [studentRes, progressRes, offlineScoresRes] = await Promise.all([
+            fetch(`/api/teacher/students/${studentId}`),
+            fetch(`/api/progress/student/${studentId}`),
+            fetch(`/api/offline-scores/student/${studentId}`)
+          ]);
+
+          if (!studentRes.ok) throw new Error(`Не удалось загрузить данные ученика. Статус: ${studentRes.status}`);
           const studentData: User = await studentRes.json();
           setStudent(studentData);
 
-          // 2. Fetch online progress
-          const progressRes = await fetch(`/api/progress/student/${studentId}`);
-          if (!progressRes.ok) throw new Error('Failed to fetch student online progress');
+          if (!progressRes.ok) throw new Error(`Не удалось загрузить онлайн прогресс ученика. Статус: ${progressRes.status}`);
           const progressData: StudentRoundProgress[] = await progressRes.json();
           setProgress(progressData);
 
-          // 3. Fetch offline scores
-          const offlineScoresRes = await fetch(`/api/offline-scores/student/${studentId}`);
-          if (!offlineScoresRes.ok) throw new Error('Failed to fetch student offline scores');
+          if (!offlineScoresRes.ok) throw new Error(`Не удалось загрузить оффлайн оценки ученика. Статус: ${offlineScoresRes.status}`);
           const offlineScoresData: OfflineTestScore[] = await offlineScoresRes.json();
           setOfflineScores(offlineScoresData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
           
@@ -82,7 +68,7 @@ export default function TeacherStudentDetailPage() {
 
     } else if (!teacherUser || teacherUser.role !== 'teacher') {
       setIsLoading(false);
-      setError("Access Denied.");
+      setError("Доступ запрещен.");
     } else {
       setIsLoading(false); // No studentId or not a teacher
     }
@@ -143,6 +129,22 @@ export default function TeacherStudentDetailPage() {
     );
   }
 
+  // Calculate statistics for the summary card
+  const totalOnlineRoundsCompleted = progress.filter(p => p.completed).length;
+  const sumOnlineScores = progress
+    .filter(p => p.completed)
+    .reduce((acc, p) => acc + p.score, 0);
+  const averageOnlineRoundScore = totalOnlineRoundsCompleted > 0 
+    ? Math.round(sumOnlineScores / totalOnlineRoundsCompleted) 
+    : 0;
+
+  const totalOfflineTestsTaken = offlineScores.length;
+  const sumOfflineScoresValue = offlineScores.reduce((acc, s) => acc + s.score, 0);
+  const averageOfflineTestScore = totalOfflineTestsTaken > 0 
+    ? parseFloat((sumOfflineScoresValue / totalOfflineTestsTaken).toFixed(1))
+    : 0;
+
+
   return (
     <div className="space-y-8">
       <Breadcrumb>
@@ -170,9 +172,41 @@ export default function TeacherStudentDetailPage() {
         </Button>
       </div>
 
+      {/* Student Summary Statistics Card */}
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle className="flex items-center text-xl">
+            <Sigma className="mr-2 h-6 w-6 text-primary" />
+            Сводка по Ученику
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-col items-center p-4 rounded-lg bg-muted/30">
+            <ListChecks className="h-8 w-8 text-blue-500 mb-2" />
+            <p className="text-2xl font-bold">{totalOnlineRoundsCompleted}</p>
+            <p className="text-sm text-muted-foreground text-center">Пройдено онлайн-раундов</p>
+          </div>
+          <div className="flex flex-col items-center p-4 rounded-lg bg-muted/30">
+            <TrendingUp className="h-8 w-8 text-green-500 mb-2" />
+            <p className="text-2xl font-bold">{averageOnlineRoundScore}%</p>
+            <p className="text-sm text-muted-foreground text-center">Средний балл (онлайн)</p>
+          </div>
+          <div className="flex flex-col items-center p-4 rounded-lg bg-muted/30">
+            <ClipboardCheck className="h-8 w-8 text-purple-500 mb-2" />
+            <p className="text-2xl font-bold">{totalOfflineTestsTaken}</p>
+            <p className="text-sm text-muted-foreground text-center">Сдано оффлайн-тестов</p>
+          </div>
+          <div className="flex flex-col items-center p-4 rounded-lg bg-muted/30">
+            <Award className="h-8 w-8 text-yellow-500 mb-2" />
+            <p className="text-2xl font-bold">{averageOfflineTestScore > 0 ? averageOfflineTestScore : 'N/A'}</p>
+            <p className="text-sm text-muted-foreground text-center">Средний балл (оффлайн)</p>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
-          <CardTitle>Успеваемость по юнитам</CardTitle>
+          <CardTitle>Успеваемость по юнитам (Онлайн)</CardTitle>
           <CardDescription>Детальный просмотр прогресса по каждому раунду.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -220,10 +254,10 @@ export default function TeacherStudentDetailPage() {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {roundProgress.attempts.map((attempt: any) => { // Type attempt properly if possible
+                                {roundProgress.attempts.map((attempt: any, index: number) => { // Type attempt properly if possible
                                   const wordDetail = roundWords.find(w => w.id === attempt.wordId);
                                   return (
-                                    <TableRow key={attempt.wordId}>
+                                    <TableRow key={`${attempt.wordId}-${index}`}>
                                       <TableCell>{wordDetail?.russian}</TableCell>
                                       <TableCell className="font-mono">{attempt.userAnswer || "-"}</TableCell>
                                       <TableCell className="font-mono">{wordDetail?.english}</TableCell>
@@ -244,7 +278,7 @@ export default function TeacherStudentDetailPage() {
                                 Детали по ответам не сохранены для этого раунда.
                             </CardContent>
                          )}
-                         {(!roundProgress || (Array.isArray(roundProgress.attempts) && roundProgress.attempts.length === 0)) && !roundProgress?.completed && (
+                         {(!roundProgress || (Array.isArray(roundProgress?.attempts) && roundProgress?.attempts.length === 0)) && !roundProgress?.completed && (
                             <CardContent className="p-4 text-sm text-muted-foreground">
                                 Ученик еще не проходил этот раунд или нет данных по ответам.
                             </CardContent>
@@ -283,7 +317,18 @@ export default function TeacherStudentDetailPage() {
                 {offlineScores.map(score => (
                   <TableRow key={score.id}>
                     <TableCell>{format(new Date(score.date), 'dd.MM.yyyy HH:mm', { locale: ru })}</TableCell>
-                    <TableCell className="text-center font-bold text-lg">{score.score}</TableCell>
+                    <TableCell className="text-center">
+                        <Badge 
+                            className={`text-lg font-bold
+                            ${score.score === 5 ? 'bg-green-500 hover:bg-green-600' : ''}
+                            ${score.score === 4 ? 'bg-blue-500 hover:bg-blue-600' : ''}
+                            ${score.score === 3 ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : ''}
+                            ${score.score === 2 ? 'bg-red-500 hover:bg-red-600' : ''}
+                            `}
+                        >
+                        {score.score}
+                        </Badge>
+                    </TableCell>
                     <TableCell>{score.notes || '-'}</TableCell>
                   </TableRow>
                 ))}
@@ -295,3 +340,6 @@ export default function TeacherStudentDetailPage() {
     </div>
   );
 }
+
+
+    

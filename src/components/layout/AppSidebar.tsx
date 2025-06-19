@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Home, Users, BookOpen, CheckSquare, Award, BarChart3 } from 'lucide-react';
+import { Home, Users, BookOpen, CheckSquare, Award, BarChart3, LibraryBig } from 'lucide-react';
 
 export interface NavItem {
   href: string;
@@ -22,8 +22,9 @@ export const navItems: NavItem[] = [
   { href: '/dashboard/student/offline-tests', label: 'Оффлайн Тесты', icon: Award, roles: ['student'] },
   
   { href: '/dashboard/teacher/students', label: 'Ученики', icon: Users, roles: ['teacher'], exactMatch: true }, // Default teacher home
-  { href: '/dashboard/teacher/offline-tests', label: 'Оффлайн Тесты', icon: CheckSquare, roles: ['teacher'] },
   { href: '/dashboard/teacher/progress-overview', label: 'Общий Прогресс', icon: BarChart3, roles: ['teacher'] },
+  { href: '/dashboard/teacher/offline-tests', label: 'Оффлайн Тесты', icon: CheckSquare, roles: ['teacher'] },
+  { href: '/dashboard/teacher/curriculum', label: 'Учебный План', icon: LibraryBig, roles: ['teacher'] },
 ];
 
 export default function AppSidebar() {
@@ -59,3 +60,4 @@ export default function AppSidebar() {
     </aside>
   );
 }
+
