@@ -310,4 +310,3 @@ export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | '
 export function resetStore() {
   console.warn("[Store] resetStore is a no-op when using a persistent database.");
 }
-
