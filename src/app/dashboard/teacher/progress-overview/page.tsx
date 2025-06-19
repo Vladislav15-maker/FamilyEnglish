@@ -105,10 +105,10 @@ export default function TeacherProgressOverviewPage() {
           setError((err as Error).message);
         })
         .finally(() => setIsLoading(false));
-    } else if (!user && !isLoading) {
+    } else if (!user && !isLoading) { // Changed from `!user && isLoading` to `!user && !isLoading` for more precise condition
       setIsLoading(false);
     }
-  }, [user, isLoading]);
+  }, [user, isLoading]); // Keep isLoading here for initial load trigger
 
 
   if (isLoading) {
@@ -199,7 +199,19 @@ export default function TeacherProgressOverviewPage() {
 
                         return (
                           <TableCell key={unit.id} className="text-center min-w-[180px] px-2">
-                            <Tooltip> <TooltipTrigger asChild> <div className="cursor-default p-2 min-h-[36px] flex items-center justify-center">{cellContent}</div> </TooltipTrigger> <TooltipContent className="max-w-xs text-sm"> <p className="font-semibold mb-1">{tooltipTitle}</p> {tooltipRoundDetailsNodes.length > 0 && ( <ul className="list-none pl-1 mt-1 space-y-0.5"> {tooltipRoundDetailsNodes} </ul> )} </TooltipContent> </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger> {/* Removed asChild here */}
+                                <div className="cursor-default p-2 min-h-[36px] flex items-center justify-center">{cellContent}</div>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs text-sm">
+                                <p className="font-semibold mb-1">{tooltipTitle}</p>
+                                {tooltipRoundDetailsNodes.length > 0 && (
+                                  <ul className="list-none pl-1 mt-1 space-y-0.5">
+                                    {tooltipRoundDetailsNodes}
+                                  </ul>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
                           </TableCell>
                         );
                       })}
@@ -216,4 +228,3 @@ export default function TeacherProgressOverviewPage() {
     </div>
   );
 }
-
