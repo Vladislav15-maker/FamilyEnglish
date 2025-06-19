@@ -14,6 +14,48 @@ interface WordTestInputProps {
   onNext?: () => void; 
 }
 
+function normalizeAnswer(answer: string): string {
+  if (typeof answer !== 'string') return '';
+  let normalized = answer.trim().toLowerCase();
+  
+  // Основные сокращения с апострофом
+  normalized = normalized.replace(/i'm/g, 'i am');
+  normalized = normalized.replace(/you're/g, 'you are');
+  normalized = normalized.replace(/he's/g, 'he is');
+  normalized = normalized.replace(/she's/g, 'she is');
+  normalized = normalized.replace(/it's/g, 'it is');
+  normalized = normalized.replace(/we're/g, 'we are');
+  normalized = normalized.replace(/they're/g, 'they are');
+  normalized = normalized.replace(/what's/g, 'what is');
+  normalized = normalized.replace(/let's/g, 'let us');
+  normalized = normalized.replace(/who's/g, 'who is'); // Добавлено
+
+  // Сокращения с "n't"
+  normalized = normalized.replace(/can't/g, 'cannot');
+  normalized = normalized.replace(/won't/g, 'will not');
+  normalized = normalized.replace(/isn't/g, 'is not');
+  normalized = normalized.replace(/aren't/g, 'are not');
+  normalized = normalized.replace(/wasn't/g, 'was not');
+  normalized = normalized.replace(/weren't/g, 'were not');
+  normalized = normalized.replace(/hasn't/g, 'has not');
+  normalized = normalized.replace(/haven't/g, 'have not');
+  normalized = normalized.replace(/hadn't/g, 'had not');
+  normalized = normalized.replace(/doesn't/g, 'does not');
+  normalized = normalized.replace(/don't/g, 'do not');
+  normalized = normalized.replace(/didn't/g, 'did not');
+  normalized = normalized.replace(/wouldn't/g, 'would not');
+  normalized = normalized.replace(/shouldn't/g, 'should not');
+  normalized = normalized.replace(/couldn't/g, 'could not');
+  
+  // Удаление некоторых знаков пунктуации в конце строки, если они не являются частью ответа
+  // Это более мягкий подход, чем полное удаление всей пунктуации
+  normalized = normalized.replace(/[.,!?;:]+$/, '');
+
+  // Нормализация пробелов
+  return normalized.replace(/\s+/g, ' ').trim();
+}
+
+
 export default function WordTestInput({ word, onAnswer, showNextButton = false, onNext }: WordTestInputProps) {
   const [userAnswer, setUserAnswer] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -21,10 +63,8 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Reset state when the word prop changes
     setUserAnswer('');
     setIsSubmitted(false);
-    // isCorrect will be determined on the next submit
     if (inputRef.current) {
       inputRef.current.focus();
     }
@@ -32,27 +72,25 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
 
   const handleFormSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (isSubmitted) return; // Don't allow re-submission for the same displayed word view
+    if (isSubmitted) return;
 
-    const cleanUserAnswer = userAnswer.trim().toLowerCase();
-    const cleanCorrectAnswer = word.english.trim().toLowerCase();
-    const correct = cleanUserAnswer === cleanCorrectAnswer;
+    const normalizedUserAnswer = normalizeAnswer(userAnswer);
+    const normalizedCorrectAnswer = normalizeAnswer(word.english);
+    
+    const correct = normalizedUserAnswer === normalizedCorrectAnswer;
     
     setIsCorrect(correct);
-    setIsSubmitted(true); // Show feedback
-    onAnswer(correct, userAnswer.trim()); // Notify parent about the answer outcome
+    setIsSubmitted(true);
+    onAnswer(correct, userAnswer.trim());
   };
 
   const handleNextClick = () => {
-    // Parent component (TestRoundPage) will handle advancing the word.
-    // This component will then re-render with a new 'word' prop, triggering the useEffect.
     if(onNext) {
         onNext();
     }
   };
 
   const handleRetryInternal = () => {
-    // This allows retrying the same word if showNextButton is false (typical for practice)
     setUserAnswer('');
     setIsSubmitted(false);
     if (inputRef.current) {
@@ -79,7 +117,7 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
             value={userAnswer}
             onChange={(e) => setUserAnswer(e.target.value)}
             placeholder="Введите перевод на английском"
-            disabled={isSubmitted} // Disable input after submission for this word
+            disabled={isSubmitted}
             className={`text-lg p-4 h-14 ${isSubmitted ? (isCorrect ? 'border-green-500 focus:border-green-500 ring-green-500' : 'border-red-500 focus:border-red-500 ring-red-500') : ''}`}
             aria-label="Поле для ввода перевода"
           />
@@ -87,7 +125,7 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
             <Button type="submit" className="w-full text-lg py-3" size="lg">
               Проверить
             </Button>
-          ) : showNextButton && onNext ? ( // Show "Next" button if configured and after submission
+          ) : showNextButton && onNext ? (
             <Button type="button" onClick={handleNextClick} className="w-full text-lg py-3" size="lg">
               Дальше <ChevronRight className="ml-2 h-5 w-5" />
             </Button>
@@ -109,7 +147,7 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
                 </div>
                 <p className="text-md">Ваш ответ: <span className="font-mono">{userAnswer || "(пусто)"}</span></p>
                 <p className="text-md">Правильный ответ: <span className="font-semibold font-mono">{word.english}</span></p>
-                {!showNextButton && ( // Only show "Try Again" if not in "showNextButton" flow
+                {!showNextButton && (
                   <Button onClick={handleRetryInternal} variant="outline" size="sm" className="mt-2">
                     <RotateCcw className="mr-2 h-4 w-4" /> Попробовать еще раз
                   </Button>

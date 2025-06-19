@@ -7,13 +7,34 @@ import { BookMarked, ArrowRight } from 'lucide-react';
 
 interface UnitCardProps {
   unit: Unit;
-  progress?: StudentRoundProgress[]; // Progress for all rounds in this unit
+  progress?: StudentRoundProgress[]; // Progress for all rounds in this unit for a specific student
 }
 
 export default function UnitCard({ unit, progress = [] }: UnitCardProps) {
-  const totalRounds = unit.rounds.length;
-  const completedRounds = progress.filter(p => p.completed && p.score >= 0).length; // Assuming score >= 0 means attempted/completed
-  const unitProgressPercentage = totalRounds > 0 ? (completedRounds / totalRounds) * 100 : 0;
+  const totalRoundsInUnit = unit.rounds.length;
+  
+  // Фильтруем прогресс только для завершенных раундов этого юнита
+  const completedRoundsProgressInUnit = progress.filter(p => p.unitId === unit.id && p.completed);
+
+  let displayProgressPercentage = 0;
+  let progressLabelText = "0%";
+
+  if (totalRoundsInUnit === 0) {
+    progressLabelText = "Нет раундов";
+  } else if (completedRoundsProgressInUnit.length > 0) {
+    const sumOfScores = completedRoundsProgressInUnit.reduce((sum, p) => sum + p.score, 0);
+    displayProgressPercentage = Math.round(sumOfScores / completedRoundsProgressInUnit.length);
+    progressLabelText = `${displayProgressPercentage}%`;
+  } else if (progress.some(p => p.unitId === unit.id && !p.completed && p.attempts?.length > 0)) {
+    // Если есть попытки, но ни один раунд не завершен
+    progressLabelText = "В процессе";
+  } else {
+    progressLabelText = "Не начат";
+  }
+
+
+  const roundsCountText = totalRoundsInUnit === 1 ? 'раунд' : 
+                         (totalRoundsInUnit > 1 && totalRoundsInUnit < 5 ? 'раунда' : 'раундов');
 
   return (
     <Card className="hover:shadow-lg transition-shadow duration-300 flex flex-col">
@@ -22,15 +43,15 @@ export default function UnitCard({ unit, progress = [] }: UnitCardProps) {
             <BookMarked className="h-8 w-8 text-primary" />
             <CardTitle className="text-2xl font-headline">{unit.name}</CardTitle>
         </div>
-        <CardDescription>{totalRounds} {totalRounds === 1 ? 'раунд' : (totalRounds > 1 && totalRounds < 5 ? 'раунда' : 'раундов')}</CardDescription>
+        <CardDescription>{totalRoundsInUnit} {roundsCountText}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow">
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Прогресс</span>
-            <span>{Math.round(unitProgressPercentage)}%</span>
+            <span>Прогресс (средний балл)</span>
+            <span>{progressLabelText}</span>
           </div>
-          <Progress value={unitProgressPercentage} aria-label={`Прогресс по юниту ${unit.name}: ${Math.round(unitProgressPercentage)}%`} />
+          <Progress value={displayProgressPercentage} aria-label={`Средний балл по юниту ${unit.name}: ${displayProgressPercentage}%`} />
         </div>
       </CardContent>
       <CardFooter>
