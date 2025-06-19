@@ -1,4 +1,3 @@
-
 import NextAuth, { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { getUserByUsernameForAuth } from '@/lib/store';
@@ -20,37 +19,32 @@ export const authOptions: NextAuthOptions = {
         }
 
         const inputUsername = credentials.username;
-        const inputPassword = credentials.password.trim();
+        const inputPassword = credentials.password.trim(); 
 
         try {
           const user = await getUserByUsernameForAuth(inputUsername);
           console.log('[NextAuth] Пользователь получен из БД для authorize:', user?.username, 'Роль:', user?.role);
 
           if (user && user.password_hash) {
-            console.log(`[NextAuth] Пароль из credentials для сравнения (обрезанный): "${inputPassword}" (тип: ${typeof inputPassword}, длина: ${inputPassword.length})`);
-            console.log(`[NextAuth] Хеш пароля пользователя из БД (строка): "${user.password_hash}" (тип: ${typeof user.password_hash}, длина: ${user.password_hash.length})`);
+            console.log('[NextAuth] Пароль из credentials для сравнения (обрезанный):', `"${inputPassword}"`, `(тип: ${typeof inputPassword}, длина: ${inputPassword.length})`);
+            console.log('[NextAuth] Хеш пароля пользователя из БД (строка):', `"${user.password_hash}"`, `(тип: ${typeof user.password_hash}, длина: ${user.password_hash.length})`);
             
             let isPasswordCorrect = false;
-            // Проверяем, что длина хеша из БД равна 60, как и ожидается для bcrypt
-            if (user.password_hash.length === 60) {
+            if (user.password_hash.length === 60) { 
                 try {
                     isPasswordCorrect = bcrypt.compareSync(inputPassword, user.password_hash);
                 } catch (e: any) {
-                    console.error('[NextAuth] ОШИБКА во время сравнения пароля пользователя bcrypt.compareSync:', e.message, e.stack);
-                    // Если префикс $2y$ вызывает проблемы с bcryptjs, можно попробовать заменить его на $2a$ перед сравнением
-                    // Однако, если длины не совпадают или есть другие проблемы, это не поможет.
-                    // bcryptjs обычно должен корректно обрабатывать $2a$, $2b$, $2x$, $2y$
+                    console.error('[NextAuth] Ошибка во время сравнения пароля пользователя bcrypt.compareSync:', e.message, e.stack);
                 }
             } else {
                 console.error(`[NextAuth] Хеш пароля пользователя из БД имеет неверную длину! Ожидалось 60, получено: ${user.password_hash.length}. Сравнение bcrypt не будет выполнено.`);
             }
-            
             console.log(`[NextAuth] Пароль верен (используя inputPassword и user.password_hash): ${isPasswordCorrect}`);
 
             if (isPasswordCorrect) {
               console.log('[NextAuth] Аутентификация успешна для:', user.username);
               return {
-                id: user.id,
+                id: user.id, 
                 name: user.name,
                 username: user.username,
                 role: user.role,
@@ -77,8 +71,8 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role;
-        token.username = (user as any).username;
+        token.role = (user as any).role; 
+        token.username = (user as any).username; 
         console.log('[NextAuth] JWT callback, user present:', (user as any).username, 'Token role:', token.role);
       }
       return token;
@@ -94,10 +88,9 @@ export const authOptions: NextAuthOptions = {
     }
   },
   pages: {
-    signIn: '/',
+    signIn: '/', 
   },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development', // Можно оставить для разработки
 };
 
 const handler = NextAuth(authOptions);
