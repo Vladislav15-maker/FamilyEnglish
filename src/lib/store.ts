@@ -1,4 +1,3 @@
-
 import { sql } from '@vercel/postgres';
 import type { User, StudentRoundProgress, OfflineTestScore, UserForAuth } from './types';
 
@@ -201,12 +200,13 @@ export async function saveStudentRoundProgress(progress: StudentRoundProgress): 
   } catch (error) {
     const dbError = error as any;
     console.error('[Store] Failed to save student round progress. Details:');
-    console.error(`[Store] Error Code: ${dbError.code}`);
-    console.error(`[Store] Error Message: ${dbError.message}`);
-    // console.error(`[Store] Error Constraint: ${dbError.constraint}`); 
-    // console.error(`[Store] Error Detail: ${dbError.detail}`); 
+    // console.error(`[Store] Error Code: ${dbError.code}`); // Already logged if VercelPostgresError
+    // console.error(`[Store] Error Message: ${dbError.message}`); // Already logged if VercelPostgresError
     if (dbError.code === 'missing_connection_string' || dbError.message?.includes('missing_connection_string')) {
         console.error('[Store] CRITICAL in saveStudentRoundProgress: missing_connection_string. POSTGRES_URL env var was likely not found by @vercel/postgres.');
+    } else {
+        // Log other types of errors
+        console.error(`[Store] DB Error (code: ${dbError.code}): ${dbError.message}`);
     }
     throw error; 
   }
@@ -295,11 +295,13 @@ export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | '
     };
   } catch (error) {
     const dbError = error as any;
-    console.error('[Store] Failed to add offline score. Details:');
-    console.error(`[Store] Error Code: ${dbError.code}`);
-    console.error(`[Store] Error Message: ${dbError.message}`);
+    // console.error('[Store] Failed to add offline score. Details:');
+    // console.error(`[Store] Error Code: ${dbError.code}`);
+    // console.error(`[Store] Error Message: ${dbError.message}`);
     if (dbError.code === 'missing_connection_string' || dbError.message?.includes('missing_connection_string')) {
         console.error('[Store] CRITICAL in addOfflineScore: missing_connection_string. POSTGRES_URL env var was likely not found by @vercel/postgres.');
+    } else {
+         console.error(`[Store] DB Error (code: ${dbError.code}): ${dbError.message}`);
     }
     throw error;
   }
@@ -308,3 +310,4 @@ export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | '
 export function resetStore() {
   console.warn("[Store] resetStore is a no-op when using a persistent database.");
 }
+

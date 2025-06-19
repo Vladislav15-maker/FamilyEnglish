@@ -7,7 +7,7 @@ import WordTestInput from '@/components/curriculum/WordTestInput';
 import { getRoundById } from '@/lib/curriculum-data';
 import type { Round, Word, StudentRoundProgress } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
-import { saveStudentRoundProgress, getStudentRoundProgress } from '@/lib/store';
+// DO NOT import saveStudentRoundProgress from '@/lib/store' directly
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,43 +65,49 @@ export default function TestRoundPage() {
       correct: isCorrect,
     };
     setAttempts(prevAttempts => [...prevAttempts, newAttempt]);
-    // WordTestInput will show its own feedback.
-    // The "Next" button in WordTestInput will trigger proceedToNextStepOrFinish.
   };
 
   const proceedToNextStepOrFinish = async () => {
     if (currentWordIndex < totalWords - 1) {
       setCurrentWordIndex(prev => prev + 1);
     } else {
-      // This is after the last word has been answered and "Next" is clicked
       setIsTestFinished(true);
-      // `attempts` state is now up-to-date due to `handleAnswerSubmit`
       const finalScoreValue = calculateScore(attempts); 
       setScore(finalScoreValue);
 
       if (user && round) {
         setIsSubmitting(true);
-        const progressData: StudentRoundProgress = {
-          studentId: user.id,
+        const progressPayload = {
+          // studentId: user.id, // API will use authenticated user's ID for students
           unitId,
           roundId,
           score: finalScoreValue,
-          attempts: attempts, // Use the complete list of attempts
+          attempts: attempts, 
           completed: true,
           timestamp: Date.now(),
         };
         try {
-          await saveStudentRoundProgress(progressData);
+          const response = await fetch('/api/progress/round', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(progressPayload),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({error: "Unknown error during progress save."}));
+            throw new Error(errorData.error || `Server error: ${response.status}`);
+          }
+          
           toast({
             title: "Тест завершен!",
             description: `Ваш результат: ${finalScoreValue}%. Прогресс сохранен.`,
             variant: "default"
           });
         } catch (error) {
-          console.error("Failed to save progress:", error);
+          console.error("Failed to save progress via API:", error);
           toast({
             title: "Ошибка сохранения",
-            description: "Не удалось сохранить ваш прогресс. Попробуйте снова.",
+            description: (error as Error).message || "Не удалось сохранить ваш прогресс. Попробуйте снова.",
             variant: "destructive"
           });
         } finally {
