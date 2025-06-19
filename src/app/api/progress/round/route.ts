@@ -5,51 +5,51 @@ import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
 import type { StudentRoundProgress, AuthenticatedUser } from '@/lib/types';
 
 export async function POST(request: Request) {
+  console.log('[API /api/progress/round] Received POST request.');
   const session = await getAppSession();
 
   if (!session || !session.user) {
+    console.warn('[API /api/progress/round] Unauthorized: No session or user found.');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const loggedInUser = session.user as AuthenticatedUser;
+  console.log(`[API /api/progress/round] User authenticated: ${loggedInUser.username} (ID: ${loggedInUser.id}, Role: ${loggedInUser.role})`);
   
   try {
     const progressData = (await request.json()) as Omit<StudentRoundProgress, 'studentId' | 'timestamp'> & { studentId?: string, timestamp?: number | string };
+    console.log('[API /api/progress/round] Received progress data payload:', JSON.stringify(progressData, null, 2));
 
-    // Ensure the studentId in the payload matches the logged-in user if the user is a student
-    // Teachers might theoretically save progress for others, but current app flow is student-centric for this action.
-    if (loggedInUser.role === 'student' && progressData.studentId && loggedInUser.id !== progressData.studentId) {
-      return NextResponse.json({ error: 'Forbidden: You can only save your own progress.' }, { status: 403 });
-    }
-    
-    // If studentId is not in payload (e.g. client assumes server knows), set it from session for students.
     const finalStudentId = loggedInUser.role === 'student' ? loggedInUser.id : progressData.studentId;
 
     if (!finalStudentId) {
+        console.error('[API /api/progress/round] Error: Student ID is missing and cannot be determined from session or payload.');
         return NextResponse.json({ error: 'Student ID is missing and cannot be determined.' }, { status: 400 });
     }
+    console.log(`[API /api/progress/round] Determined finalStudentId: ${finalStudentId}`);
 
     const completeProgressData: StudentRoundProgress = {
-      ...progressData,
       studentId: finalStudentId,
-      timestamp: progressData.timestamp ? new Date(progressData.timestamp).getTime() : Date.now(),
-      // Ensure score is a number. Client should send it as number.
+      unitId: progressData.unitId,
+      roundId: progressData.roundId,
       score: Number(progressData.score),
-      // Ensure attempts is an array. Client should send it as array.
       attempts: Array.isArray(progressData.attempts) ? progressData.attempts : [],
       completed: Boolean(progressData.completed),
+      timestamp: progressData.timestamp ? new Date(progressData.timestamp).getTime() : Date.now(),
     };
     
+    console.log('[API /api/progress/round] Prepared complete progress data for DB:', JSON.stringify(completeProgressData, null, 2));
 
     await saveProgressToDb(completeProgressData);
+    console.log(`[API /api/progress/round] Progress saved successfully for student ${finalStudentId}, unit ${completeProgressData.unitId}, round ${completeProgressData.roundId}.`);
     return NextResponse.json({ message: 'Progress saved successfully' }, { status: 200 });
 
   } catch (error) {
     console.error('[API /api/progress/round] Error saving progress:', error);
-    // Check if error is due to JSON parsing
     if (error instanceof SyntaxError) {
+        console.error('[API /api/progress/round] JSON parsing error from request body.');
         return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
     }
-    return NextResponse.json({ error: 'Failed to save round progress' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to save round progress', details: (error as Error).message }, { status: 500 });
   }
 }

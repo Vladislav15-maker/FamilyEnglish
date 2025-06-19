@@ -6,7 +6,7 @@ import type { AuthenticatedUser } from '@/lib/types';
 
 export async function GET(
   request: Request,
-  { params }: { params: { userId: string } }
+  context: { params: { userId: string } } // Изменено для явного доступа к context.params
 ) {
   const session = await getAppSession();
 
@@ -15,20 +15,21 @@ export async function GET(
   }
 
   const loggedInUser = session.user as AuthenticatedUser;
-  const { userId: requestedUserId } = params; // Correctly destructure userId
+  const requestedUserId = context.params.userId; // Изменен способ доступа
 
   // Students can only fetch their own progress. Teachers can fetch any student's.
   if (loggedInUser.role === 'student' && loggedInUser.id !== requestedUserId) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    console.warn(`[API /api/progress/student/${requestedUserId}] Forbidden access attempt by student ${loggedInUser.id}`);
+    return NextResponse.json({ error: 'Forbidden: You can only view your own progress.' }, { status: 403 });
   }
 
   if (!requestedUserId) {
+    console.error('[API /api/progress/student] Error: User ID is required but was not found in params.');
     return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
   }
 
   try {
-    // console.log(`[API /api/progress/student/${requestedUserId}] Attempting to fetch progress.`);
-    // console.log(`[API /api/progress/student/${requestedUserId}] POSTGRES_URL check in API route:`, process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+    // console.log(`[API /api/progress/student/${requestedUserId}] Attempting to fetch progress for user ID: ${requestedUserId}`);
     const progress = await fetchAllStudentProgressFromDb(requestedUserId);
     // console.log(`[API /api/progress/student/${requestedUserId}] Progress fetched:`, progress.length, "items");
     return NextResponse.json(progress);
@@ -37,3 +38,4 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to fetch student progress' }, { status: 500 });
   }
 }
+

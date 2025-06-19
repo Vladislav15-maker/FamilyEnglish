@@ -86,6 +86,7 @@ export default function TestRoundPage() {
           completed: true,
           timestamp: Date.now(),
         };
+        console.log('[TestRoundPage] Attempting to save progress via API with payload:', JSON.stringify(progressPayload)); // ADDED LOG
         try {
           const response = await fetch('/api/progress/round', {
             method: 'POST',
@@ -95,6 +96,7 @@ export default function TestRoundPage() {
 
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({error: "Unknown error during progress save."}));
+            console.error('[TestRoundPage] API error response when saving progress:', errorData);
             throw new Error(errorData.error || `Server error: ${response.status}`);
           }
           
@@ -104,7 +106,7 @@ export default function TestRoundPage() {
             variant: "default"
           });
         } catch (error) {
-          console.error("Failed to save progress via API:", error);
+          console.error("[TestRoundPage] Failed to save progress via API:", error);
           toast({
             title: "Ошибка сохранения",
             description: (error as Error).message || "Не удалось сохранить ваш прогресс. Попробуйте снова.",
@@ -234,3 +236,4 @@ export default function TestRoundPage() {
     </div>
   );
 }
+
