@@ -1,4 +1,3 @@
-
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -22,14 +21,20 @@ interface StudentStats {
 }
 
 export default function StudentHomePage() {
-  const { user } = useAuth();
+  const { user, isLoading: authIsLoading } = useAuth(); // isLoading from useAuth, aliased to authIsLoading
   const [stats, setStats] = useState<StudentStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [pageIsLoading, setPageIsLoading] = useState(true); // Page-specific loading state
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authIsLoading) {
+      setPageIsLoading(true); // Keep page loading if auth is still resolving
+      return;
+    }
+
+    // Auth is done loading, now proceed based on user
     if (user && user.role === 'student') {
-      setIsLoading(true);
+      setPageIsLoading(true); // Indicate data fetching for student has started
       setError(null);
       fetch(`/api/progress/student/${user.id}`)
         .then(res => {
@@ -85,14 +90,23 @@ export default function StudentHomePage() {
         .catch(err => {
           console.error("Failed to load student progress for home page:", err);
           setError((err as Error).message);
+          setStats(null); // Clear stats on error
         })
-        .finally(() => setIsLoading(false));
-    } else if (!user && !isLoading) {
-      setIsLoading(false); // No user, not loading. Error/redirect will be handled by layout.
+        .finally(() => {
+          setPageIsLoading(false); // Fetch attempt finished
+        });
+    } else {
+      // Auth is done, but no user, or user is not a student
+      setPageIsLoading(false);
+      setStats(null);
+      if (user && user.role !== 'student') {
+        setError("Эта страница доступна только для студентов.");
+      }
+      // If !user, error/redirect should be handled by DashboardLayout or DashboardPage
     }
-  }, [user, isLoading]);
+  }, [user, authIsLoading]); // Depend on user and authIsLoading from useAuth
 
-  if (isLoading) {
+  if (pageIsLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-2/3 mb-4" />
@@ -119,17 +133,18 @@ export default function StudentHomePage() {
   }
 
   if (!user || user.role !== 'student' || !stats) {
-    // This state should ideally be caught by the layout or dashboard redirect
+    // This state implies that auth is done, page is not loading, but we don't have a valid student/stats
+    // This could be due to an error already displayed, or user is not a student
+    // Or if stats is null for some other reason after loading.
     return (
       <Alert>
         <AlertTitle>Нет данных</AlertTitle>
-        <AlertDescription>Информация для главной страницы студента отсутствует.</AlertDescription>
+        <AlertDescription>Информация для главной страницы студента отсутствует. Возможно, вы не авторизованы как студент или произошла ошибка при загрузке данных.</AlertDescription>
       </Alert>
     );
   }
   
   const overallProgressPercentage = stats.totalRoundsInCurriculum > 0 ? Math.round((stats.completedRoundsCount / stats.totalRoundsInCurriculum) * 100) : 0;
-
 
   return (
     <div className="space-y-8">
@@ -157,7 +172,7 @@ export default function StudentHomePage() {
             <TrendingUp className="h-5 w-5 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.averageScoreCompletedRounds}%</div>
+            <div className="text-2xl font-bold">{stats.averageScoreCompletedRounds > 0 ? `${stats.averageScoreCompletedRounds}%` : 'N/A'}</div>
             <p className="text-xs text-muted-foreground">
               по завершенным раундам
             </p>
@@ -203,3 +218,4 @@ export default function StudentHomePage() {
     </div>
   );
 }
+
