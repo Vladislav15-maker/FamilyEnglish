@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getAllStudents, getAllStudentProgress as fetchAllStudentsProgress } from '@/lib/store';
+// DO NOT import store functions directly for client-side use
 import type { User, StudentRoundProgress } from '@/lib/types';
 import StudentProgressRow from '@/components/teacher/StudentProgressRow';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -9,30 +9,45 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Users, AlertCircle, BookOpen } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+interface StudentOverview {
+  student: User;
+  progress: StudentRoundProgress[];
+}
+
 export default function TeacherStudentsPage() {
   const { user } = useAuth();
-  const [students, setStudents] = useState<User[]>([]);
-  const [allProgress, setAllProgress] = useState<Record<string, StudentRoundProgress[]>>({});
+  const [studentsOverview, setStudentsOverview] = useState<StudentOverview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && user.role === 'teacher') {
       setIsLoading(true);
-      Promise.all([getAllStudents(), fetchAllStudentsProgress('')]) // Fetch all progress, then filter
-        .then(([studentsData, progressData]) => {
-          setStudents(studentsData);
-          const progressMap: Record<string, StudentRoundProgress[]> = {};
-          studentsData.forEach(student => {
-            progressMap[student.id] = progressData.filter(p => p.studentId === student.id);
-          });
-          setAllProgress(progressMap);
+      setError(null);
+      fetch('/api/teacher/students-overview')
+        .then(res => {
+          if (!res.ok) {
+            return res.json().then(errData => {
+              throw new Error(errData.error || `Failed to fetch students overview. Status: ${res.status}`);
+            });
+          }
+          return res.json();
         })
-        .catch(error => {
-          console.error("Failed to load teacher data:", error);
+        .then((data: StudentOverview[]) => {
+          setStudentsOverview(data);
         })
-        .finally(() => setIsLoading(false));
+        .catch(err => {
+          console.error("Failed to load students overview from API:", err);
+          setError("Не удалось загрузить данные учеников. " + (err as Error).message);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else if (user && user.role !== 'teacher') {
+      setIsLoading(false);
+      // Error state for non-teachers handled by top-level guard
     } else {
-        setIsLoading(false);
+      setIsLoading(false); // No user yet
     }
   }, [user]);
 
@@ -76,6 +91,18 @@ export default function TeacherStudentsPage() {
       );
   }
 
+  if (error) {
+    return (
+       <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Ошибка загрузки</AlertTitle>
+          <AlertDescription>
+            {error}
+          </AlertDescription>
+        </Alert>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-center space-x-3">
@@ -83,7 +110,7 @@ export default function TeacherStudentsPage() {
         <h1 className="text-4xl font-bold font-headline">Список Учеников</h1>
       </div>
 
-      {students.length === 0 ? (
+      {studentsOverview.length === 0 ? (
          <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Нет учеников</AlertTitle>
@@ -98,11 +125,11 @@ export default function TeacherStudentsPage() {
             <CardDescription>Обзор успеваемости всех учеников.</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            {students.map(student => (
+            {studentsOverview.map(overview => (
               <StudentProgressRow 
-                key={student.id} 
-                student={student} 
-                progress={allProgress[student.id] || []} 
+                key={overview.student.id} 
+                student={overview.student} 
+                progress={overview.progress || []} 
               />
             ))}
           </CardContent>
