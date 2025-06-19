@@ -1,10 +1,11 @@
+
 'use client';
 import { useEffect, useState } from 'react';
 import UnitCard from '@/components/curriculum/UnitCard';
 import { curriculum } from '@/lib/curriculum-data';
 import type { Unit, StudentRoundProgress } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
-import { getAllStudentProgress } from '@/lib/store'; // Mock store function
+// DO NOT import getAllStudentProgress directly from '@/lib/store' here
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BookOpenText } from "lucide-react";
@@ -17,19 +18,26 @@ export default function UnitsPage() {
   useEffect(() => {
     if (user && user.role === 'student') {
       setIsLoading(true);
-      getAllStudentProgress(user.id)
-        .then(progressData => {
+      fetch(`/api/progress/student/${user.id}`) // Call the new API route
+        .then(res => {
+          if (!res.ok) {
+            // Log error details from response if possible
+            res.json().then(errData => console.error("API Error Response:", errData));
+            throw new Error(`Failed to fetch student progress. Status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then((progressData: StudentRoundProgress[]) => {
           setStudentProgress(progressData);
         })
         .catch(error => {
-          console.error("Failed to load student progress:", error);
-          // Handle error (e.g., show toast)
+          console.error("Failed to load student progress from API:", error);
         })
         .finally(() => {
           setIsLoading(false);
         });
     } else {
-      setIsLoading(false); // Not a student or no user, no progress to load
+      setIsLoading(false); 
     }
   }, [user]);
 

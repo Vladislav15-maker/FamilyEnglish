@@ -1,26 +1,33 @@
+
 import { sql } from '@vercel/postgres';
 import type { User, StudentRoundProgress, OfflineTestScore, UserForAuth } from './types';
 
-// Log environment variables at module load time
-console.log('[Store Module] Initializing. POSTGRES_URL from env:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
-if (!process.env.POSTGRES_URL) {
-  console.error('[Store Module] CRITICAL: POSTGRES_URL is not defined in the environment when store.ts module is loaded!');
+// This log runs when the module is first loaded.
+// If POSTGRES_URL is not set here when running on the server, then .env.local is not loaded correctly server-side.
+// If this log appears in the BROWSER console saying "NOT SET", it means this module was bundled for the client.
+console.log('[Store Module] Initializing. process.env.POSTGRES_URL status during module load:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+if (!process.env.POSTGRES_URL && typeof window === 'undefined') { // Log server-side only missing env
+  console.error('[Store Module] CRITICAL SERVER-SIDE: POSTGRES_URL is not defined in the environment when store.ts module is loaded!');
 }
 
+
 export async function getUserByUsernameForAuth(username: string): Promise<UserForAuth | null> {
-  console.log('[Store] getUserByUsernameForAuth called for username:', username);
-  console.log('[Store] Inside getUserByUsernameForAuth - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+  // console.log('[Store] getUserByUsernameForAuth called for username:', username);
+  // console.log('[Store] Inside getUserByUsernameForAuth - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in getUserByUsernameForAuth (SERVER-SIDE): POSTGRES_URL is NOT SET.');
+  }
   try {
     const result = await sql`
       SELECT id, username, password_hash, role, name, email, created_at FROM users WHERE username = ${username};
     `;
     if (result.rows.length === 0) {
-      console.log('[Store] User not found in DB for username:', username);
+      // console.log('[Store] User not found in DB for username:', username);
       return null;
     }
     const user = result.rows[0];
     const userIdAsString = typeof user.id === 'string' ? user.id : String(user.id);
-    console.log('[Store] User found in DB:', user.username, 'Password hash from DB (first 10 chars):', user.password_hash ? user.password_hash.substring(0,10) + "..." : "N/A", 'Role:', user.role, 'ID:', userIdAsString);
+    // console.log('[Store] User found in DB:', user.username, 'Password hash from DB (first 10 chars):', user.password_hash ? user.password_hash.substring(0,10) + "..." : "N/A", 'Role:', user.role, 'ID:', userIdAsString);
     return {
       id: userIdAsString,
       username: user.username,
@@ -41,12 +48,15 @@ export async function getUserByUsernameForAuth(username: string): Promise<UserFo
 }
 
 export async function findUserById(userId: string): Promise<User | undefined> {
-   console.log('[Store] findUserById called for ID:', userId);
-   console.log('[Store] Inside findUserById - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+   // console.log('[Store] findUserById called for ID:', userId);
+   // console.log('[Store] Inside findUserById - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in findUserById (SERVER-SIDE): POSTGRES_URL is NOT SET.');
+  }
    try {
     const result = await sql`SELECT id, username, role, name, email FROM users WHERE id = ${userId};`;
     if (result.rows.length === 0) {
-      console.log('[Store] User not found in DB for ID:', userId);
+      // console.log('[Store] User not found in DB for ID:', userId);
       return undefined;
     }
     const user = result.rows[0];
@@ -69,10 +79,10 @@ export async function findUserById(userId: string): Promise<User | undefined> {
 }
 
 export async function getAllStudents(): Promise<User[]> {
-  console.log('[Store] getAllStudents called');
-  console.log('[Store] Inside getAllStudents - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
-  if (!process.env.POSTGRES_URL) {
-    console.error('[Store] CRITICAL in getAllStudents: POSTGRES_URL is NOT SET in process.env at the moment of function call!');
+  // console.log('[Store] getAllStudents called');
+  // console.log('[Store] Inside getAllStudents - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in getAllStudents (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
   try {
     const result = await sql`SELECT id, username, role, name, email FROM users WHERE role = 'student';`;
@@ -94,10 +104,10 @@ export async function getAllStudents(): Promise<User[]> {
 }
 
 export async function getStudentRoundProgress(studentId: string, unitId: string, roundId: string): Promise<StudentRoundProgress | undefined> {
-  console.log(`[Store] getStudentRoundProgress for student ${studentId}, unit ${unitId}, round ${roundId}`);
-  console.log('[Store] Inside getStudentRoundProgress - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
-   if (!process.env.POSTGRES_URL) {
-    console.error('[Store] CRITICAL in getStudentRoundProgress: POSTGRES_URL is NOT SET in process.env at the moment of function call!');
+  // console.log(`[Store] getStudentRoundProgress for student ${studentId}, unit ${unitId}, round ${roundId}`);
+  // console.log('[Store] Inside getStudentRoundProgress - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in getStudentRoundProgress (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
   try {
     const result = await sql<Omit<StudentRoundProgress, 'studentId' | 'unitId' | 'roundId'> & {student_id: string, unit_id: string, round_id: string}>`
@@ -127,10 +137,10 @@ export async function getStudentRoundProgress(studentId: string, unitId: string,
 }
 
 export async function getAllStudentProgress(studentIdFilter: string): Promise<StudentRoundProgress[]> {
-  console.log(`[Store] getAllStudentProgress called for studentIdFilter: '${studentIdFilter}' (empty means all)`);
-  console.log('[Store] Inside getAllStudentProgress - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
-  if (!process.env.POSTGRES_URL) {
-    console.error('[Store] CRITICAL in getAllStudentProgress: POSTGRES_URL is NOT SET in process.env at the moment of function call!');
+  // console.log(`[Store] getAllStudentProgress called for studentIdFilter: '${studentIdFilter}' (empty means all)`);
+  // console.log('[Store] Inside getAllStudentProgress - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in getAllStudentProgress (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
    try {
     let result;
@@ -165,38 +175,16 @@ export async function getAllStudentProgress(studentIdFilter: string): Promise<St
 }
 
 export async function saveStudentRoundProgress(progress: StudentRoundProgress): Promise<void> {
-  console.log(`[Store] Attempting to save student round progress. Data received:`);
-  console.log(`[Store] Student ID: ${progress.studentId} (type: ${typeof progress.studentId})`);
-  console.log(`[Store] Unit ID: ${progress.unitId} (type: ${typeof progress.unitId})`);
-  console.log(`[Store] Round ID: ${progress.roundId} (type: ${typeof progress.roundId})`);
-  console.log(`[Store] Score: ${progress.score} (type: ${typeof progress.score})`);
-  console.log(`[Store] Completed: ${progress.completed} (type: ${typeof progress.completed})`);
-  console.log(`[Store] Timestamp (original): ${progress.timestamp} (type: ${typeof progress.timestamp})`);
-  
-  let attemptsForLog = "N/A";
-  if (Array.isArray(progress.attempts)) {
-    console.log(`[Store] Attempts count: ${progress.attempts.length}`);
-    if (progress.attempts.length > 0) {
-      const firstAttempt = progress.attempts[0];
-      console.log(`[Store] First attempt detail: wordId=${firstAttempt.wordId}, userAnswer=${firstAttempt.userAnswer}, correct=${firstAttempt.correct}`);
-      attemptsForLog = JSON.stringify(progress.attempts);
-    } else {
-      attemptsForLog = "[]";
-    }
-  } else {
-    console.log(`[Store] Attempts type: ${typeof progress.attempts}, value:`, progress.attempts);
-    attemptsForLog = JSON.stringify(progress.attempts);
+  // console.log(`[Store] Attempting to save student round progress. Data received:`);
+  // console.log(`[Store] Student ID: ${progress.studentId} (type: ${typeof progress.studentId})`);
+  // ... (other detailed logs removed for brevity but can be re-added if needed)
+  // console.log('[Store] Inside saveStudentRoundProgress - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in saveStudentRoundProgress (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
 
   const timestampToSave = typeof progress.timestamp === 'number' ? progress.timestamp : new Date(progress.timestamp).getTime();
-  console.log(`[Store] Timestamp to save (numeric): ${timestampToSave}`);
-  
   const attemptsJson = JSON.stringify(progress.attempts); 
-  console.log(`[Store] Attempts JSON (first 200 chars): ${attemptsJson.substring(0, 200)}`);
-  console.log('[Store] Inside saveStudentRoundProgress - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
-  if (!process.env.POSTGRES_URL) {
-    console.error('[Store] CRITICAL in saveStudentRoundProgress: POSTGRES_URL is NOT SET in process.env at the moment of function call!');
-  }
 
   try {
     await sql`
@@ -209,14 +197,14 @@ export async function saveStudentRoundProgress(progress: StudentRoundProgress): 
         completed = EXCLUDED.completed,
         "timestamp" = EXCLUDED."timestamp";
     `;
-    console.log(`[Store] Successfully saved/updated progress for student ${progress.studentId}, round ${progress.roundId}`);
+    // console.log(`[Store] Successfully saved/updated progress for student ${progress.studentId}, round ${progress.roundId}`);
   } catch (error) {
     const dbError = error as any;
     console.error('[Store] Failed to save student round progress. Details:');
     console.error(`[Store] Error Code: ${dbError.code}`);
     console.error(`[Store] Error Message: ${dbError.message}`);
-    console.error(`[Store] Error Constraint: ${dbError.constraint}`); 
-    console.error(`[Store] Error Detail: ${dbError.detail}`); 
+    // console.error(`[Store] Error Constraint: ${dbError.constraint}`); 
+    // console.error(`[Store] Error Detail: ${dbError.detail}`); 
     if (dbError.code === 'missing_connection_string' || dbError.message?.includes('missing_connection_string')) {
         console.error('[Store] CRITICAL in saveStudentRoundProgress: missing_connection_string. POSTGRES_URL env var was likely not found by @vercel/postgres.');
     }
@@ -226,10 +214,10 @@ export async function saveStudentRoundProgress(progress: StudentRoundProgress): 
 
 
 export async function getOfflineScoresForStudent(studentId: string): Promise<OfflineTestScore[]> {
-  console.log(`[Store] getOfflineScoresForStudent for student ${studentId}`);
-  console.log('[Store] Inside getOfflineScoresForStudent - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
-  if (!process.env.POSTGRES_URL) {
-    console.error('[Store] CRITICAL in getOfflineScoresForStudent: POSTGRES_URL is NOT SET in process.env at the moment of function call!');
+  // console.log(`[Store] getOfflineScoresForStudent for student ${studentId}`);
+  // console.log('[Store] Inside getOfflineScoresForStudent - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in getOfflineScoresForStudent (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
    try {
     const result = await sql<Omit<OfflineTestScore, 'studentId' | 'teacherId'> & {student_id: string, teacher_id: string}>`
@@ -255,10 +243,10 @@ export async function getOfflineScoresForStudent(studentId: string): Promise<Off
 }
 
 export async function getAllOfflineScores(): Promise<OfflineTestScore[]> {
-  console.log('[Store] getAllOfflineScores called');
-  console.log('[Store] Inside getAllOfflineScores - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
-   if (!process.env.POSTGRES_URL) {
-    console.error('[Store] CRITICAL in getAllOfflineScores: POSTGRES_URL is NOT SET in process.env at the moment of function call!');
+  // console.log('[Store] getAllOfflineScores called');
+  // console.log('[Store] Inside getAllOfflineScores - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in getAllOfflineScores (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
   try {
     const result = await sql<Omit<OfflineTestScore, 'studentId' | 'teacherId'> & {student_id: string, teacher_id: string}>`
@@ -284,10 +272,10 @@ export async function getAllOfflineScores(): Promise<OfflineTestScore[]> {
 }
 
 export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | 'date'>): Promise<OfflineTestScore> {
-  console.log(`[Store] addOfflineScore for student ${scoreData.studentId} by teacher ${scoreData.teacherId}`);
-  console.log('[Store] Inside addOfflineScore - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
-  if (!process.env.POSTGRES_URL) {
-    console.error('[Store] CRITICAL in addOfflineScore: POSTGRES_URL is NOT SET in process.env at the moment of function call!');
+  // console.log(`[Store] addOfflineScore for student ${scoreData.studentId} by teacher ${scoreData.teacherId}`);
+  // console.log('[Store] Inside addOfflineScore - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in addOfflineScore (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
   const currentDate = new Date().toISOString();
   try {
@@ -320,17 +308,3 @@ export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | '
 export function resetStore() {
   console.warn("[Store] resetStore is a no-op when using a persistent database.");
 }
-
-// Эта функция больше не нужна, так как регистрация удалена.
-/*
-export async function createUserInDb(userData: {
-  name: string;
-  username: string;
-  passwordPlain: string;
-  role: 'teacher' | 'student';
-  email?: string;
-}): Promise<UserForAuth | null> {
-  console.warn('[Store] createUserInDb is deprecated and should not be called as registration is removed.');
-  return null;
-}
-*/

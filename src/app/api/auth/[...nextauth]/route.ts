@@ -1,8 +1,10 @@
-import NextAuth, { type NextAuthOptions } from 'next-auth';
+
+import NextAuth, { type NextAuthOptions, getServerSession } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { getUserByUsernameForAuth } from '@/lib/store';
 import bcrypt from 'bcryptjs';
 
+// Export authOptions so it can be used with getServerSession in other parts of the app
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -30,6 +32,7 @@ export const authOptions: NextAuthOptions = {
             console.log('[NextAuth] Хеш пароля пользователя из БД (строка):', `"${user.password_hash}"`, `(тип: ${typeof user.password_hash}, длина: ${user.password_hash.length})`);
             
             let isPasswordCorrect = false;
+            // bcryptjs should handle different prefixes like $2a$, $2b$, $2y$ automatically if the hash structure is valid
             if (user.password_hash.length === 60) { 
                 try {
                     isPasswordCorrect = bcrypt.compareSync(inputPassword, user.password_hash);
@@ -73,7 +76,6 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = (user as any).role; 
         token.username = (user as any).username; 
-        console.log('[NextAuth] JWT callback, user present:', (user as any).username, 'Token role:', token.role);
       }
       return token;
     },
@@ -82,7 +84,6 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = token.id as string;
         (session.user as any).role = token.role as ('teacher' | 'student');
         (session.user as any).username = token.username as string;
-        console.log('[NextAuth] Session callback, session user:', (session.user as any).username, 'Role:', (session.user as any).role);
       }
       return session;
     }
@@ -90,9 +91,15 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/', 
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET, 
+  debug: process.env.NODE_ENV === 'development', // Enable debug messages in development
 };
 
 const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
+
+// Helper to get session on the server side (e.g. in Route Handlers)
+export async function getAppSession() {
+  return await getServerSession(authOptions);
+}
