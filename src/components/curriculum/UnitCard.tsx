@@ -13,23 +13,30 @@ interface UnitCardProps {
 export default function UnitCard({ unit, progress = [] }: UnitCardProps) {
   const totalRoundsInUnit = unit.rounds.length;
   
-  // Фильтруем прогресс только для завершенных раундов этого юнита
-  const completedRoundsProgressInUnit = progress.filter(p => p.unitId === unit.id && p.completed);
+  const completedRoundsInUnit = progress.filter(p => p.unitId === unit.id && p.completed);
+  const attemptedRoundsInUnit = progress.filter(p => p.unitId === unit.id && (p.attempts?.length > 0 || p.completed));
+
 
   let displayProgressPercentage = 0;
   let progressLabelText = "0%";
+  let unitStatusText = "Не начат";
 
   if (totalRoundsInUnit === 0) {
     progressLabelText = "Нет раундов";
-  } else if (completedRoundsProgressInUnit.length > 0) {
-    const sumOfScores = completedRoundsProgressInUnit.reduce((sum, p) => sum + p.score, 0);
-    displayProgressPercentage = Math.round(sumOfScores / completedRoundsProgressInUnit.length);
+    unitStatusText = "Нет раундов";
+  } else if (completedRoundsInUnit.length > 0) {
+    const sumOfScores = completedRoundsInUnit.reduce((sum, p) => sum + p.score, 0);
+    displayProgressPercentage = Math.round(sumOfScores / completedRoundsInUnit.length);
     progressLabelText = `${displayProgressPercentage}%`;
-  } else if (progress.some(p => p.unitId === unit.id && !p.completed && p.attempts?.length > 0)) {
-    // Если есть попытки, но ни один раунд не завершен
-    progressLabelText = "В процессе";
-  } else {
-    progressLabelText = "Не начат";
+    if (completedRoundsInUnit.length === totalRoundsInUnit) {
+        unitStatusText = `Завершен (${displayProgressPercentage}%)`;
+    } else {
+        unitStatusText = `В процессе (${displayProgressPercentage}%)`;
+    }
+  } else if (attemptedRoundsInUnit.length > 0) {
+    // Если есть попытки, но ни один раунд не завершен, средний балл 0, но статус "В процессе"
+    progressLabelText = "0%";
+    unitStatusText = "В процессе";
   }
 
 
@@ -48,10 +55,11 @@ export default function UnitCard({ unit, progress = [] }: UnitCardProps) {
       <CardContent className="flex-grow">
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Прогресс (средний балл)</span>
+            <span>Прогресс (средний балл по завершенным)</span>
             <span>{progressLabelText}</span>
           </div>
           <Progress value={displayProgressPercentage} aria-label={`Средний балл по юниту ${unit.name}: ${displayProgressPercentage}%`} />
+          <p className="text-xs text-muted-foreground text-center mt-1">Статус: {unitStatusText}</p>
         </div>
       </CardContent>
       <CardFooter>

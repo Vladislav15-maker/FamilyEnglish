@@ -14,7 +14,7 @@ export default function DashboardPage() {
       if (user.role === 'teacher') {
         router.replace('/dashboard/teacher/students');
       } else if (user.role === 'student') {
-        router.replace('/dashboard/units');
+        router.replace('/dashboard/student/home'); // Redirect student to their new home page
       }
     } else if (!isLoading && !user) {
         router.replace('/');

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, Menu } from 'lucide-react';
+import { LogOut, Menu, Home } from 'lucide-react'; // Home icon for student home
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -20,7 +20,7 @@ import {
   SheetClose,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { navItems, type NavItem } from './AppSidebar'; // Assuming export from AppSidebar
+import { navItems, type NavItem } from './AppSidebar'; 
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
@@ -39,12 +39,12 @@ export default function AppHeader() {
   };
 
   const filteredNavItems = user ? navItems.filter(item => item.roles.includes(user.role)) : [];
+  const dashboardHomeLink = user?.role === 'student' ? '/dashboard/student/home' : '/dashboard/teacher/students';
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-2 md:gap-4">
-          {/* Mobile Menu Trigger */}
           <div className="md:hidden">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
@@ -55,33 +55,35 @@ export default function AppHeader() {
               <SheetContent side="left" className="w-64 p-0 pt-6 bg-card text-card-foreground">
                 <div className="mb-6 px-4">
                    <SheetClose asChild>
-                     <Link href="/dashboard" className="text-2xl font-bold font-headline text-primary">
+                     <Link href={dashboardHomeLink} className="text-2xl font-bold font-headline text-primary">
                         EnglishCourse
                       </Link>
                    </SheetClose>
                 </div>
                 <nav className="space-y-2 px-4">
-                  {filteredNavItems.map((item) => (
-                     <SheetClose asChild key={item.href}>
-                        <Button
-                          asChild
-                          variant={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)) ? 'secondary' : 'ghost'}
-                          className="w-full justify-start text-base"
-                        >
-                          <Link href={item.href}>
-                            <item.icon className="mr-3 h-5 w-5" />
-                            {item.label}
-                          </Link>
-                        </Button>
-                     </SheetClose>
-                  ))}
+                  {filteredNavItems.map((item) => {
+                     const isActive = item.exactMatch ? pathname === item.href : pathname.startsWith(item.href);
+                     return (
+                       <SheetClose asChild key={item.href}>
+                          <Button
+                            asChild
+                            variant={isActive ? 'secondary' : 'ghost'}
+                            className="w-full justify-start text-base"
+                          >
+                            <Link href={item.href}>
+                              <item.icon className="mr-3 h-5 w-5" />
+                              {item.label}
+                            </Link>
+                          </Button>
+                       </SheetClose>
+                     );
+                  })}
                 </nav>
               </SheetContent>
             </Sheet>
           </div>
 
-          {/* Desktop Logo */}
-          <Link href="/dashboard" className="hidden md:block text-2xl font-bold font-headline text-primary">
+          <Link href={dashboardHomeLink} className="hidden md:block text-2xl font-bold font-headline text-primary">
             EnglishCourse
           </Link>
         </div>

@@ -1,7 +1,7 @@
 // File: src/app/api/progress/student/[userId]/route.ts
 import { NextResponse } from 'next/server';
 import { getAllStudentProgress as fetchAllStudentProgressFromDb } from '@/lib/store';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route'; // Corrected import path
+import { getAppSession } from '@/app/api/auth/[...nextauth]/route'; 
 import type { AuthenticatedUser } from '@/lib/types';
 
 export async function GET(
@@ -17,6 +17,7 @@ export async function GET(
   }
 
   const loggedInUser = session.user as AuthenticatedUser;
+  // Correctly access userId from context.params
   const requestedUserId = context.params.userId; 
   console.log(`[API /api/progress/student/:userId] Logged in user: ${loggedInUser.username}, Role: ${loggedInUser.role}, Requesting for: ${requestedUserId}`);
 

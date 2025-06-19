@@ -18,40 +18,67 @@ function normalizeAnswer(answer: string): string {
   if (typeof answer !== 'string') return '';
   let normalized = answer.trim().toLowerCase();
   
-  // Основные сокращения с апострофом
-  normalized = normalized.replace(/i'm/g, 'i am');
-  normalized = normalized.replace(/you're/g, 'you are');
-  normalized = normalized.replace(/he's/g, 'he is');
-  normalized = normalized.replace(/she's/g, 'she is');
-  normalized = normalized.replace(/it's/g, 'it is');
-  normalized = normalized.replace(/we're/g, 'we are');
-  normalized = normalized.replace(/they're/g, 'they are');
-  normalized = normalized.replace(/what's/g, 'what is');
-  normalized = normalized.replace(/let's/g, 'let us');
-  normalized = normalized.replace(/who's/g, 'who is'); // Добавлено
+  // apostrophe normalization to standard apostrophe
+  normalized = normalized.replace(/[`’]/g, "'");
 
-  // Сокращения с "n't"
-  normalized = normalized.replace(/can't/g, 'cannot');
-  normalized = normalized.replace(/won't/g, 'will not');
-  normalized = normalized.replace(/isn't/g, 'is not');
-  normalized = normalized.replace(/aren't/g, 'are not');
-  normalized = normalized.replace(/wasn't/g, 'was not');
-  normalized = normalized.replace(/weren't/g, 'were not');
-  normalized = normalized.replace(/hasn't/g, 'has not');
-  normalized = normalized.replace(/haven't/g, 'have not');
-  normalized = normalized.replace(/hadn't/g, 'had not');
-  normalized = normalized.replace(/doesn't/g, 'does not');
-  normalized = normalized.replace(/don't/g, 'do not');
-  normalized = normalized.replace(/didn't/g, 'did not');
-  normalized = normalized.replace(/wouldn't/g, 'would not');
-  normalized = normalized.replace(/shouldn't/g, 'should not');
-  normalized = normalized.replace(/couldn't/g, 'could not');
+  // Common contractions to full forms
+  normalized = normalized.replace(/\bi'm\b/g, 'i am');
+  normalized = normalized.replace(/\byou're\b/g, 'you are');
+  normalized = normalized.replace(/\bhe's\b/g, 'he is');
+  normalized = normalized.replace(/\bshe's\b/g, 'she is');
+  normalized = normalized.replace(/\bit's\b/g, 'it is'); // Differentiate from possessive "its"
+  normalized = normalized.replace(/\bwe're\b/g, 'we are');
+  normalized = normalized.replace(/\bthey're\b/g, 'they are');
   
-  // Удаление некоторых знаков пунктуации в конце строки, если они не являются частью ответа
-  // Это более мягкий подход, чем полное удаление всей пунктуации
+  normalized = normalized.replace(/\bwhat's\b/g, 'what is');
+  normalized = normalized.replace(/\bwho's\b/g, 'who is'); // Differentiate from possessive "whose"
+  normalized = normalized.replace(/\bwhere's\b/g, 'where is');
+  normalized = normalized.replace(/\bwhen's\b/g, 'when is');
+  normalized = normalized.replace(/\bwhy's\b/g, 'why is');
+  normalized = normalized.replace(/\bhow's\b/g, 'how is');
+  
+  normalized = normalized.replace(/\blet's\b/g, 'let us');
+
+  normalized = normalized.replace(/\bi've\b/g, 'i have');
+  normalized = normalized.replace(/\byou've\b/g, 'you have');
+  normalized = normalized.replace(/\bwe've\b/g, 'we have');
+  normalized = normalized.replace(/\bthey've\b/g, 'they have');
+  
+  normalized = normalized.replace(/\bi'll\b/g, 'i will');
+  normalized = normalized.replace(/\byou'll\b/g, 'you will');
+  normalized = normalized.replace(/\bhe'll\b/g, 'he will');
+  normalized = normalized.replace(/\bshe'll\b/g, 'she will');
+  normalized = normalized.replace(/\bwe'll\b/g, 'we will');
+  normalized = normalized.replace(/\bthey'll\b/g, 'they will');
+
+  normalized = normalized.replace(/\bi'd\b/g, 'i would'); // Could also be "i had" - context dependent, but "i would" is common
+  normalized = normalized.replace(/\byou'd\b/g, 'you would');
+  // ... and so on for he'd, she'd, we'd, they'd
+
+  // Negative contractions
+  normalized = normalized.replace(/\bcan't\b/g, 'cannot'); // "can not" is also possible but "cannot" is more standard for one word
+  normalized = normalized.replace(/\bwon't\b/g, 'will not');
+  normalized = normalized.replace(/\bisn't\b/g, 'is not');
+  normalized = normalized.replace(/\baren't\b/g, 'are not');
+  normalized = normalized.replace(/\bwasn't\b/g, 'was not');
+  normalized = normalized.replace(/\bweren't\b/g, 'were not');
+  normalized = normalized.replace(/\bhasn't\b/g, 'has not');
+  normalized = normalized.replace(/\bhaven't\b/g, 'have not');
+  normalized = normalized.replace(/\bhadn't\b/g, 'had not');
+  normalized = normalized.replace(/\bdoesn't\b/g, 'does not');
+  normalized = normalized.replace(/\bdon't\b/g, 'do not');
+  normalized = normalized.replace(/\bdidn't\b/g, 'did not');
+  normalized = normalized.replace(/\bwouldn't\b/g, 'would not');
+  normalized = normalized.replace(/\bshouldn't\b/g, 'should not');
+  normalized = normalized.replace(/\bcouldn't\b/g, 'could not');
+  normalized = normalized.replace(/\bmightn't\b/g, 'might not');
+  normalized = normalized.replace(/\bmustn't\b/g, 'must not');
+  
+  // Remove punctuation that's typically not part of the core answer (.,!?;:) at the end.
+  // Be careful not to remove punctuation that might be part of the answer itself.
   normalized = normalized.replace(/[.,!?;:]+$/, '');
 
-  // Нормализация пробелов
+  // Normalize multiple spaces to a single space
   return normalized.replace(/\s+/g, ' ').trim();
 }
 
@@ -77,7 +104,12 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
     const normalizedUserAnswer = normalizeAnswer(userAnswer);
     const normalizedCorrectAnswer = normalizeAnswer(word.english);
     
-    const correct = normalizedUserAnswer === normalizedCorrectAnswer;
+    // Also check if normalized user answer matches original correct answer (if it wasn't a contraction)
+    // And if normalized correct answer matches original user answer
+    const correct = normalizedUserAnswer === normalizedCorrectAnswer ||
+                    normalizedUserAnswer === word.english.trim().toLowerCase() || // User typed full, DB has full
+                    normalizeAnswer(userAnswer) === word.english.trim().toLowerCase(); // User typed contraction, DB has full (normalizeAnswer will expand user's)
+
     
     setIsCorrect(correct);
     setIsSubmitted(true);
