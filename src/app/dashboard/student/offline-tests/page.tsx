@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getOfflineScoresForStudent } from '@/lib/store';
+// DO NOT import store functions directly
 import type { OfflineTestScore } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,20 +15,34 @@ export default function StudentOfflineTestsPage() {
   const { user } = useAuth();
   const [scores, setScores] = useState<OfflineTestScore[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && user.role === 'student') {
       setIsLoading(true);
-      getOfflineScoresForStudent(user.id)
-        .then(data => {
-          setScores(data.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      setError(null);
+      fetch(`/api/offline-scores/student/${user.id}`)
+        .then(res => {
+          if (!res.ok) {
+            return res.json().then(errData => {
+              throw new Error(errData.error || `Не удалось загрузить оценки. Статус: ${res.status}`);
+            });
+          }
+          return res.json();
         })
-        .catch(error => {
-          console.error("Failed to load offline scores:", error);
+        .then((data: OfflineTestScore[]) => {
+          setScores(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+        })
+        .catch(err => {
+          console.error("Failed to load offline scores from API:", err);
+          setError((err as Error).message);
         })
         .finally(() => setIsLoading(false));
+    } else if (user && user.role !== 'student') {
+      setIsLoading(false);
+      setError("Доступ запрещен.");
     } else {
-        setIsLoading(false);
+      setIsLoading(false); // No user yet
     }
   }, [user]);
 
@@ -49,6 +63,16 @@ export default function StudentOfflineTestsPage() {
           </CardContent>
         </Card>
       </div>
+    );
+  }
+  
+  if (error) {
+    return (
+       <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Ошибка Загрузки</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
     );
   }
   
