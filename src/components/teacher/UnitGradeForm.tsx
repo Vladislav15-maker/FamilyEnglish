@@ -52,15 +52,10 @@ export default function UnitGradeForm({ students, onGradeAdded }: UnitGradeFormP
         body: JSON.stringify(data),
       });
 
-      const result = await response.json(); // Always try to parse JSON
+      const result = await response.json(); 
 
       if (!response.ok) {
-        // Use message and details from API response if available
-        throw { 
-            message: result.message || `Ошибка сервера: ${response.status}`, 
-            details: result.details,
-            error: result.error
-        };
+        throw result; // Throw the parsed JSON error response from the API
       }
       
       toast({
@@ -70,21 +65,43 @@ export default function UnitGradeForm({ students, onGradeAdded }: UnitGradeFormP
       });
       form.reset();
       onGradeAdded?.();
-    } catch (error) {
-      console.error("Failed to add unit grade via API:", error); 
+    } catch (errorCaught: any) { 
+      console.error("Raw error caught in UnitGradeForm onSubmit:", errorCaught);
       
       let title = 'Ошибка сохранения';
       let description = 'Не удалось сохранить оценку. Пожалуйста, попробуйте еще раз.';
 
-      const errorResponse = error as { message?: string; details?: string | object; error?: string };
-      if (errorResponse.message) {
-        description = errorResponse.message;
-        if (errorResponse.details) {
-            const detailsString = typeof errorResponse.details === 'object' ? JSON.stringify(errorResponse.details) : errorResponse.details;
-            description += ` Детали: ${detailsString}`;
+      if (errorCaught && typeof errorCaught === 'object') {
+        if (errorCaught.message && typeof errorCaught.message === 'string') {
+          description = errorCaught.message;
+        } else if (errorCaught.error && typeof errorCaught.error === 'string') {
+          // This is for the case where errorData.error was the primary message source
+          description = errorCaught.error;
+        } else if (errorCaught.details) {
+          // Handle Zod-like field errors if present in 'details'
+          if (typeof errorCaught.details === 'object' && Object.keys(errorCaught.details).length > 0) {
+             const firstDetailKey = Object.keys(errorCaught.details)[0];
+             const firstDetailMessages = errorCaught.details[firstDetailKey];
+             if (Array.isArray(firstDetailMessages) && firstDetailMessages.length > 0) {
+                description = `Ошибка валидации: ${firstDetailKey} - ${firstDetailMessages[0]}`;
+             } else {
+                description = `Детали ошибки: ${JSON.stringify(errorCaught.details)}`;
+             }
+          } else if (typeof errorCaught.details === 'string') {
+            description = `Детали ошибки: ${errorCaught.details}`;
+          }
+        } else {
+          try {
+            const errorString = JSON.stringify(errorCaught);
+            if (errorString !== '{}') {
+              description = `Произошла ошибка: ${errorString}`;
+            }
+          } catch (e) {
+            // Fallback if stringify fails
+          }
         }
-      } else if (errorResponse.error) { 
-        description = errorResponse.error;
+      } else if (typeof errorCaught === 'string' && errorCaught.length > 0) {
+        description = errorCaught;
       }
       
       toast({
@@ -259,3 +276,4 @@ export default function UnitGradeForm({ students, onGradeAdded }: UnitGradeFormP
     </Card>
   );
 }
+
