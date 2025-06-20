@@ -4,11 +4,14 @@ import { findUserById } from '@/lib/store';
 import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
 import type { AuthenticatedUser } from '@/lib/types';
 
+console.log('[API ROUTE ATTEMPTING TO LOAD] /api/teacher/students/[studentId]/route.ts');
+
 export async function GET(
   request: Request,
-  context: { params: { studentId: string } }
+  { params }: { params: { studentId: string } }
 ) {
-  console.log(`[API /api/teacher/students/:studentId] Received GET for studentId: ${context.params.studentId}`);
+  const requestedStudentId = params.studentId;
+  console.log(`[API /api/teacher/students/:studentId] Received GET for studentId: ${requestedStudentId}`);
   const session = await getAppSession();
 
   if (!session || !session.user) {
@@ -22,7 +25,6 @@ export async function GET(
     return NextResponse.json({ error: 'Forbidden: Access restricted to teachers' }, { status: 403 });
   }
 
-  const requestedStudentId = context.params.studentId;
   if (!requestedStudentId) {
     console.error('[API /api/teacher/students/:studentId] Student ID is required.');
     return NextResponse.json({ error: 'Student ID is required' }, { status: 400 });
@@ -41,3 +43,4 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to fetch student details', details: (error as Error).message }, { status: 500 });
   }
 }
+

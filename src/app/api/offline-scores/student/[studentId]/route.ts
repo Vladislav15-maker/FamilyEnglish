@@ -4,11 +4,14 @@ import { getOfflineScoresForStudent as fetchOfflineScoresFromDb } from '@/lib/st
 import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
 import type { AuthenticatedUser } from '@/lib/types';
 
+console.log('[API ROUTE ATTEMPTING TO LOAD] /api/offline-scores/student/[studentId]/route.ts');
+
 export async function GET(
   request: Request,
-  context: { params: { studentId: string } }
+  { params }: { params: { studentId: string } }
 ) {
-  console.log(`[API /api/offline-scores/student/:studentId] Received GET for studentId: ${context.params.studentId}`);
+  const requestedStudentId = params.studentId;
+  console.log(`[API /api/offline-scores/student/:studentId] Received GET for studentId: ${requestedStudentId}`);
   const session = await getAppSession();
 
   if (!session || !session.user) {
@@ -17,7 +20,6 @@ export async function GET(
   }
 
   const loggedInUser = session.user as AuthenticatedUser;
-  const requestedStudentId = context.params.studentId;
 
   // Teachers can fetch any student's offline scores.
   // Students can fetch their own if we decide to implement that view later.
@@ -40,3 +42,4 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to fetch offline scores', details: (error as Error).message }, { status: 500 });
   }
 }
+

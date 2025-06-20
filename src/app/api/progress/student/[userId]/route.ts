@@ -4,11 +4,14 @@ import { getAllStudentProgress as fetchAllStudentProgressFromDb } from '@/lib/st
 import { getAppSession } from '@/app/api/auth/[...nextauth]/route'; 
 import type { AuthenticatedUser } from '@/lib/types';
 
+console.log('[API ROUTE ATTEMPTING TO LOAD] /api/progress/student/[userId]/route.ts');
+
 export async function GET(
   request: Request,
-  context: { params: { userId: string } } 
+  { params }: { params: { userId: string } } 
 ) {
-  console.log(`[API /api/progress/student/:userId] Received GET request for userId: ${context.params.userId}`);
+  const requestedUserId = params.userId; 
+  console.log(`[API /api/progress/student/:userId] Received GET request for userId: ${requestedUserId}`);
   const session = await getAppSession();
 
   if (!session || !session.user) {
@@ -17,8 +20,6 @@ export async function GET(
   }
 
   const loggedInUser = session.user as AuthenticatedUser;
-  // Correctly access userId from context.params
-  const requestedUserId = context.params.userId; 
   console.log(`[API /api/progress/student/:userId] Logged in user: ${loggedInUser.username}, Role: ${loggedInUser.role}, Requesting for: ${requestedUserId}`);
 
   // Students can only fetch their own progress. Teachers can fetch any student's.
@@ -42,3 +43,4 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to fetch student progress', details: (error as Error).message }, { status: 500 });
   }
 }
+
