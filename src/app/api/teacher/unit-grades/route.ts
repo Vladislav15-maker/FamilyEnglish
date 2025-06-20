@@ -4,6 +4,7 @@ import { addStudentUnitGrade, getAllUnitGradesByTeacher } from '@/lib/store';
 import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
 import type { AuthenticatedUser, StudentUnitGrade } from '@/lib/types';
 import * as z from 'zod';
+import { curriculum } from '@/lib/curriculum-data';
 
 const unitGradeSchema = z.object({
   studentId: z.string().min(1, "Student ID is required"),
@@ -30,35 +31,67 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
+    console.log('[API /api/teacher/unit-grades] Request body:', body);
     const validation = unitGradeSchema.safeParse(body);
 
     if (!validation.success) {
       console.warn('[API /api/teacher/unit-grades] Validation failed:', validation.error.flatten().fieldErrors);
-      return NextResponse.json({ error: validation.error.flatten().fieldErrors }, { status: 400 });
+      return NextResponse.json({ error: 'Validation error', message: 'Invalid data provided', details: validation.error.flatten().fieldErrors }, { status: 400 });
     }
 
     const { studentId, unitId, grade, notes } = validation.data;
 
-    const gradeData: Omit<StudentUnitGrade, 'id' | 'date' | 'teacherId'> = {
+    const gradeDataForDb: Omit<StudentUnitGrade, 'id' | 'date' | 'teacherId' | 'studentName' | 'unitName'> = {
       studentId,
       unitId,
       grade: grade as 2 | 3 | 4 | 5,
       notes: notes || null,
     };
     
-    console.log('[API /api/teacher/unit-grades] Prepared unit grade data for DB:', JSON.stringify(gradeData, null, 2));
+    console.log('[API /api/teacher/unit-grades] Prepared unit grade data for DB:', JSON.stringify(gradeDataForDb, null, 2));
+    console.log(`[API /api/teacher/unit-grades] Calling addStudentUnitGrade with studentId: ${studentId}, unitId: ${unitId}, teacherId: ${loggedInUser.id}`);
 
-    const newGrade = await addStudentUnitGrade(gradeData, loggedInUser.id);
-    console.log(`[API /api/teacher/unit-grades] Unit grade added successfully for student ${studentId}, unit ${unitId}.`);
+    const newGrade = await addStudentUnitGrade(gradeDataForDb, loggedInUser.id);
+    console.log(`[API /api/teacher/unit-grades] Unit grade added successfully for student ${studentId}, unit ${unitId}. New grade ID: ${newGrade.id}`);
     return NextResponse.json(newGrade, { status: 201 });
 
   } catch (error) {
-    console.error('[API /api/teacher/unit-grades] Error adding unit grade:', error);
-    if (error instanceof SyntaxError) {
-        console.error('[API /api/teacher/unit-grades] JSON parsing error from request body.');
-        return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+    console.error('[API /api/teacher/unit-grades] Error adding unit grade:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    
+    let statusCode = 500;
+    let responseMessage = 'Failed to add unit grade.';
+    let responseDetails: string | object | undefined = undefined;
+
+    const anyError = error as any;
+
+    if (anyError.code === 'POSTGRES_ERROR' && anyError.error) { // Vercel Postgres specific error structure
+        responseMessage = anyError.error.message || responseMessage;
+        responseDetails = anyError.error.detail || JSON.stringify(anyError.error);
+        if (anyError.error.code === '23503') { // foreign_key_violation
+            statusCode = 400;
+            responseMessage = `Foreign key constraint violation: ${anyError.error.constraint || 'unknown constraint'}.`;
+        } else if (anyError.error.code === '23505') { // unique_violation
+            statusCode = 409;
+            responseMessage = `Unique constraint violation: ${anyError.error.constraint || 'unknown constraint'}.`;
+        } else if (anyError.error.code) {
+           responseMessage = `Database error (${anyError.error.code}): ${responseMessage}`;
+        }
+    } else if (error instanceof SyntaxError) {
+        statusCode = 400;
+        responseMessage = 'Invalid JSON payload in request body.';
+    } else if (error instanceof z.ZodError) {
+        statusCode = 400;
+        responseMessage = 'Validation error.';
+        responseDetails = error.flatten().fieldErrors;
+    } else if (error instanceof Error) {
+        responseMessage = error.message;
     }
-    return NextResponse.json({ error: 'Failed to add unit grade', details: (error as Error).message }, { status: 500 });
+
+    return NextResponse.json({ 
+        error: 'Failed to add unit grade', 
+        message: responseMessage,
+        details: responseDetails
+    }, { status: statusCode });
   }
 }
 
@@ -79,11 +112,20 @@ export async function GET(request: Request) {
   console.log(`[API /api/teacher/unit-grades] User authenticated as teacher: ${loggedInUser.username}`);
 
   try {
-    const unitGrades = await getAllUnitGradesByTeacher(loggedInUser.id);
-    console.log(`[API /api/teacher/unit-grades] Fetched ${unitGrades.length} unit grades for teacher ${loggedInUser.username}.`);
-    return NextResponse.json(unitGrades);
+    const unitGradesFromDb = await getAllUnitGradesByTeacher(loggedInUser.id);
+    const enrichedGrades = unitGradesFromDb.map(grade => {
+        const unitInfo = curriculum.find(u => u.id === grade.unitId);
+        // studentName is already fetched in getAllUnitGradesByTeacher
+        return {
+          ...grade,
+          unitName: unitInfo ? unitInfo.name : grade.unitId, 
+        };
+      });
+    console.log(`[API /api/teacher/unit-grades] Fetched ${enrichedGrades.length} unit grades for teacher ${loggedInUser.username}.`);
+    return NextResponse.json(enrichedGrades);
   } catch (error) {
-    console.error('[API /api/teacher/unit-grades] Error fetching unit grades for teacher:', error);
-    return NextResponse.json({ error: 'Failed to fetch unit grades', details: (error as Error).message }, { status: 500 });
+    console.error('[API /api/teacher/unit-grades] Error fetching unit grades for teacher:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    const errorMessage = (error instanceof Error) ? error.message : 'Failed to fetch unit grades';
+    return NextResponse.json({ error: 'Failed to fetch unit grades', message: errorMessage }, { status: 500 });
   }
 }

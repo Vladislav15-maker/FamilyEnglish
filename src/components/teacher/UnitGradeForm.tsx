@@ -52,26 +52,46 @@ export default function UnitGradeForm({ students, onGradeAdded }: UnitGradeFormP
         body: JSON.stringify(data),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Неизвестная ошибка сервера" }));
-        throw new Error(errorData.error?.message || errorData.error || `Ошибка сервера: ${response.status}`);
-      }
+      const result = await response.json(); // Always try to parse JSON
 
-      const newGrade = await response.json();
+      if (!response.ok) {
+        // Use message and details from API response if available
+        throw { 
+            message: result.message || `Ошибка сервера: ${response.status}`, 
+            details: result.details,
+            error: result.error
+        };
+      }
+      
       toast({
         title: 'Оценка за юнит добавлена',
-        description: `Оценка ${newGrade.grade} для ученика по юниту успешно сохранена.`,
+        description: `Оценка ${result.grade} для ученика по юниту "${curriculum.find(u => u.id === result.unitId)?.name || result.unitId}" успешно сохранена.`,
         variant: 'default'
       });
       form.reset();
       onGradeAdded?.();
     } catch (error) {
+      console.error("Failed to add unit grade via API:", error); 
+      
+      let title = 'Ошибка сохранения';
+      let description = 'Не удалось сохранить оценку. Пожалуйста, попробуйте еще раз.';
+
+      const errorResponse = error as { message?: string; details?: string | object; error?: string };
+      if (errorResponse.message) {
+        description = errorResponse.message;
+        if (errorResponse.details) {
+            const detailsString = typeof errorResponse.details === 'object' ? JSON.stringify(errorResponse.details) : errorResponse.details;
+            description += ` Детали: ${detailsString}`;
+        }
+      } else if (errorResponse.error) { 
+        description = errorResponse.error;
+      }
+      
       toast({
-        title: 'Ошибка сохранения',
-        description: (error as Error).message || 'Не удалось сохранить оценку. Пожалуйста, попробуйте еще раз.',
+        title: title,
+        description: description,
         variant: 'destructive',
       });
-      console.error("Failed to add unit grade via API:", error);
     } finally {
       setIsLoading(false);
     }
