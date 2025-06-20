@@ -1,5 +1,5 @@
 import { sql } from '@vercel/postgres';
-import type { User, StudentRoundProgress, OfflineTestScore, UserForAuth } from './types';
+import type { User, StudentRoundProgress, OfflineTestScore, UserForAuth, StudentUnitGrade } from './types';
 
 // This log runs when the module is first loaded.
 // If POSTGRES_URL is not set here when running on the server, then .env.local is not loaded correctly server-side.
@@ -307,6 +307,113 @@ export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | '
   }
 }
 
+// --- Student Unit Grade Functions ---
+
+export async function addStudentUnitGrade(
+  gradeData: Omit<StudentUnitGrade, 'id' | 'date' | 'teacherId'>,
+  teacherId: string
+): Promise<StudentUnitGrade> {
+  console.log(`[Store] addStudentUnitGrade for student ${gradeData.studentId}, unit ${gradeData.unitId} by teacher ${teacherId}`);
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in addStudentUnitGrade (SERVER-SIDE): POSTGRES_URL is NOT SET.');
+  }
+  const currentDate = new Date().toISOString();
+  try {
+    const result = await sql`
+      INSERT INTO student_unit_grades (student_id, teacher_id, unit_id, grade, notes, date)
+      VALUES (${gradeData.studentId}, ${teacherId}, ${gradeData.unitId}, ${gradeData.grade}, ${gradeData.notes || null}, ${currentDate})
+      RETURNING id, student_id, teacher_id, unit_id, grade, notes, date;
+    `;
+    const row = result.rows[0];
+    return {
+      id: typeof row.id === 'string' ? row.id : String(row.id),
+      studentId: row.student_id,
+      teacherId: row.teacher_id,
+      unitId: row.unit_id,
+      grade: row.grade as 2 | 3 | 4 | 5,
+      notes: row.notes,
+      date: row.date,
+    };
+  } catch (error) {
+    const dbError = error as any;
+    if (dbError.code === 'missing_connection_string' || dbError.message?.includes('missing_connection_string')) {
+        console.error('[Store] CRITICAL in addStudentUnitGrade: missing_connection_string.');
+    } else {
+         console.error(`[Store] DB Error in addStudentUnitGrade (code: ${dbError.code}): ${dbError.message}`);
+    }
+    throw error;
+  }
+}
+
+export async function getUnitGradesForStudent(studentId: string): Promise<StudentUnitGrade[]> {
+  console.log(`[Store] getUnitGradesForStudent for student ${studentId}`);
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in getUnitGradesForStudent (SERVER-SIDE): POSTGRES_URL is NOT SET.');
+  }
+  try {
+    const result = await sql`
+      SELECT id, student_id, teacher_id, unit_id, grade, notes, date
+      FROM student_unit_grades 
+      WHERE student_id = ${studentId} 
+      ORDER BY date DESC;
+    `;
+    return result.rows.map(row => ({
+      id: typeof row.id === 'string' ? row.id : String(row.id),
+      studentId: row.student_id,
+      teacherId: row.teacher_id,
+      unitId: row.unit_id,
+      grade: row.grade as 2 | 3 | 4 | 5,
+      notes: row.notes,
+      date: row.date,
+    }));
+  } catch (error) {
+    const VercelPostgresError = (error as any)?.constructor?.name === 'VercelPostgresError' ? (error as any) : null;
+    if (VercelPostgresError && VercelPostgresError.code === 'missing_connection_string') {
+        console.error('[Store] CRITICAL in getUnitGradesForStudent: missing_connection_string.');
+    }
+    console.error('[Store] Failed to get unit grades for student:', error);
+    return [];
+  }
+}
+
+export async function getAllUnitGradesByTeacher(teacherId: string): Promise<StudentUnitGrade[]> {
+  console.log(`[Store] getAllUnitGradesByTeacher for teacher ${teacherId}`);
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in getAllUnitGradesByTeacher (SERVER-SIDE): POSTGRES_URL is NOT SET.');
+  }
+  try {
+    // We also fetch student name and unit name here for easier display on the teacher's side.
+    // This assumes curriculum data is relatively static or unit names can be joined.
+    // For simplicity, we'll just fetch IDs and join unit names on the client if needed from curriculum-data.
+    const result = await sql`
+      SELECT sug.id, sug.student_id, sug.teacher_id, sug.unit_id, sug.grade, sug.notes, sug.date, u.name as student_name
+      FROM student_unit_grades sug
+      JOIN users u ON sug.student_id = u.id
+      WHERE sug.teacher_id = ${teacherId} 
+      ORDER BY sug.date DESC;
+    `;
+    return result.rows.map(row => ({
+      id: typeof row.id === 'string' ? row.id : String(row.id),
+      studentId: row.student_id,
+      teacherId: row.teacher_id,
+      unitId: row.unit_id,
+      studentName: row.student_name, // Added for teacher's view
+      grade: row.grade as 2 | 3 | 4 | 5,
+      notes: row.notes,
+      date: row.date,
+    }));
+  } catch (error) {
+    const VercelPostgresError = (error as any)?.constructor?.name === 'VercelPostgresError' ? (error as any) : null;
+    if (VercelPostgresError && VercelPostgresError.code === 'missing_connection_string') {
+        console.error('[Store] CRITICAL in getAllUnitGradesByTeacher: missing_connection_string.');
+    }
+    console.error('[Store] Failed to get all unit grades by teacher:', error);
+    return [];
+  }
+}
+
+
 export function resetStore() {
   console.warn("[Store] resetStore is a no-op when using a persistent database.");
 }
+

@@ -1,4 +1,3 @@
-
 // Curriculum Types
 export interface Word {
   id: string;
@@ -70,4 +69,16 @@ export interface OfflineTestScore {
   score: 2 | 3 | 4 | 5; // Fixed score values
   notes?: string | null; // Optional notes from the teacher
   date: string; // Date of the test/grading, stored as ISO string or similar
+}
+
+export interface StudentUnitGrade {
+  id: string;
+  studentId: string;
+  teacherId: string;
+  unitId: string;
+  unitName?: string; // For display purposes, can be joined or added programmatically
+  studentName?: string; // For display purposes on teacher's side
+  grade: 2 | 3 | 4 | 5;
+  notes?: string | null;
+  date: string; // ISO string date
 }
