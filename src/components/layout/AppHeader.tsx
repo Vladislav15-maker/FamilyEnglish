@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, Menu, Home } from 'lucide-react'; // Home icon for student home
+import { LogOut, Menu } from 'lucide-react'; 
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -20,9 +20,8 @@ import {
   SheetClose,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { navItems, type NavItem } from './AppSidebar'; 
+import { navItems } from './AppSidebar'; 
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
 
 export default function AppHeader() {
   const { user, logout } = useAuth();
@@ -52,7 +51,7 @@ export default function AppHeader() {
                   <Menu className="h-6 w-6" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-64 p-0 pt-6 bg-card text-card-foreground">
+              <SheetContent side="left" className="w-72 p-0 pt-6 bg-card text-card-foreground">
                 <div className="mb-6 px-4">
                    <SheetClose asChild>
                      <Link href={dashboardHomeLink} className="text-2xl font-bold font-headline text-primary">
@@ -60,7 +59,7 @@ export default function AppHeader() {
                       </Link>
                    </SheetClose>
                 </div>
-                <nav className="space-y-2 px-4">
+                <nav className="space-y-1 px-2">
                   {filteredNavItems.map((item) => {
                      const isActive = item.exactMatch ? pathname === item.href : pathname.startsWith(item.href);
                      return (
@@ -68,10 +67,10 @@ export default function AppHeader() {
                           <Button
                             asChild
                             variant={isActive ? 'secondary' : 'ghost'}
-                            className="w-full justify-start text-base"
+                            className="w-full justify-start text-sm py-2.5"
                           >
                             <Link href={item.href}>
-                              <item.icon className="mr-3 h-5 w-5" />
+                              <item.icon className="mr-2 h-4 w-4" />
                               {item.label}
                             </Link>
                           </Button>
@@ -121,3 +120,5 @@ export default function AppHeader() {
     </header>
   );
 }
+
+    

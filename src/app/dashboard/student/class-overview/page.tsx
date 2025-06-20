@@ -4,12 +4,12 @@ import { useAuth } from '@/context/AuthContext';
 import { curriculum } from '@/lib/curriculum-data';
 import type { User, StudentRoundProgress, OfflineTestScore, StudentUnitGrade } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, AlertCircle, BookOpen, Users, ClipboardList, Sigma } from 'lucide-react';
+import { AlertCircle, BookOpen, BarChart3, Users, ClipboardList, Sigma } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -21,7 +21,7 @@ interface StudentOnlineOverviewItem {
   averageOnlineScore: number;
 }
 
-export default function TeacherConsolidatedProgressOverviewPage() {
+export default function ConsolidatedClassOverviewPage() {
   const { user } = useAuth();
   const [classOnlineOverview, setClassOnlineOverview] = useState<StudentOnlineOverviewItem[]>([]);
   const [offlineScores, setOfflineScores] = useState<OfflineTestScore[]>([]);
@@ -36,12 +36,12 @@ export default function TeacherConsolidatedProgressOverviewPage() {
   const totalRoundsInCurriculum = curriculum.reduce((acc, unit) => acc + unit.rounds.length, 0);
 
   useEffect(() => {
-    if (user && user.role === 'teacher') {
-      // Fetch Online Overview for Teacher
+    if (user) {
+      // Fetch Online Overview
       setIsLoadingOnline(true);
-      fetch('/api/teacher/students-overview') // Teacher's specific endpoint
+      fetch('/api/student/class-overview')
         .then(res => {
-          if (!res.ok) return res.json().then(err => { throw new Error(err.error || `Онлайн-обзор (учитель): ${res.status}`) });
+          if (!res.ok) return res.json().then(err => { throw new Error(err.error || `Онлайн-обзор: ${res.status}`) });
           return res.json();
         })
         .then((overviewData: { student: User; progress: StudentRoundProgress[] }[]) => {
@@ -57,49 +57,48 @@ export default function TeacherConsolidatedProgressOverviewPage() {
           setClassOnlineOverview(processedOverview);
         })
         .catch(err => {
-          console.error("Failed to load class online overview for teacher:", err);
+          console.error("Failed to load class online overview:", err);
           setError(prev => prev ? `${prev}\n${(err as Error).message}` : (err as Error).message);
         })
         .finally(() => setIsLoadingOnline(false));
 
-      // Fetch Offline Scores (teacher uses /api/offline-scores/all)
+      // Fetch Offline Scores
       setIsLoadingOffline(true);
-      fetch(`/api/offline-scores/all`) 
+      fetch(`/api/student/class-offline-scores`)
         .then(res => {
-          if (!res.ok) return res.json().then(err => { throw new Error(err.error || `Оффлайн-оценки (учитель): ${res.status}`) });
+          if (!res.ok) return res.json().then(err => { throw new Error(err.error || `Оффлайн-оценки: ${res.status}`) });
           return res.json();
         })
         .then((data: OfflineTestScore[]) => {
-          // studentName should already be included from the store function
           setOfflineScores(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
         })
         .catch(err => {
-          console.error("Failed to load class offline scores for teacher:", err);
+          console.error("Failed to load class offline scores:", err);
           setError(prev => prev ? `${prev}\n${(err as Error).message}` : (err as Error).message);
         })
         .finally(() => setIsLoadingOffline(false));
 
-      // Fetch Unit Grades (teacher uses /api/student/class-unit-grades for a full class view)
+      // Fetch Unit Grades
       setIsLoadingUnitGrades(true);
       fetch(`/api/student/class-unit-grades`)
         .then(res => {
-          if (!res.ok) return res.json().then(err => { throw new Error(err.error || `Оценки за юниты (учитель): ${res.status}`) });
+          if (!res.ok) return res.json().then(err => { throw new Error(err.error || `Оценки за юниты: ${res.status}`) });
           return res.json();
         })
         .then((data: StudentUnitGrade[]) => {
-          // studentName and unitName should already be included from the API
           setUnitGrades(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
         })
         .catch(err => {
-          console.error("Failed to load class unit grades for teacher:", err);
+          console.error("Failed to load class unit grades:", err);
           setError(prev => prev ? `${prev}\n${(err as Error).message}` : (err as Error).message);
         })
         .finally(() => setIsLoadingUnitGrades(false));
         
-    } else if (!user && !isLoadingOnline) { 
+    } else if (!isLoadingOnline && !user) { // Check one of the loading states
       setIsLoadingOnline(false);
       setIsLoadingOffline(false);
       setIsLoadingUnitGrades(false);
+      setError("Пожалуйста, войдите в систему для просмотра этой страницы.");
     }
   }, [user, totalRoundsInCurriculum]);
 
@@ -122,17 +121,17 @@ export default function TeacherConsolidatedProgressOverviewPage() {
     );
   }
   
-   if (!user || user.role !== 'teacher') {
-     return ( <Alert variant="destructive"> <BookOpen className="h-4 w-4" /> <AlertTitle>Доступ запрещен</AlertTitle> <AlertDescription> Эта страница доступна только для учителей. </AlertDescription> </Alert> );
+  if (error && !classOnlineOverview.length && !offlineScores.length && !unitGrades.length) { // Show general error if nothing loaded
+    return ( <Alert variant="destructive"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Ошибка Загрузки</AlertTitle> <AlertDescription>{error.split('\n').map((e, i) => <p key={i}>{e}</p>)}</AlertDescription> </Alert> );
   }
 
-  if (error && !classOnlineOverview.length && !offlineScores.length && !unitGrades.length) { 
-    return ( <Alert variant="destructive"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Ошибка Загрузки</AlertTitle> <AlertDescription>{error.split('\n').map((e, i) => <p key={i}>{e}</p>)}</AlertDescription> </Alert> );
+  if (!user) {
+     return ( <Alert variant="default"> <BookOpen className="h-4 w-4" /> <AlertTitle>Требуется аутентификация</AlertTitle> <AlertDescription> Пожалуйста, войдите в систему для просмотра успеваемости класса. </AlertDescription> </Alert> );
   }
   
   return (
     <div className="space-y-8">
-      <div className="flex items-center space-x-3"> <BarChart3 className="h-10 w-10 text-primary" /> <h1 className="text-4xl font-bold font-headline">Общий Обзор Успеваемости Класса</h1> </div>
+      <div className="flex items-center space-x-3"> <BarChart3 className="h-10 w-10 text-primary" /> <h1 className="text-4xl font-bold font-headline">Общий Обзор Класса</h1> </div>
        {error && ( <Alert variant="destructive" className="my-4"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Ошибка при загрузке части данных</AlertTitle> <AlertDescription>{error.split('\n').map((e, i) => <p key={i}>{e}</p>)}</AlertDescription> </Alert> )}
 
       {/* Online Progress Section */}
@@ -183,7 +182,7 @@ export default function TeacherConsolidatedProgressOverviewPage() {
                   {offlineScores.map(score => (
                     <TableRow key={score.id}>
                       <TableCell className="font-medium whitespace-nowrap">{format(new Date(score.date), 'dd MMMM yyyy, HH:mm', { locale: ru })}</TableCell>
-                      <TableCell>{score.studentName || classOnlineOverview.find(s => s.student.id === score.studentId)?.student.name || score.studentId}</TableCell>
+                      <TableCell>{score.studentName || score.studentId}</TableCell>
                       <TableCell className="text-center">
                         <Badge className={`text-lg font-bold ${score.score === 5 ? 'bg-green-500 hover:bg-green-600' : ''} ${score.score === 4 ? 'bg-blue-500 hover:bg-blue-600' : ''} ${score.score === 3 ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : ''} ${score.score === 2 ? 'bg-red-500 hover:bg-red-600' : ''}`}>{score.score}</Badge>
                       </TableCell>
@@ -209,8 +208,8 @@ export default function TeacherConsolidatedProgressOverviewPage() {
                   {unitGrades.map(grade => (
                     <TableRow key={grade.id}>
                       <TableCell className="font-medium whitespace-nowrap">{format(new Date(grade.date), 'dd MMMM yyyy, HH:mm', { locale: ru })}</TableCell>
-                      <TableCell>{grade.studentName || classOnlineOverview.find(s => s.student.id === grade.studentId)?.student.name || grade.studentId}</TableCell>
-                      <TableCell>{grade.unitName || curriculum.find(u => u.id === grade.unitId)?.name || grade.unitId}</TableCell>
+                      <TableCell>{grade.studentName || grade.studentId}</TableCell>
+                      <TableCell>{grade.unitName || grade.unitId}</TableCell>
                       <TableCell className="text-center">
                         <Badge className={`text-lg font-bold ${grade.grade === 5 ? 'bg-green-500 hover:bg-green-600' : ''} ${grade.grade === 4 ? 'bg-blue-500 hover:bg-blue-600' : ''} ${grade.grade === 3 ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : ''} ${grade.grade === 2 ? 'bg-red-500 hover:bg-red-600' : ''}`}>{grade.grade}</Badge>
                       </TableCell>
