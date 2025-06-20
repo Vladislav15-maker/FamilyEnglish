@@ -10,7 +10,7 @@ export async function GET(
   request: Request,
   { params }: { params: { userId: string } } 
 ) {
-  const requestedUserId = params.userId; 
+  const requestedUserId = params.userId; // Correctly access userId from params
   console.log(`[API /api/progress/student/:userId] Received GET request for userId: ${requestedUserId}`);
   const session = await getAppSession();
 
@@ -43,4 +43,3 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to fetch student progress', details: (error as Error).message }, { status: 500 });
   }
 }
-

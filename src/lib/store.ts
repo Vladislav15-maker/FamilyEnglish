@@ -42,7 +42,7 @@ export async function getUserByUsernameForAuth(username: string): Promise<UserFo
         console.error('[Store] CRITICAL in getUserByUsernameForAuth: missing_connection_string. POSTGRES_URL env var was likely not found by @vercel/postgres.');
     }
     console.error('[Store] Failed to fetch user by username for auth:', error);
-    throw new Error(`Database error fetching user ${username}: ${(error as Error).message}`);
+    throw error; // Re-throw original error
   }
 }
 
@@ -73,7 +73,7 @@ export async function findUserById(userId: string): Promise<User | undefined> {
         console.error('[Store] CRITICAL in findUserById: missing_connection_string. POSTGRES_URL env var was likely not found by @vercel/postgres.');
     }
     console.error('[Store] Failed to find user by id:', error);
-    return undefined;
+    throw error; // Re-throw original error
   }
 }
 
@@ -98,7 +98,7 @@ export async function getAllStudents(): Promise<User[]> {
         console.error('[Store] CRITICAL in getAllStudents: missing_connection_string. POSTGRES_URL env var was likely not found by @vercel/postgres.');
     }
     console.error('[Store] Failed to get all students:', error);
-    return [];
+    throw error; // Re-throw original error
   }
 }
 
@@ -131,7 +131,7 @@ export async function getStudentRoundProgress(studentId: string, unitId: string,
         console.error('[Store] CRITICAL in getStudentRoundProgress: missing_connection_string. POSTGRES_URL env var was likely not found by @vercel/postgres.');
     }
     console.error('[Store] Failed to get student round progress:', error);
-    return undefined;
+    throw error; // Re-throw original error
   }
 }
 
@@ -169,7 +169,7 @@ export async function getAllStudentProgress(studentIdFilter: string): Promise<St
         console.error('[Store] CRITICAL in getAllStudentProgress: missing_connection_string. POSTGRES_URL env var was likely not found by @vercel/postgres.');
     }
     console.error('[Store] Failed to get all student progress:', error);
-    return [];
+    throw error; // Re-throw original error
   }
 }
 
@@ -199,14 +199,9 @@ export async function saveStudentRoundProgress(progress: StudentRoundProgress): 
     // console.log(`[Store] Successfully saved/updated progress for student ${progress.studentId}, round ${progress.roundId}`);
   } catch (error) {
     const dbError = error as any;
-    console.error('[Store] Failed to save student round progress. Details:');
-    // console.error(`[Store] Error Code: ${dbError.code}`); // Already logged if VercelPostgresError
-    // console.error(`[Store] Error Message: ${dbError.message}`); // Already logged if VercelPostgresError
+    console.error(`[Store] DB Error in saveStudentRoundProgress (code: ${dbError.code}): ${dbError.message}. Full error:`, dbError);
     if (dbError.code === 'missing_connection_string' || dbError.message?.includes('missing_connection_string')) {
         console.error('[Store] CRITICAL in saveStudentRoundProgress: missing_connection_string. POSTGRES_URL env var was likely not found by @vercel/postgres.');
-    } else {
-        // Log other types of errors
-        console.error(`[Store] DB Error (code: ${dbError.code}): ${dbError.message}`);
     }
     throw error; 
   }
@@ -220,7 +215,7 @@ export async function getOfflineScoresForStudent(studentId: string): Promise<Off
     console.error('[Store] CRITICAL in getOfflineScoresForStudent (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
    try {
-    const result = await sql<Omit<OfflineTestScore, 'studentId' | 'teacherId'> & {student_id: string, teacher_id: string}>`
+    const result = await sql<Omit<OfflineTestScore, 'studentId' | 'teacherId' | 'studentName'> & {student_id: string, teacher_id: string}>`
       SELECT id, student_id, teacher_id, score, notes, date
       FROM offline_scores WHERE student_id = ${studentId} ORDER BY date DESC;
     `;
@@ -231,6 +226,7 @@ export async function getOfflineScoresForStudent(studentId: string): Promise<Off
         score: row.score as 2 | 3 | 4 | 5,
         notes: row.notes,
         date: row.date
+        // studentName is not fetched here, it's added in getAllOfflineScores or API routes
     }));
   } catch (error) {
     const VercelPostgresError = (error as any)?.constructor?.name === 'VercelPostgresError' ? (error as any) : null;
@@ -238,7 +234,7 @@ export async function getOfflineScoresForStudent(studentId: string): Promise<Off
         console.error('[Store] CRITICAL in getOfflineScoresForStudent: missing_connection_string. POSTGRES_URL env var was likely not found by @vercel/postgres.');
     }
     console.error('[Store] Failed to get offline scores for student:', error);
-    return [];
+    throw error; // Re-throw original error
   }
 }
 
@@ -249,14 +245,17 @@ export async function getAllOfflineScores(): Promise<OfflineTestScore[]> {
     console.error('[Store] CRITICAL in getAllOfflineScores (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
   try {
-    const result = await sql<Omit<OfflineTestScore, 'studentId' | 'teacherId'> & {student_id: string, teacher_id: string}>`
-      SELECT id, student_id, teacher_id, score, notes, date
-      FROM offline_scores ORDER BY date DESC;
+    const result = await sql<Omit<OfflineTestScore, 'studentId' | 'teacherId'> & {student_id: string, teacher_id: string, student_name: string }>`
+      SELECT os.id, os.student_id, os.teacher_id, os.score, os.notes, os.date, u.name as student_name
+      FROM offline_scores os
+      JOIN users u ON os.student_id = u.id
+      ORDER BY os.date DESC;
     `;
     return result.rows.map(row => ({
         id: typeof row.id === 'string' ? row.id : String(row.id),
         studentId: row.student_id,
         teacherId: row.teacher_id,
+        studentName: row.student_name,
         score: row.score as 2 | 3 | 4 | 5,
         notes: row.notes,
         date: row.date
@@ -267,11 +266,11 @@ export async function getAllOfflineScores(): Promise<OfflineTestScore[]> {
         console.error('[Store] CRITICAL in getAllOfflineScores: missing_connection_string. POSTGRES_URL env var was likely not found by @vercel/postgres.');
     }
     console.error('[Store] Failed to get all offline scores:', error);
-    return [];
+    throw error; // Re-throw original error
   }
 }
 
-export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | 'date'>): Promise<OfflineTestScore> {
+export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | 'date' | 'studentName'>): Promise<OfflineTestScore> {
   // console.log(`[Store] addOfflineScore for student ${scoreData.studentId} by teacher ${scoreData.teacherId}`);
   // console.log('[Store] Inside addOfflineScore - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
@@ -285,6 +284,8 @@ export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | '
       RETURNING id, student_id, teacher_id, score, notes, date;
     `;
     const row = result.rows[0];
+    // studentName is not returned by this insert, it's added in getAllOfflineScores by a JOIN
+    // or needs to be fetched separately if needed immediately after add.
     return {
         id: typeof row.id === 'string' ? row.id : String(row.id),
         studentId: row.student_id,
@@ -295,13 +296,9 @@ export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | '
     };
   } catch (error) {
     const dbError = error as any;
-    // console.error('[Store] Failed to add offline score. Details:');
-    // console.error(`[Store] Error Code: ${dbError.code}`);
-    // console.error(`[Store] Error Message: ${dbError.message}`);
+    console.error(`[Store] DB Error in addOfflineScore (code: ${dbError.code}): ${dbError.message}. Full error:`, dbError);
     if (dbError.code === 'missing_connection_string' || dbError.message?.includes('missing_connection_string')) {
         console.error('[Store] CRITICAL in addOfflineScore: missing_connection_string. POSTGRES_URL env var was likely not found by @vercel/postgres.');
-    } else {
-         console.error(`[Store] DB Error (code: ${dbError.code}): ${dbError.message}`);
     }
     throw error;
   }
@@ -310,7 +307,7 @@ export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | '
 // --- Student Unit Grade Functions ---
 
 export async function addStudentUnitGrade(
-  gradeData: Omit<StudentUnitGrade, 'id' | 'date' | 'teacherId'>,
+  gradeData: Omit<StudentUnitGrade, 'id' | 'date' | 'teacherId' | 'studentName' | 'unitName'>,
   teacherId: string
 ): Promise<StudentUnitGrade> {
   console.log(`[Store] addStudentUnitGrade for student ${gradeData.studentId}, unit ${gradeData.unitId} by teacher ${teacherId}`);
@@ -325,6 +322,8 @@ export async function addStudentUnitGrade(
       RETURNING id, student_id, teacher_id, unit_id, grade, notes, date;
     `;
     const row = result.rows[0];
+    // The returned object here won't have studentName or unitName as they are not in student_unit_grades table
+    // These are typically added by the API route using curriculum-data or by joining with users table
     return {
       id: typeof row.id === 'string' ? row.id : String(row.id),
       studentId: row.student_id,
@@ -336,12 +335,11 @@ export async function addStudentUnitGrade(
     };
   } catch (error) {
     const dbError = error as any;
+    console.error(`[Store] DB Error in addStudentUnitGrade (code: ${dbError.code}, constraint: ${dbError.constraint_name}): ${dbError.message}. Detail: ${dbError.detail}. Full error:`, dbError);
     if (dbError.code === 'missing_connection_string' || dbError.message?.includes('missing_connection_string')) {
         console.error('[Store] CRITICAL in addStudentUnitGrade: missing_connection_string.');
-    } else {
-         console.error(`[Store] DB Error in addStudentUnitGrade (code: ${dbError.code}): ${dbError.message}`);
     }
-    throw error;
+    throw error; // Re-throw original error
   }
 }
 
@@ -352,19 +350,22 @@ export async function getUnitGradesForStudent(studentId: string): Promise<Studen
   }
   try {
     const result = await sql`
-      SELECT id, student_id, teacher_id, unit_id, grade, notes, date
-      FROM student_unit_grades 
-      WHERE student_id = ${studentId} 
-      ORDER BY date DESC;
+      SELECT sug.id, sug.student_id, sug.teacher_id, sug.unit_id, sug.grade, sug.notes, sug.date, u.name as student_name
+      FROM student_unit_grades sug
+      JOIN users u ON sug.student_id = u.id
+      WHERE sug.student_id = ${studentId} 
+      ORDER BY sug.date DESC;
     `;
     return result.rows.map(row => ({
       id: typeof row.id === 'string' ? row.id : String(row.id),
       studentId: row.student_id,
       teacherId: row.teacher_id,
       unitId: row.unit_id,
+      studentName: row.student_name,
       grade: row.grade as 2 | 3 | 4 | 5,
       notes: row.notes,
       date: row.date,
+      // unitName will be added by the API route using curriculum-data
     }));
   } catch (error) {
     const VercelPostgresError = (error as any)?.constructor?.name === 'VercelPostgresError' ? (error as any) : null;
@@ -372,7 +373,7 @@ export async function getUnitGradesForStudent(studentId: string): Promise<Studen
         console.error('[Store] CRITICAL in getUnitGradesForStudent: missing_connection_string.');
     }
     console.error('[Store] Failed to get unit grades for student:', error);
-    return [];
+    throw error; // Re-throw original error
   }
 }
 
@@ -382,9 +383,6 @@ export async function getAllUnitGradesByTeacher(teacherId: string): Promise<Stud
     console.error('[Store] CRITICAL in getAllUnitGradesByTeacher (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
   try {
-    // We also fetch student name and unit name here for easier display on the teacher's side.
-    // This assumes curriculum data is relatively static or unit names can be joined.
-    // For simplicity, we'll just fetch IDs and join unit names on the client if needed from curriculum-data.
     const result = await sql`
       SELECT sug.id, sug.student_id, sug.teacher_id, sug.unit_id, sug.grade, sug.notes, sug.date, u.name as student_name
       FROM student_unit_grades sug
@@ -397,10 +395,11 @@ export async function getAllUnitGradesByTeacher(teacherId: string): Promise<Stud
       studentId: row.student_id,
       teacherId: row.teacher_id,
       unitId: row.unit_id,
-      studentName: row.student_name, // Added for teacher's view
+      studentName: row.student_name, 
       grade: row.grade as 2 | 3 | 4 | 5,
       notes: row.notes,
       date: row.date,
+      // unitName will be added by the API route using curriculum-data
     }));
   } catch (error) {
     const VercelPostgresError = (error as any)?.constructor?.name === 'VercelPostgresError' ? (error as any) : null;
@@ -408,7 +407,41 @@ export async function getAllUnitGradesByTeacher(teacherId: string): Promise<Stud
         console.error('[Store] CRITICAL in getAllUnitGradesByTeacher: missing_connection_string.');
     }
     console.error('[Store] Failed to get all unit grades by teacher:', error);
-    return [];
+    throw error; // Re-throw original error
+  }
+}
+
+export async function getAllUnitGrades(): Promise<StudentUnitGrade[]> {
+  console.log(`[Store] getAllUnitGrades called`);
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in getAllUnitGrades (SERVER-SIDE): POSTGRES_URL is NOT SET.');
+  }
+  try {
+    // Fetches all unit grades and joins with users table to get student names
+    const result = await sql`
+      SELECT sug.id, sug.student_id, sug.teacher_id, sug.unit_id, sug.grade, sug.notes, sug.date, u.name as student_name
+      FROM student_unit_grades sug
+      JOIN users u ON sug.student_id = u.id
+      ORDER BY sug.date DESC;
+    `;
+    return result.rows.map(row => ({
+      id: typeof row.id === 'string' ? row.id : String(row.id),
+      studentId: row.student_id,
+      teacherId: row.teacher_id, 
+      unitId: row.unit_id,
+      studentName: row.student_name, 
+      grade: row.grade as 2 | 3 | 4 | 5,
+      notes: row.notes,
+      date: row.date,
+      // unitName will be added by the API route using curriculum-data
+    }));
+  } catch (error) {
+    const VercelPostgresError = (error as any)?.constructor?.name === 'VercelPostgresError' ? (error as any) : null;
+    if (VercelPostgresError && VercelPostgresError.code === 'missing_connection_string') {
+        console.error('[Store] CRITICAL in getAllUnitGrades: missing_connection_string.');
+    }
+    console.error('[Store] Failed to get all unit grades:', error);
+    throw error; 
   }
 }
 
@@ -416,4 +449,3 @@ export async function getAllUnitGradesByTeacher(teacherId: string): Promise<Stud
 export function resetStore() {
   console.warn("[Store] resetStore is a no-op when using a persistent database.");
 }
-

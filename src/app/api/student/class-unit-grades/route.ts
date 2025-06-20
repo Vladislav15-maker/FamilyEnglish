@@ -38,4 +38,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Failed to fetch unit grades for class view', details: (error as Error).message }, { status: 500 });
   }
 }
-

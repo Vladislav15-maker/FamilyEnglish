@@ -10,7 +10,7 @@ export async function GET(
   request: Request,
   { params }: { params: { studentId: string } }
 ) {
-  const requestedStudentId = params.studentId;
+  const requestedStudentId = params.studentId; // Correctly access studentId from params
   console.log(`[API /api/offline-scores/student/:studentId] Received GET for studentId: ${requestedStudentId}`);
   const session = await getAppSession();
 
@@ -42,4 +42,3 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to fetch offline scores', details: (error as Error).message }, { status: 500 });
   }
 }
-
