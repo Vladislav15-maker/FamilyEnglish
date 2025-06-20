@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Home, Users, BookOpen, CheckSquare, Award, BarChart3, LibraryBig, Sigma, Users2 } from 'lucide-react'; // Added Users2 for "Класс"
+import { Home, Users, BookOpen, CheckSquare, Award, BarChart3, LibraryBig, Sigma, Users2 } from 'lucide-react';
 
 export interface NavItem {
   href: string;
@@ -19,9 +19,9 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   // Student items
   { href: '/dashboard/student/home', label: 'Главная', icon: Home, roles: ['student'], exactMatch: true },
-  { href: '/dashboard/units', label: 'Юниты (Мои)', icon: BookOpen, roles: ['student'] },
-  { href: '/dashboard/student/offline-tests', label: 'Оффлайн Тесты (Мои)', icon: Award, roles: ['student'] },
-  { href: '/dashboard/student/unit-grades', label: 'Оценки за Юниты (Мои)', icon: Sigma, roles: ['student'] },
+  { href: '/dashboard/units', label: 'Юниты', icon: BookOpen, roles: ['student'] },
+  { href: '/dashboard/student/offline-tests', label: 'Оффлайн Тесты', icon: Award, roles: ['student'] },
+  { href: '/dashboard/student/unit-grades', label: 'Оценки за Юниты', icon: Sigma, roles: ['student'] },
   { href: '/dashboard/student/class-overview', label: 'Класс', icon: Users2, roles: ['student'] }, 
   
   // Teacher items
