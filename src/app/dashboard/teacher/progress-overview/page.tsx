@@ -31,20 +31,23 @@ export default function TeacherConsolidatedProgressOverviewPage() {
   const [isLoadingOffline, setIsLoadingOffline] = useState(true);
   const [isLoadingUnitGrades, setIsLoadingUnitGrades] = useState(true);
   
-  const [error, setError] = useState<string | null>(null);
+  const [errorMessages, setErrorMessages] = useState<string[]>([]);
 
   const totalRoundsInCurriculum = curriculum.reduce((acc, unit) => acc + unit.rounds.length, 0);
 
   useEffect(() => {
     if (user && user.role === 'teacher') {
-      // Fetch Online Overview for Teacher
-      setIsLoadingOnline(true);
-      fetch('/api/teacher/students-overview') // Teacher's specific endpoint
-        .then(res => {
-          if (!res.ok) return res.json().then(err => { throw new Error(err.error || `Онлайн-обзор (учитель): ${res.status}`) });
-          return res.json();
-        })
-        .then((overviewData: { student: User; progress: StudentRoundProgress[] }[]) => {
+      const newErrorMessages: string[] = [];
+      
+      const fetchOnlineOverview = async () => {
+        setIsLoadingOnline(true);
+        try {
+          const res = await fetch('/api/teacher/students-overview');
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Онлайн-обзор (учитель): ${res.status} - ${errText.substring(0, 200)}`);
+          }
+          const overviewData: { student: User; progress: StudentRoundProgress[] }[] = await res.json();
           const processedOverview = overviewData.map(item => {
             const completedRounds = item.progress.filter(p => p.completed).length;
             const overallProgressPercentage = totalRoundsInCurriculum > 0 
@@ -55,47 +58,54 @@ export default function TeacherConsolidatedProgressOverviewPage() {
             return { ...item, overallProgressPercentage, averageOnlineScore };
           }).sort((a, b) => b.overallProgressPercentage - a.overallProgressPercentage || b.averageOnlineScore - a.averageOnlineScore);
           setClassOnlineOverview(processedOverview);
-        })
-        .catch(err => {
+        } catch (err) {
           console.error("Failed to load class online overview for teacher:", err);
-          setError(prev => prev ? `${prev}\n${(err as Error).message}` : (err as Error).message);
-        })
-        .finally(() => setIsLoadingOnline(false));
+          newErrorMessages.push((err as Error).message);
+        } finally {
+          setIsLoadingOnline(false);
+        }
+      };
 
-      // Fetch Offline Scores (teacher uses /api/offline-scores/all)
-      setIsLoadingOffline(true);
-      fetch(`/api/offline-scores/all`) 
-        .then(res => {
-          if (!res.ok) return res.json().then(err => { throw new Error(err.error || `Оффлайн-оценки (учитель): ${res.status}`) });
-          return res.json();
-        })
-        .then((data: OfflineTestScore[]) => {
-          // studentName should already be included from the store function
+      const fetchOfflineScores = async () => {
+        setIsLoadingOffline(true);
+        try {
+          const res = await fetch(`/api/offline-scores/all`);
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Оффлайн-оценки (учитель): ${res.status} - ${errText.substring(0,200)}`);
+          }
+          const data: OfflineTestScore[] = await res.json();
           setOfflineScores(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        })
-        .catch(err => {
+        } catch (err) {
           console.error("Failed to load class offline scores for teacher:", err);
-          setError(prev => prev ? `${prev}\n${(err as Error).message}` : (err as Error).message);
-        })
-        .finally(() => setIsLoadingOffline(false));
+          newErrorMessages.push((err as Error).message);
+        } finally {
+          setIsLoadingOffline(false);
+        }
+      };
 
-      // Fetch Unit Grades (teacher uses /api/student/class-unit-grades for a full class view)
-      setIsLoadingUnitGrades(true);
-      fetch(`/api/student/class-unit-grades`)
-        .then(res => {
-          if (!res.ok) return res.json().then(err => { throw new Error(err.error || `Оценки за юниты (учитель): ${res.status}`) });
-          return res.json();
-        })
-        .then((data: StudentUnitGrade[]) => {
-          // studentName and unitName should already be included from the API
+      const fetchUnitGrades = async () => {
+        setIsLoadingUnitGrades(true);
+        try {
+          const res = await fetch(`/api/student/class-unit-grades`);
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Оценки за юниты (учитель): ${res.status} - ${errText.substring(0,200)}`);
+          }
+          const data: StudentUnitGrade[] = await res.json();
           setUnitGrades(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        })
-        .catch(err => {
+        } catch (err) {
           console.error("Failed to load class unit grades for teacher:", err);
-          setError(prev => prev ? `${prev}\n${(err as Error).message}` : (err as Error).message);
-        })
-        .finally(() => setIsLoadingUnitGrades(false));
-        
+          newErrorMessages.push((err as Error).message);
+        } finally {
+          setIsLoadingUnitGrades(false);
+        }
+      };
+      
+      Promise.allSettled([fetchOnlineOverview(), fetchOfflineScores(), fetchUnitGrades()]).then(() => {
+          setErrorMessages(newErrorMessages);
+      });
+
     } else if (!user && !isLoadingOnline) { 
       setIsLoadingOnline(false);
       setIsLoadingOffline(false);
@@ -110,8 +120,10 @@ export default function TeacherConsolidatedProgressOverviewPage() {
   };
   
   const isLoading = isLoadingOnline || isLoadingOffline || isLoadingUnitGrades;
+  const hasCriticalError = errorMessages.length > 0 && !classOnlineOverview.length && !offlineScores.length && !unitGrades.length;
 
-  if (isLoading && !error) {
+
+  if (isLoading && errorMessages.length === 0) {
     return (
       <div className="space-y-6">
         <div className="flex items-center space-x-3"> <Skeleton className="h-10 w-10 rounded-full" /> <Skeleton className="h-10 w-1/3" /> </div>
@@ -126,20 +138,20 @@ export default function TeacherConsolidatedProgressOverviewPage() {
      return ( <Alert variant="destructive"> <BookOpen className="h-4 w-4" /> <AlertTitle>Доступ запрещен</AlertTitle> <AlertDescription> Эта страница доступна только для учителей. </AlertDescription> </Alert> );
   }
 
-  if (error && !classOnlineOverview.length && !offlineScores.length && !unitGrades.length) { 
-    return ( <Alert variant="destructive"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Ошибка Загрузки</AlertTitle> <AlertDescription>{error.split('\n').map((e, i) => <p key={i}>{e}</p>)}</AlertDescription> </Alert> );
+  if (hasCriticalError) { 
+    return ( <Alert variant="destructive"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Ошибка Загрузки</AlertTitle> <AlertDescription>{errorMessages.map((e, i) => <p key={i}>{e}</p>)}</AlertDescription> </Alert> );
   }
   
   return (
     <div className="space-y-8">
       <div className="flex items-center space-x-3"> <BarChart3 className="h-10 w-10 text-primary" /> <h1 className="text-4xl font-bold font-headline">Общий Обзор Успеваемости Класса</h1> </div>
-       {error && ( <Alert variant="destructive" className="my-4"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Ошибка при загрузке части данных</AlertTitle> <AlertDescription>{error.split('\n').map((e, i) => <p key={i}>{e}</p>)}</AlertDescription> </Alert> )}
+       {errorMessages.length > 0 && !hasCriticalError && ( <Alert variant="destructive" className="my-4"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Ошибка при загрузке части данных</AlertTitle> <AlertDescription>{errorMessages.map((e, i) => <p key={i}>{e}</p>)}</AlertDescription> </Alert> )}
 
       {/* Online Progress Section */}
       <Card className="shadow-lg">
         <CardHeader> <CardTitle className="flex items-center"><Users className="mr-2 h-6 w-6"/>Рейтинг успеваемости (онлайн)</CardTitle> <CardDescription>Обзор онлайн-прогресса всех учеников. Отсортировано по общему прогрессу.</CardDescription> </CardHeader>
         <CardContent className="p-0">
-          {isLoadingOnline ? <Skeleton className="h-40 w-full" /> : classOnlineOverview.length === 0 ? ( <Alert className="m-4"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Нет учеников</AlertTitle> <AlertDescription> В системе пока нет зарегистрированных учеников для отображения онлайн-прогресса. </AlertDescription> </Alert>
+          {isLoadingOnline && classOnlineOverview.length === 0 ? <Skeleton className="h-40 w-full" /> : classOnlineOverview.length === 0 && !isLoadingOnline ? ( <Alert className="m-4"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Нет учеников</AlertTitle> <AlertDescription> В системе пока нет зарегистрированных учеников для отображения онлайн-прогресса. </AlertDescription> </Alert>
           ) : (
             <div className="divide-y divide-border">
               {classOnlineOverview.map((item) => (
@@ -174,7 +186,7 @@ export default function TeacherConsolidatedProgressOverviewPage() {
       <Card className="shadow-lg">
           <CardHeader><CardTitle className="flex items-center"><ClipboardList className="mr-2 h-6 w-6"/>Все оффлайн оценки класса</CardTitle><CardDescription>Оценки всех учеников за оффлайн тесты.</CardDescription></CardHeader>
           <CardContent>
-            {isLoadingOffline ? <Skeleton className="h-40 w-full" /> : offlineScores.length === 0 ? (
+            {isLoadingOffline && offlineScores.length === 0 ? <Skeleton className="h-40 w-full" /> : offlineScores.length === 0 && !isLoadingOffline ? (
               <Alert><AlertCircle className="h-4 w-4" /><AlertTitle>Нет оффлайн оценок</AlertTitle><AlertDescription>В классе еще не было выставлено ни одной оффлайн оценки.</AlertDescription></Alert>
             ) : (
               <Table>
@@ -200,7 +212,7 @@ export default function TeacherConsolidatedProgressOverviewPage() {
        <Card className="shadow-lg">
           <CardHeader><CardTitle className="flex items-center"><Sigma className="mr-2 h-6 w-6"/>Все оценки за юниты класса</CardTitle><CardDescription>Оценки всех учеников за пройденные юниты.</CardDescription></CardHeader>
           <CardContent>
-            {isLoadingUnitGrades ? <Skeleton className="h-40 w-full" /> : unitGrades.length === 0 ? (
+            {isLoadingUnitGrades && unitGrades.length === 0 ? <Skeleton className="h-40 w-full" /> : unitGrades.length === 0 && !isLoadingUnitGrades ? (
               <Alert><AlertCircle className="h-4 w-4" /><AlertTitle>Нет оценок за юниты</AlertTitle><AlertDescription>В классе еще не было выставлено ни одной оценки за юниты.</AlertDescription></Alert>
             ) : (
               <Table>
@@ -225,5 +237,3 @@ export default function TeacherConsolidatedProgressOverviewPage() {
     </div>
   );
 }
-
-    
