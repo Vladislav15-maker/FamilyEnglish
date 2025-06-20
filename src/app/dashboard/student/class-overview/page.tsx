@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface StudentOnlineOverviewItem {
   student: User;
@@ -31,17 +32,22 @@ export default function ConsolidatedClassOverviewPage() {
   const [isLoadingOffline, setIsLoadingOffline] = useState(true);
   const [isLoadingUnitGrades, setIsLoadingUnitGrades] = useState(true);
   
-  const [error, setError] = useState<string | null>(null);
+  const [errorMessages, setErrorMessages] = useState<string[]>([]);
 
   const totalRoundsInCurriculum = curriculum.reduce((acc, unit) => acc + unit.rounds.length, 0);
 
   useEffect(() => {
     if (user) {
+      const newErrorMessages: string[] = [];
+
       // Fetch Online Overview
       setIsLoadingOnline(true);
       fetch('/api/student/class-overview')
-        .then(res => {
-          if (!res.ok) return res.json().then(err => { throw new Error(err.error || `Онлайн-обзор: ${res.status}`) });
+        .then(async res => {
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Онлайн-обзор: ${res.status} - ${errText.substring(0,200)}`);
+          }
           return res.json();
         })
         .then((overviewData: { student: User; progress: StudentRoundProgress[] }[]) => {
@@ -58,15 +64,18 @@ export default function ConsolidatedClassOverviewPage() {
         })
         .catch(err => {
           console.error("Failed to load class online overview:", err);
-          setError(prev => prev ? `${prev}\n${(err as Error).message}` : (err as Error).message);
+          newErrorMessages.push((err as Error).message);
         })
         .finally(() => setIsLoadingOnline(false));
 
       // Fetch Offline Scores
       setIsLoadingOffline(true);
       fetch(`/api/student/class-offline-scores`)
-        .then(res => {
-          if (!res.ok) return res.json().then(err => { throw new Error(err.error || `Оффлайн-оценки: ${res.status}`) });
+        .then(async res => {
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Оффлайн-оценки: ${res.status} - ${errText.substring(0,200)}`);
+          }
           return res.json();
         })
         .then((data: OfflineTestScore[]) => {
@@ -74,15 +83,18 @@ export default function ConsolidatedClassOverviewPage() {
         })
         .catch(err => {
           console.error("Failed to load class offline scores:", err);
-          setError(prev => prev ? `${prev}\n${(err as Error).message}` : (err as Error).message);
+          newErrorMessages.push((err as Error).message);
         })
         .finally(() => setIsLoadingOffline(false));
 
       // Fetch Unit Grades
       setIsLoadingUnitGrades(true);
       fetch(`/api/student/class-unit-grades`)
-        .then(res => {
-          if (!res.ok) return res.json().then(err => { throw new Error(err.error || `Оценки за юниты: ${res.status}`) });
+        .then(async res => {
+          if (!res.ok) {
+             const errText = await res.text();
+             throw new Error(`Оценки за юниты: ${res.status} - ${errText.substring(0,200)}`);
+          }
           return res.json();
         })
         .then((data: StudentUnitGrade[]) => {
@@ -90,15 +102,24 @@ export default function ConsolidatedClassOverviewPage() {
         })
         .catch(err => {
           console.error("Failed to load class unit grades:", err);
-          setError(prev => prev ? `${prev}\n${(err as Error).message}` : (err as Error).message);
+          newErrorMessages.push((err as Error).message);
         })
-        .finally(() => setIsLoadingUnitGrades(false));
+        .finally(() => {
+          setIsLoadingUnitGrades(false);
+        });
+        
+      Promise.allSettled([
+        // dummy promises, actual fetches are above
+        Promise.resolve(), Promise.resolve(), Promise.resolve()
+      ]).then(() => {
+        setErrorMessages(newErrorMessages);
+      });
         
     } else if (!isLoadingOnline && !user) { // Check one of the loading states
       setIsLoadingOnline(false);
       setIsLoadingOffline(false);
       setIsLoadingUnitGrades(false);
-      setError("Пожалуйста, войдите в систему для просмотра этой страницы.");
+      setErrorMessages(prev => [...prev, "Пожалуйста, войдите в систему для просмотра этой страницы."]);
     }
   }, [user, totalRoundsInCurriculum]);
 
@@ -109,8 +130,9 @@ export default function ConsolidatedClassOverviewPage() {
   };
   
   const isLoading = isLoadingOnline || isLoadingOffline || isLoadingUnitGrades;
+  const hasCriticalError = errorMessages.length > 0 && !classOnlineOverview.length && !offlineScores.length && !unitGrades.length;
 
-  if (isLoading && !error) {
+  if (isLoading && errorMessages.length === 0) {
     return (
       <div className="space-y-6">
         <div className="flex items-center space-x-3"> <Skeleton className="h-10 w-10 rounded-full" /> <Skeleton className="h-10 w-1/3" /> </div>
@@ -121,8 +143,8 @@ export default function ConsolidatedClassOverviewPage() {
     );
   }
   
-  if (error && !classOnlineOverview.length && !offlineScores.length && !unitGrades.length) { // Show general error if nothing loaded
-    return ( <Alert variant="destructive"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Ошибка Загрузки</AlertTitle> <AlertDescription>{error.split('\n').map((e, i) => <p key={i}>{e}</p>)}</AlertDescription> </Alert> );
+  if (hasCriticalError) { // Show general error if nothing loaded
+    return ( <Alert variant="destructive"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Ошибка Загрузки</AlertTitle> <AlertDescription>{errorMessages.map((e, i) => <p key={i}>{e}</p>)}</AlertDescription> </Alert> );
   }
 
   if (!user) {
@@ -132,13 +154,13 @@ export default function ConsolidatedClassOverviewPage() {
   return (
     <div className="space-y-8">
       <div className="flex items-center space-x-3"> <BarChart3 className="h-10 w-10 text-primary" /> <h1 className="text-4xl font-bold font-headline">Общий Обзор Класса</h1> </div>
-       {error && ( <Alert variant="destructive" className="my-4"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Ошибка при загрузке части данных</AlertTitle> <AlertDescription>{error.split('\n').map((e, i) => <p key={i}>{e}</p>)}</AlertDescription> </Alert> )}
+       {errorMessages.length > 0 && !hasCriticalError && ( <Alert variant="destructive" className="my-4"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Ошибка при загрузке части данных</AlertTitle> <AlertDescription>{errorMessages.map((e, i) => <p key={i}>{e}</p>)}</AlertDescription> </Alert> )}
 
       {/* Online Progress Section */}
       <Card className="shadow-lg">
         <CardHeader> <CardTitle className="flex items-center"><Users className="mr-2 h-6 w-6"/>Рейтинг успеваемости (онлайн)</CardTitle> <CardDescription>Обзор онлайн-прогресса всех учеников. Отсортировано по общему прогрессу.</CardDescription> </CardHeader>
         <CardContent className="p-0">
-          {isLoadingOnline ? <Skeleton className="h-40 w-full" /> : classOnlineOverview.length === 0 ? ( <Alert className="m-4"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Нет учеников</AlertTitle> <AlertDescription> В системе пока нет зарегистрированных учеников для отображения онлайн-прогресса. </AlertDescription> </Alert>
+          {isLoadingOnline && classOnlineOverview.length === 0 ? <Skeleton className="h-40 w-full" /> : classOnlineOverview.length === 0 && !isLoadingOnline ? ( <Alert className="m-4"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Нет учеников</AlertTitle> <AlertDescription> В системе пока нет зарегистрированных учеников для отображения онлайн-прогресса. </AlertDescription> </Alert>
           ) : (
             <div className="divide-y divide-border">
               {classOnlineOverview.map((item) => (
@@ -147,19 +169,19 @@ export default function ConsolidatedClassOverviewPage() {
                     <AvatarImage src={`https://placehold.co/100x100.png?text=${getInitials(item.student.name)}`} alt={item.student.name} data-ai-hint="profile person" />
                     <AvatarFallback>{getInitials(item.student.name)}</AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 space-y-1">
-                    <p className="text-lg font-semibold text-primary">{item.student.name}</p>
+                  <div className="flex-1 space-y-1 min-w-0"> {/* Added min-w-0 to prevent overflow */}
+                    <p className="text-lg font-semibold text-primary truncate">{item.student.name}</p>
                     <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                      <span>Общий прогресс (онлайн):</span>
-                      <Progress value={item.overallProgressPercentage} className="w-40 h-2" aria-label={`Общий прогресс ${item.student.name}: ${item.overallProgressPercentage}%`} />
+                      <span className="whitespace-nowrap">Общий прогресс:</span>
+                      <Progress value={item.overallProgressPercentage} className="w-24 sm:w-32 md:w-40 h-2" aria-label={`Общий прогресс ${item.student.name}: ${item.overallProgressPercentage}%`} />
                       <span>{item.overallProgressPercentage}%</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Средний балл (онлайн раунды): {item.averageOnlineScore > 0 ? `${item.averageOnlineScore}%` : 'N/A'}
+                    <p className="text-sm text-muted-foreground truncate">
+                      Средний балл: {item.averageOnlineScore > 0 ? `${item.averageOnlineScore}%` : 'N/A'}
                     </p>
                   </div>
-                   <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Пройдено раундов</p>
+                   <div className="text-right shrink-0"> {/* Added shrink-0 */}
+                      <p className="text-sm text-muted-foreground whitespace-nowrap">Пройдено раундов</p>
                       <p className="text-lg font-semibold">{item.progress.filter(p=>p.completed).length} / {totalRoundsInCurriculum}</p>
                    </div>
                 </div>
@@ -173,24 +195,27 @@ export default function ConsolidatedClassOverviewPage() {
       <Card className="shadow-lg">
           <CardHeader><CardTitle className="flex items-center"><ClipboardList className="mr-2 h-6 w-6"/>Все оффлайн оценки класса</CardTitle><CardDescription>Оценки всех учеников за оффлайн тесты.</CardDescription></CardHeader>
           <CardContent>
-            {isLoadingOffline ? <Skeleton className="h-40 w-full" /> : offlineScores.length === 0 ? (
+            {isLoadingOffline && offlineScores.length === 0 ? <Skeleton className="h-40 w-full" /> : offlineScores.length === 0 && !isLoadingOffline ? (
               <Alert><AlertCircle className="h-4 w-4" /><AlertTitle>Нет оффлайн оценок</AlertTitle><AlertDescription>В классе еще не было выставлено ни одной оффлайн оценки.</AlertDescription></Alert>
             ) : (
-              <Table>
-                <TableHeader><TableRow><TableHead>Дата</TableHead><TableHead>Ученик</TableHead><TableHead className="text-center">Оценка</TableHead><TableHead>Комментарий</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {offlineScores.map(score => (
-                    <TableRow key={score.id}>
-                      <TableCell className="font-medium whitespace-nowrap">{format(new Date(score.date), 'dd MMMM yyyy, HH:mm', { locale: ru })}</TableCell>
-                      <TableCell>{score.studentName || score.studentId}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge className={`text-lg font-bold ${score.score === 5 ? 'bg-green-500 hover:bg-green-600' : ''} ${score.score === 4 ? 'bg-blue-500 hover:bg-blue-600' : ''} ${score.score === 3 ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : ''} ${score.score === 2 ? 'bg-red-500 hover:bg-red-600' : ''}`}>{score.score}</Badge>
-                      </TableCell>
-                      <TableCell>{score.notes || '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ScrollArea className="w-full whitespace-nowrap rounded-md border">
+                <Table className="w-full">
+                  <TableHeader><TableRow><TableHead>Дата</TableHead><TableHead>Ученик</TableHead><TableHead className="text-center">Оценка</TableHead><TableHead>Комментарий</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {offlineScores.map(score => (
+                      <TableRow key={score.id}>
+                        <TableCell className="font-medium whitespace-nowrap">{format(new Date(score.date), 'dd MMMM yyyy, HH:mm', { locale: ru })}</TableCell>
+                        <TableCell>{score.studentName || classOnlineOverview.find(s => s.student.id === score.studentId)?.student.name || score.studentId}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge className={`text-lg font-bold ${score.score === 5 ? 'bg-green-500 hover:bg-green-600' : ''} ${score.score === 4 ? 'bg-blue-500 hover:bg-blue-600' : ''} ${score.score === 3 ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : ''} ${score.score === 2 ? 'bg-red-500 hover:bg-red-600' : ''}`}>{score.score}</Badge>
+                        </TableCell>
+                        <TableCell className="whitespace-normal break-words">{score.notes || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
             )}
           </CardContent>
         </Card>
@@ -199,25 +224,28 @@ export default function ConsolidatedClassOverviewPage() {
        <Card className="shadow-lg">
           <CardHeader><CardTitle className="flex items-center"><Sigma className="mr-2 h-6 w-6"/>Все оценки за юниты класса</CardTitle><CardDescription>Оценки всех учеников за пройденные юниты.</CardDescription></CardHeader>
           <CardContent>
-            {isLoadingUnitGrades ? <Skeleton className="h-40 w-full" /> : unitGrades.length === 0 ? (
+            {isLoadingUnitGrades && unitGrades.length === 0 ? <Skeleton className="h-40 w-full" /> : unitGrades.length === 0 && !isLoadingUnitGrades ? (
               <Alert><AlertCircle className="h-4 w-4" /><AlertTitle>Нет оценок за юниты</AlertTitle><AlertDescription>В классе еще не было выставлено ни одной оценки за юниты.</AlertDescription></Alert>
             ) : (
-              <Table>
-                <TableHeader><TableRow><TableHead>Дата</TableHead><TableHead>Ученик</TableHead><TableHead>Юнит</TableHead><TableHead className="text-center">Оценка</TableHead><TableHead>Комментарий</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {unitGrades.map(grade => (
-                    <TableRow key={grade.id}>
-                      <TableCell className="font-medium whitespace-nowrap">{format(new Date(grade.date), 'dd MMMM yyyy, HH:mm', { locale: ru })}</TableCell>
-                      <TableCell>{grade.studentName || grade.studentId}</TableCell>
-                      <TableCell>{grade.unitName || grade.unitId}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge className={`text-lg font-bold ${grade.grade === 5 ? 'bg-green-500 hover:bg-green-600' : ''} ${grade.grade === 4 ? 'bg-blue-500 hover:bg-blue-600' : ''} ${grade.grade === 3 ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : ''} ${grade.grade === 2 ? 'bg-red-500 hover:bg-red-600' : ''}`}>{grade.grade}</Badge>
-                      </TableCell>
-                      <TableCell>{grade.notes || '-'}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ScrollArea className="w-full whitespace-nowrap rounded-md border">
+                <Table className="w-full">
+                  <TableHeader><TableRow><TableHead>Дата</TableHead><TableHead>Ученик</TableHead><TableHead>Юнит</TableHead><TableHead className="text-center">Оценка</TableHead><TableHead>Комментарий</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {unitGrades.map(grade => (
+                      <TableRow key={grade.id}>
+                        <TableCell className="font-medium whitespace-nowrap">{format(new Date(grade.date), 'dd MMMM yyyy, HH:mm', { locale: ru })}</TableCell>
+                        <TableCell>{grade.studentName || classOnlineOverview.find(s => s.student.id === grade.studentId)?.student.name || grade.studentId}</TableCell>
+                        <TableCell>{grade.unitName || curriculum.find(u => u.id === grade.unitId)?.name || grade.unitId}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge className={`text-lg font-bold ${grade.grade === 5 ? 'bg-green-500 hover:bg-green-600' : ''} ${grade.grade === 4 ? 'bg-blue-500 hover:bg-blue-600' : ''} ${grade.grade === 3 ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : ''} ${grade.grade === 2 ? 'bg-red-500 hover:bg-red-600' : ''}`}>{grade.grade}</Badge>
+                        </TableCell>
+                        <TableCell className="whitespace-normal break-words">{grade.notes || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
             )}
           </CardContent>
         </Card>
