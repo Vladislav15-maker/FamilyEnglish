@@ -152,11 +152,17 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
             disabled={isSubmitted}
             className={`text-lg p-4 h-14 ${isSubmitted ? (isCorrect ? 'border-green-500 focus:border-green-500 ring-green-500' : 'border-red-500 focus:border-red-500 ring-red-500') : ''}`}
             aria-label="Поле для ввода перевода"
+            // More aggressive attributes to disable suggestions and pasting
             onPaste={(e) => e.preventDefault()}
-            autoComplete="off"
+            onCopy={(e) => e.preventDefault()}
+            onCut={(e) => e.preventDefault()}
+            onDrop={(e) => e.preventDefault()}
+            autoComplete="new-password"
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck={false}
+            name="test-input"
+            id="word-test-input-field"
           />
           {!isSubmitted ? (
             <Button type="submit" className="w-full text-lg py-3" size="lg">
