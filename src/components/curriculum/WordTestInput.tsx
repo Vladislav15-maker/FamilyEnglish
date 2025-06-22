@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { Word } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -88,6 +88,9 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Generate a random name for the input field to prevent browser autofill heuristics
+  const randomName = useMemo(() => `input_${Math.random().toString(36).substring(7)}`, [word]);
 
   useEffect(() => {
     setUserAnswer('');
@@ -142,9 +145,10 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
           <p className="text-4xl font-bold text-secondary-foreground font-body my-2">{word.russian}</p>
         </div>
 
-        <form onSubmit={handleFormSubmit} className="space-y-4">
+        <form onSubmit={handleFormSubmit} className="space-y-4" autoComplete="off">
           <Input
             ref={inputRef}
+            name={randomName}
             type="text"
             value={userAnswer}
             onChange={(e) => setUserAnswer(e.target.value)}
@@ -157,11 +161,11 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
             onCopy={(e) => e.preventDefault()}
             onCut={(e) => e.preventDefault()}
             onDrop={(e) => e.preventDefault()}
-            autoComplete="one-time-code"
+            autoComplete="one-time-code" // The strongest signal to disable autofill/suggestions
             autoCorrect="off"
             autoCapitalize="off"
-            spellCheck={false}
-            inputMode="verbatim"
+            spellCheck="false"
+            inputMode="verbatim" // Strongly hints to mobile keyboards to disable predictive features
           />
           {!isSubmitted ? (
             <Button type="submit" className="w-full text-lg py-3" size="lg">
