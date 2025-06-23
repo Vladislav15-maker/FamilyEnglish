@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   console.log(`[API /api/progress/round] User authenticated: ${loggedInUser.username} (ID: ${loggedInUser.id}, Role: ${loggedInUser.role})`);
   
   try {
-    const progressData = (await request.json()) as Omit<StudentRoundProgress, 'studentId' | 'timestamp'> & { studentId?: string, timestamp?: number | string };
+    const progressData = (await request.json()) as Omit<StudentRoundProgress, 'studentId' | 'timestamp' | 'attemptCount'> & { studentId?: string, timestamp?: number | string };
     console.log('[API /api/progress/round] Received progress data payload:', JSON.stringify(progressData, null, 2));
 
     const finalStudentId = loggedInUser.role === 'student' ? loggedInUser.id : progressData.studentId;
@@ -28,7 +28,8 @@ export async function POST(request: Request) {
     }
     console.log(`[API /api/progress/round] Determined finalStudentId: ${finalStudentId}`);
 
-    const completeProgressData: StudentRoundProgress = {
+    // The 'attemptCount' is handled by the database, so we omit it from the object passed to the store.
+    const completeProgressData: Omit<StudentRoundProgress, 'attemptCount'> = {
       studentId: finalStudentId,
       unitId: progressData.unitId,
       roundId: progressData.roundId,

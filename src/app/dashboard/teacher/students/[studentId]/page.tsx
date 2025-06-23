@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award, TrendingUp, ListChecks, ClipboardCheck, Sigma } from 'lucide-react';
+import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award, TrendingUp, ListChecks, ClipboardCheck, Sigma, Repeat } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -207,7 +207,7 @@ export default function TeacherStudentDetailPage() {
       <Card>
         <CardHeader>
           <CardTitle>Успеваемость по юнитам (Онлайн)</CardTitle>
-          <CardDescription>Детальный просмотр прогресса по каждому раунду.</CardDescription>
+          <CardDescription>Детальный просмотр прогресса по каждому раунду. Здесь отображается последняя попытка.</CardDescription>
         </CardHeader>
         <CardContent>
           {curriculum.length === 0 ? (
@@ -230,17 +230,25 @@ export default function TeacherStudentDetailPage() {
                     return (
                       <Card key={round.id} className="overflow-hidden">
                         <CardHeader className="bg-muted/30 p-4">
-                          <CardTitle className="text-lg flex justify-between items-center">
-                            {round.name}
-                            {roundProgress?.completed ? (
-                              <Badge variant={roundProgress.score >= 80 ? "default" : (roundProgress.score >=50 ? "secondary" : "destructive")} className="ml-2 bg-green-500 text-white">
-                                {roundProgress.score}%
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="ml-2">Не пройден</Badge>
-                            )}
-                          </CardTitle>
-                          {roundProgress?.completed && <Progress value={roundProgress.score} className="h-2 mt-1" />}
+                           <CardTitle className="text-lg flex justify-between items-center flex-wrap gap-2">
+                            <span>{round.name}</span>
+                            <div className="flex items-center gap-2">
+                                {roundProgress?.attemptCount > 0 && (
+                                <Badge variant="secondary" className="flex items-center gap-1">
+                                    <Repeat className="h-3 w-3" />
+                                    Попыток: {roundProgress.attemptCount}
+                                </Badge>
+                                )}
+                                {roundProgress?.completed ? (
+                                <Badge variant={roundProgress.score >= 80 ? "default" : (roundProgress.score >=50 ? "secondary" : "destructive")} className="bg-green-500 text-white">
+                                    {roundProgress.score}%
+                                </Badge>
+                                ) : (
+                                <Badge variant="outline">Не пройден</Badge>
+                                )}
+                            </div>
+                           </CardTitle>
+                          {roundProgress?.completed && <Progress value={roundProgress.score} className="h-2 mt-2" />}
                         </CardHeader>
                         {roundProgress?.attempts && roundProgress.attempts.length > 0 && (
                           <CardContent className="p-0">
@@ -341,5 +349,3 @@ export default function TeacherStudentDetailPage() {
   );
 }
 
-
-    

@@ -22,7 +22,7 @@ export interface Unit {
 // User and Auth Types
 // User type as stored in the database (excluding sensitive info like password_hash for general use)
 export interface User {
-  id: string;
+  id:string;
   username: string;
   role: 'teacher' | 'student';
   name: string;
@@ -60,12 +60,14 @@ export interface StudentRoundProgress {
   attempts: { wordId: string; userAnswer: string; correct: boolean }[] | any; // 'any' for JSONB from DB, parse as needed
   completed: boolean;
   timestamp: number; // Unix timestamp (milliseconds) or string date representation
+  attemptCount: number;
 }
 
 export interface OfflineTestScore {
   id: string; // Unique ID for the score entry
   studentId: string; // Corresponds to User.id
   teacherId: string; // Corresponds to User.id of the teacher who graded
+  studentName?: string; // For display purposes, can be joined from users table
   score: 2 | 3 | 4 | 5; // Fixed score values
   notes?: string | null; // Optional notes from the teacher
   date: string; // Date of the test/grading, stored as ISO string or similar
@@ -77,8 +79,9 @@ export interface StudentUnitGrade {
   teacherId: string;
   unitId: string;
   unitName?: string; // For display purposes, can be joined or added programmatically
-  studentName?: string; // For display purposes on teacher's side
+  studentName?: string; // For display purposes on teacher's or public student's side
   grade: 2 | 3 | 4 | 5;
   notes?: string | null;
   date: string; // ISO string date
 }
+
