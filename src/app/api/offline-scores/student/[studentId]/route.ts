@@ -10,8 +10,8 @@ export async function GET(
   request: Request,
   { params }: { params: { studentId: string } }
 ) {
-  const requestedStudentId = params.studentId; // Correctly access studentId from params
-  console.log(`[API /api/offline-scores/student/:studentId] Received GET for studentId: ${requestedStudentId}`);
+  const { studentId } = params; // Correctly access studentId from params
+  console.log(`[API /api/offline-scores/student/:studentId] Received GET for studentId: ${studentId}`);
   const session = await getAppSession();
 
   if (!session || !session.user) {
@@ -23,22 +23,22 @@ export async function GET(
 
   // Teachers can fetch any student's offline scores.
   // Students can fetch their own if we decide to implement that view later.
-  if (loggedInUser.role !== 'teacher' && loggedInUser.id !== requestedStudentId) {
-    console.warn(`[API /api/offline-scores/student/:studentId] Forbidden access by user ${loggedInUser.id} for student ${requestedStudentId}`);
+  if (loggedInUser.role !== 'teacher' && loggedInUser.id !== studentId) {
+    console.warn(`[API /api/offline-scores/student/:studentId] Forbidden access by user ${loggedInUser.id} for student ${studentId}`);
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   
-  if (!requestedStudentId) {
+  if (!studentId) {
     console.error('[API /api/offline-scores/student/:studentId] Student ID is required');
     return NextResponse.json({ error: 'Student ID is required' }, { status: 400 });
   }
 
   try {
-    const scores = await fetchOfflineScoresFromDb(requestedStudentId);
-    console.log(`[API /api/offline-scores/student/:studentId] Fetched ${scores.length} offline scores for student ${requestedStudentId}`);
+    const scores = await fetchOfflineScoresFromDb(studentId);
+    console.log(`[API /api/offline-scores/student/:studentId] Fetched ${scores.length} offline scores for student ${studentId}`);
     return NextResponse.json(scores);
   } catch (error) {
-    console.error(`[API /api/offline-scores/student/:studentId] Error fetching offline scores for ${requestedStudentId}:`, error);
+    console.error(`[API /api/offline-scores/student/:studentId] Error fetching offline scores for ${studentId}:`, error);
     return NextResponse.json({ error: 'Failed to fetch offline scores', details: (error as Error).message }, { status: 500 });
   }
 }
