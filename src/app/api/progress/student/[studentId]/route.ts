@@ -4,8 +4,6 @@ import { getAllStudentProgress as fetchAllStudentProgressFromDb } from '@/lib/st
 import { getAppSession } from '@/app/api/auth/[...nextauth]/route'; 
 import type { AuthenticatedUser } from '@/lib/types';
 
-console.log('[API ROUTE ATTEMPTING TO LOAD] /api/progress/student/[studentId]/route.ts');
-
 export async function GET(
   request: Request,
   { params }: { params: { studentId: string } } 
