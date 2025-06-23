@@ -11,7 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, BookOpen, ThumbsUp, Repeat, ChevronLeft } from 'lucide-react';
+import { AlertCircle, BookOpen, ThumbsUp, Repeat, ChevronLeft, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
@@ -49,11 +49,64 @@ export default function TestRoundPage() {
 
   const totalWords = shuffledWords.length;
 
-  const calculateScore = useCallback((currentAttempts: Attempt[]) => {
+  const calculateScore = useCallback((finalAttempts: Attempt[]) => {
     if (totalWords === 0) return 0;
-    const correctAnswers = currentAttempts.filter(a => a.correct).length;
+    const correctAnswers = finalAttempts.filter(a => a.correct).length;
     return Math.round((correctAnswers / totalWords) * 100);
   }, [totalWords]);
+
+  // This effect now handles the entire test submission logic.
+  // It runs when `isTestFinished` is set to true.
+  useEffect(() => {
+    if (isTestFinished && user && round) {
+      const finalScoreValue = calculateScore(attempts);
+      setScore(finalScoreValue);
+      setIsSubmitting(true);
+
+      const progressPayload = {
+        unitId,
+        roundId,
+        score: finalScoreValue,
+        attempts: attempts,
+        completed: true,
+        timestamp: Date.now(),
+      };
+
+      console.log('[TestRoundPage] Finishing test. Submitting payload:', JSON.stringify(progressPayload, null, 2));
+
+      fetch('/api/progress/round', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(progressPayload),
+      })
+      .then(async (response) => {
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: "Unknown server error." }));
+          console.error('[TestRoundPage] API error response:', errorData);
+          throw new Error(errorData.error || `Server responded with status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(() => {
+        toast({
+          title: "Тест завершен!",
+          description: `Ваш результат: ${finalScoreValue}%. Прогресс сохранен.`,
+          variant: "default"
+        });
+      })
+      .catch((error) => {
+        console.error("[TestRoundPage] Failed to save progress via API:", error);
+        toast({
+          title: "Ошибка сохранения",
+          description: (error as Error).message || "Не удалось сохранить ваш прогресс. Попробуйте снова.",
+          variant: "destructive"
+        });
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
+    }
+  }, [isTestFinished, attempts, user, round, unitId, roundId, calculateScore, toast]);
 
 
   const handleAnswerSubmit = (isCorrect: boolean, userAnswer: string) => {
@@ -64,58 +117,17 @@ export default function TestRoundPage() {
       userAnswer,
       correct: isCorrect,
     };
+    // Add the new attempt to the state. This will be processed before the 'Next' click handler.
     setAttempts(prevAttempts => [...prevAttempts, newAttempt]);
   };
 
-  const proceedToNextStepOrFinish = async () => {
+  const proceedToNextStepOrFinish = () => {
     if (currentWordIndex < totalWords - 1) {
       setCurrentWordIndex(prev => prev + 1);
     } else {
+      // This is the last word. We just set the flag to true.
+      // The useEffect hook will now trigger and handle the submission.
       setIsTestFinished(true);
-      const finalScoreValue = calculateScore(attempts); 
-      setScore(finalScoreValue);
-
-      if (user && round) {
-        setIsSubmitting(true);
-        const progressPayload = {
-          // studentId: user.id, // API will use authenticated user's ID for students
-          unitId,
-          roundId,
-          score: finalScoreValue,
-          attempts: attempts, 
-          completed: true,
-          timestamp: Date.now(),
-        };
-        console.log('[TestRoundPage] Attempting to save progress via API with payload:', JSON.stringify(progressPayload)); // ADDED LOG
-        try {
-          const response = await fetch('/api/progress/round', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(progressPayload),
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({error: "Unknown error during progress save."}));
-            console.error('[TestRoundPage] API error response when saving progress:', errorData);
-            throw new Error(errorData.error || `Server error: ${response.status}`);
-          }
-          
-          toast({
-            title: "Тест завершен!",
-            description: `Ваш результат: ${finalScoreValue}%. Прогресс сохранен.`,
-            variant: "default"
-          });
-        } catch (error) {
-          console.error("[TestRoundPage] Failed to save progress via API:", error);
-          toast({
-            title: "Ошибка сохранения",
-            description: (error as Error).message || "Не удалось сохранить ваш прогресс. Попробуйте снова.",
-            variant: "destructive"
-          });
-        } finally {
-          setIsSubmitting(false);
-        }
-      }
     }
   };
 
@@ -131,7 +143,7 @@ export default function TestRoundPage() {
 
 
   if (isLoading) {
-    return <div className="flex justify-center items-center h-64"><AlertCircle className="animate-spin h-8 w-8 text-primary" /></div>;
+    return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
   }
 
   if (!round) {
@@ -183,12 +195,12 @@ export default function TestRoundPage() {
                 <Repeat className="mr-2 h-5 w-5" />
                 Повторить
               </Button>
-              <Button onClick={() => router.push(`/dashboard/units/${unitId}`)} size="lg">
+              <Button onClick={() => router.push(`/dashboard/units/${unitId}`)} size="lg" disabled={isSubmitting}>
                 К юниту
                 <ChevronLeft className="ml-2 h-5 w-5 transform rotate-180" />
               </Button>
             </div>
-             {isSubmitting && <p className="text-sm text-muted-foreground mt-2">Сохранение результатов...</p>}
+             {isSubmitting && <div className="flex items-center justify-center text-sm text-muted-foreground mt-2"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Сохранение результатов...</div>}
           </CardContent>
         </Card>
       </div>
@@ -204,7 +216,7 @@ export default function TestRoundPage() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink asChild><Link href={`/dashboard/units/${unitId}`}>{getRoundById(unitId,roundId)?.name || unitId}</Link></BreadcrumbLink>
+            <BreadcrumbLink asChild><Link href={`/dashboard/units/${unitId}`}>{round.name || unitId}</Link></BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
