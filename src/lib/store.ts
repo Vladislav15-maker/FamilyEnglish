@@ -109,7 +109,7 @@ export async function getStudentRoundProgress(studentId: string, unitId: string,
     console.error('[Store] CRITICAL in getStudentRoundProgress (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
   try {
-    const result = await sql<Omit<StudentRoundProgress, 'studentId' | 'unitId' | 'roundId'> & {student_id: string, unit_id: string, round_id: string, attempt_count: number}>`
+    const result = await sql<Omit<StudentRoundProgress, 'studentId' | 'unitId' | 'roundId' | 'attemptCount'> & {student_id: string, unit_id: string, round_id: string, attempt_count: number}>`
       SELECT student_id, unit_id, round_id, score, attempts, completed, timestamp, attempt_count
       FROM student_progress
       WHERE student_id = ${studentId} AND unit_id = ${unitId} AND round_id = ${roundId};
@@ -145,12 +145,12 @@ export async function getAllStudentProgress(studentIdFilter: string): Promise<St
    try {
     let result;
     if (studentIdFilter === '' || !studentIdFilter) {
-      result = await sql<Omit<StudentRoundProgress, 'studentId' | 'unitId' | 'roundId'> & {student_id: string, unit_id: string, round_id: string, attempt_count: number}>`
+      result = await sql<Omit<StudentRoundProgress, 'studentId' | 'unitId' | 'roundId' | 'attemptCount'> & {student_id: string, unit_id: string, round_id: string, attempt_count: number}>`
         SELECT student_id, unit_id, round_id, score, attempts, completed, timestamp, attempt_count
         FROM student_progress;
       `;
     } else {
-      result = await sql<Omit<StudentRoundProgress, 'studentId' | 'unitId' | 'roundId'> & {student_id: string, unit_id: string, round_id: string, attempt_count: number}>`
+      result = await sql<Omit<StudentRoundProgress, 'studentId' | 'unitId' | 'roundId' | 'attemptCount'> & {student_id: string, unit_id: string, round_id: string, attempt_count: number}>`
         SELECT student_id, unit_id, round_id, score, attempts, completed, timestamp, attempt_count
         FROM student_progress WHERE student_id = ${studentIdFilter};
       `;
@@ -176,18 +176,20 @@ export async function getAllStudentProgress(studentIdFilter: string): Promise<St
 }
 
 export async function saveStudentRoundProgress(progress: Omit<StudentRoundProgress, 'attemptCount'>): Promise<void> {
-  // console.log('[Store] Inside saveStudentRoundProgress - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
     console.error('[Store] CRITICAL in saveStudentRoundProgress (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
 
-  const timestampToSave = new Date(progress.timestamp);
-  const attemptsJson = JSON.stringify(progress.attempts); 
+  // progress.timestamp is a number (bigint) for student_progress table.
+  const timestampForProgressTable = progress.timestamp;
+  // We need a Date object for the student_attempt_history table which uses timestamptz.
+  const timestampForHistoryTable = new Date(progress.timestamp);
+  const attemptsJson = JSON.stringify(progress.attempts);
 
   try {
      const progressResult = await sql`
       INSERT INTO student_progress (student_id, unit_id, round_id, score, attempts, completed, "timestamp", attempt_count)
-      VALUES (${progress.studentId}, ${progress.unitId}, ${progress.roundId}, ${progress.score}, ${attemptsJson}::jsonb, ${progress.completed}, ${timestampToSave}, 1)
+      VALUES (${progress.studentId}, ${progress.unitId}, ${progress.roundId}, ${progress.score}, ${attemptsJson}::jsonb, ${progress.completed}, ${timestampForProgressTable}, 1)
       ON CONFLICT (student_id, unit_id, round_id)
       DO UPDATE SET
         score = EXCLUDED.score,
@@ -211,7 +213,7 @@ export async function saveStudentRoundProgress(progress: Omit<StudentRoundProgre
         ${progress.score}, 
         ${attemptsJson}::jsonb, 
         ${newAttemptCount}, 
-        ${timestampToSave}
+        ${timestampForHistoryTable}
       );
     `;
     console.log(`[Store] Attempt #${newAttemptCount} saved to history.`);
@@ -495,4 +497,5 @@ export async function getAllUnitGrades(): Promise<StudentUnitGrade[]> {
 export function resetStore() {
   console.warn("[Store] resetStore is a no-op when using a persistent database.");
 }
+
 
