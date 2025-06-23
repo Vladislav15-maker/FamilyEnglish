@@ -1,5 +1,5 @@
 import { sql } from '@vercel/postgres';
-import type { User, StudentRoundProgress, OfflineTestScore, UserForAuth, StudentUnitGrade } from './types';
+import type { User, StudentRoundProgress, OfflineTestScore, UserForAuth, StudentUnitGrade, StudentAttemptHistory } from './types';
 
 // This log runs when the module is first loaded.
 // If POSTGRES_URL is not set here when running on the server, then .env.local is not loaded correctly server-side.
@@ -181,11 +181,11 @@ export async function saveStudentRoundProgress(progress: Omit<StudentRoundProgre
     console.error('[Store] CRITICAL in saveStudentRoundProgress (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
 
-  const timestampToSave = typeof progress.timestamp === 'number' ? progress.timestamp : new Date(progress.timestamp).getTime();
+  const timestampToSave = new Date(progress.timestamp);
   const attemptsJson = JSON.stringify(progress.attempts); 
 
   try {
-    await sql`
+     const progressResult = await sql`
       INSERT INTO student_progress (student_id, unit_id, round_id, score, attempts, completed, "timestamp", attempt_count)
       VALUES (${progress.studentId}, ${progress.unitId}, ${progress.roundId}, ${progress.score}, ${attemptsJson}::jsonb, ${progress.completed}, ${timestampToSave}, 1)
       ON CONFLICT (student_id, unit_id, round_id)
@@ -194,9 +194,28 @@ export async function saveStudentRoundProgress(progress: Omit<StudentRoundProgre
         attempts = EXCLUDED.attempts,
         completed = EXCLUDED.completed,
         "timestamp" = EXCLUDED."timestamp",
-        attempt_count = student_progress.attempt_count + 1;
+        attempt_count = student_progress.attempt_count + 1
+      RETURNING attempt_count;
     `;
-    // console.log(`[Store] Successfully saved/updated progress for student ${progress.studentId}, round ${progress.roundId}`);
+    
+    const newAttemptCount = progressResult.rows[0].attempt_count;
+    console.log(`[Store] Progress saved. New attempt count: ${newAttemptCount}`);
+
+    // Now, save this attempt to the history table
+    await sql`
+      INSERT INTO student_attempt_history (student_id, unit_id, round_id, score, attempts, attempt_number, "timestamp")
+      VALUES (
+        ${progress.studentId}, 
+        ${progress.unitId}, 
+        ${progress.roundId}, 
+        ${progress.score}, 
+        ${attemptsJson}::jsonb, 
+        ${newAttemptCount}, 
+        ${timestampToSave}
+      );
+    `;
+    console.log(`[Store] Attempt #${newAttemptCount} saved to history.`);
+
   } catch (error) {
     const dbError = error as any;
     console.error(`[Store] DB Error in saveStudentRoundProgress (code: ${dbError.code}): ${dbError.message}. Full error:`, dbError);
@@ -204,6 +223,33 @@ export async function saveStudentRoundProgress(progress: Omit<StudentRoundProgre
         console.error('[Store] CRITICAL in saveStudentRoundProgress: missing_connection_string. POSTGRES_URL env var was likely not found by @vercel/postgres.');
     }
     throw error; 
+  }
+}
+
+export async function getAttemptHistoryForRound(studentId: string, unitId: string, roundId: string): Promise<StudentAttemptHistory[]> {
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in getAttemptHistoryForRound (SERVER-SIDE): POSTGRES_URL is NOT SET.');
+  }
+  try {
+    const result = await sql<Omit<StudentAttemptHistory, 'studentId' | 'unitId' | 'roundId' | 'attemptNumber'> & {student_id: string, unit_id: string, round_id: string, attempt_number: number}>`
+      SELECT id, student_id, unit_id, round_id, score, attempts, attempt_number, timestamp
+      FROM student_attempt_history
+      WHERE student_id = ${studentId} AND unit_id = ${unitId} AND round_id = ${roundId}
+      ORDER BY attempt_number ASC;
+    `;
+    return result.rows.map(row => ({
+      id: row.id,
+      studentId: row.student_id,
+      unitId: row.unit_id,
+      roundId: row.round_id,
+      score: row.score,
+      attempts: row.attempts,
+      attemptNumber: row.attempt_number,
+      timestamp: row.timestamp,
+    }));
+  } catch (error) {
+    console.error('[Store] Failed to get attempt history for round:', error);
+    throw error;
   }
 }
 
@@ -449,3 +495,4 @@ export async function getAllUnitGrades(): Promise<StudentUnitGrade[]> {
 export function resetStore() {
   console.warn("[Store] resetStore is a no-op when using a persistent database.");
 }
+

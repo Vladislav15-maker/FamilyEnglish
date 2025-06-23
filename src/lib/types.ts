@@ -63,6 +63,17 @@ export interface StudentRoundProgress {
   attemptCount: number;
 }
 
+export interface StudentAttemptHistory {
+  id: string;
+  studentId: string;
+  unitId: string;
+  roundId: string;
+  score: number;
+  attempts: { wordId: string; userAnswer: string; correct: boolean }[];
+  attemptNumber: number;
+  timestamp: string; // ISO string date
+}
+
 export interface OfflineTestScore {
   id: string; // Unique ID for the score entry
   studentId: string; // Corresponds to User.id
@@ -84,4 +95,3 @@ export interface StudentUnitGrade {
   notes?: string | null;
   date: string; // ISO string date
 }
-
