@@ -15,9 +15,10 @@ interface WordTestInputProps {
 }
 
 function normalizeAnswer(answer: string): string {
-  if (!answer || typeof answer !== 'string') return '';
+  if (typeof answer !== 'string') return '';
   let normalized = answer.trim().toLowerCase();
   normalized = normalized.replace(/[`’]/g, "'");
+
   normalized = normalized.replace(/\bi'm\b/g, 'i am');
   normalized = normalized.replace(/\byou're\b/g, 'you are');
   normalized = normalized.replace(/\bhe's\b/g, 'he is');
@@ -32,22 +33,22 @@ function normalizeAnswer(answer: string): string {
   normalized = normalized.replace(/\bwhy's\b/g, 'why is');
   normalized = normalized.replace(/\bhow's\b/g, 'how is');
   normalized = normalized.replace(/\blet's\b/g, 'let us');
+
   normalized = normalized.replace(/\bi've\b/g, 'i have');
   normalized = normalized.replace(/\byou've\b/g, 'you have');
   normalized = normalized.replace(/\bwe've\b/g, 'we have');
   normalized = normalized.replace(/\bthey've\b/g, 'they have');
+
   normalized = normalized.replace(/\bi'll\b/g, 'i will');
   normalized = normalized.replace(/\byou'll\b/g, 'you will');
   normalized = normalized.replace(/\bhe'll\b/g, 'he will');
   normalized = normalized.replace(/\bshe'll\b/g, 'she will');
   normalized = normalized.replace(/\bwe'll\b/g, 'we will');
   normalized = normalized.replace(/\bthey'll\b/g, 'they will');
+
   normalized = normalized.replace(/\bi'd\b/g, 'i would');
   normalized = normalized.replace(/\byou'd\b/g, 'you would');
-  normalized = normalized.replace(/\bhe'd\b/g, 'he would');
-  normalized = normalized.replace(/\bshe'd\b/g, 'she would');
-  normalized = normalized.replace(/\bwe'd\b/g, 'we would');
-  normalized = normalized.replace(/\bthey'd\b/g, 'they would');
+
   normalized = normalized.replace(/\bcan't\b/g, 'cannot');
   normalized = normalized.replace(/\bwon't\b/g, 'will not');
   normalized = normalized.replace(/\bisn't\b/g, 'is not');
@@ -65,27 +66,22 @@ function normalizeAnswer(answer: string): string {
   normalized = normalized.replace(/\bcouldn't\b/g, 'could not');
   normalized = normalized.replace(/\bmightn't\b/g, 'might not');
   normalized = normalized.replace(/\bmustn't\b/g, 'must not');
+
   normalized = normalized.replace(/[.,!?;:]+$/, '');
   return normalized.replace(/\s+/g, ' ').trim();
 }
 
-export default function WordTestInput({
-  word,
-  onAnswer,
-  showNextButton = false,
-  onNext,
-}: WordTestInputProps) {
+export default function WordTestInput({ word, onAnswer, showNextButton = false, onNext }: WordTestInputProps) {
   const [userAnswer, setUserAnswer] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const randomName = useMemo(() => `input_${(word.id || word.russian).toString().replace(/\s/g, '_')}_${Math.random().toString(36).substring(2, 9)}`, [word]);
+  const randomName = useMemo(() => `input_${Math.random().toString(36).substring(7)}`, [word]);
 
   useEffect(() => {
     setUserAnswer('');
     setIsSubmitted(false);
-    setIsCorrect(false);
     inputRef.current?.focus();
   }, [word]);
 
@@ -93,12 +89,12 @@ export default function WordTestInput({
     e?.preventDefault();
     if (isSubmitted) return;
 
-    const normalizedUser = normalizeAnswer(userAnswer);
-    const normalizedCorrect = normalizeAnswer(word.english);
+    const normalizedUserAnswer = normalizeAnswer(userAnswer);
+    const normalizedCorrectAnswer = normalizeAnswer(word.english);
 
     const correct =
-      normalizedUser === normalizedCorrect ||
-      normalizedUser === word.english.trim().toLowerCase();
+      normalizedUserAnswer === normalizedCorrectAnswer ||
+      normalizedUserAnswer === word.english.trim().toLowerCase();
 
     setIsCorrect(correct);
     setIsSubmitted(true);
@@ -106,13 +102,12 @@ export default function WordTestInput({
   };
 
   const handleNextClick = () => {
-    onNext?.();
+    if (onNext) onNext();
   };
 
-  const handleRetry = () => {
+  const handleRetryInternal = () => {
     setUserAnswer('');
     setIsSubmitted(false);
-    setIsCorrect(false);
     inputRef.current?.focus();
   };
 
@@ -120,7 +115,9 @@ export default function WordTestInput({
     <Card className="w-full max-w-lg mx-auto shadow-xl">
       <CardHeader className="text-center">
         <CardTitle className="text-3xl font-headline text-primary">Тест: Переведите слово</CardTitle>
-        <CardDescription className="text-muted-foreground">Напишите английский перевод для русского слова.</CardDescription>
+        <CardDescription className="text-muted-foreground">
+          Напишите английский перевод для русского слова.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="p-6 bg-secondary/30 rounded-lg text-center">
@@ -145,17 +142,22 @@ export default function WordTestInput({
                 : ''
             }`}
             aria-label="Поле для ввода перевода"
-            onPaste={(e) => e.preventDefault()}
-            onCopy={(e) => e.preventDefault()}
-            onCut={(e) => e.preventDefault()}
-            onDrop={(e) => e.preventDefault()}
+            autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
-            spellCheck="false"
-            autoComplete="one-time-code"
+            spellCheck={false}
             inputMode="verbatim"
+            onPaste={(e) => e.preventDefault()}
+            onDrop={(e) => e.preventDefault()}
+            onCopy={(e) => e.preventDefault()}
+            onCut={(e) => e.preventDefault()}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && ['v', 'V'].includes(e.key)) {
+                e.preventDefault();
+              }
+            }}
+            onContextMenu={(e) => e.preventDefault()}
           />
-
           {!isSubmitted ? (
             <Button type="submit" className="w-full text-lg py-3" size="lg">
               Проверить
@@ -191,7 +193,7 @@ export default function WordTestInput({
                   Правильный ответ: <span className="font-semibold font-mono">{word.english}</span>
                 </p>
                 {!showNextButton && (
-                  <Button onClick={handleRetry} variant="outline" size="sm" className="mt-2">
+                  <Button onClick={handleRetryInternal} variant="outline" size="sm" className="mt-2">
                     <RotateCcw className="mr-2 h-4 w-4" /> Попробовать еще раз
                   </Button>
                 )}
