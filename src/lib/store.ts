@@ -180,16 +180,14 @@ export async function saveStudentRoundProgress(progress: Omit<StudentRoundProgre
     console.error('[Store] CRITICAL in saveStudentRoundProgress (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
 
-  // progress.timestamp is a number (bigint) for student_progress table.
-  const timestampForProgressTable = progress.timestamp;
-  // We need a Date object for the student_attempt_history table which uses timestamptz.
+  const timestampToSave = BigInt(progress.timestamp);
   const timestampForHistoryTable = new Date(progress.timestamp);
   const attemptsJson = JSON.stringify(progress.attempts);
 
   try {
      const progressResult = await sql`
       INSERT INTO student_progress (student_id, unit_id, round_id, score, attempts, completed, "timestamp", attempt_count)
-      VALUES (${progress.studentId}, ${progress.unitId}, ${progress.roundId}, ${progress.score}, ${attemptsJson}::jsonb, ${progress.completed}, ${timestampForProgressTable}, 1)
+      VALUES (${progress.studentId}, ${progress.unitId}, ${progress.roundId}, ${progress.score}, ${attemptsJson}::jsonb, ${progress.completed}, ${timestampToSave}, 1)
       ON CONFLICT (student_id, unit_id, round_id)
       DO UPDATE SET
         score = EXCLUDED.score,
@@ -257,14 +255,12 @@ export async function getAttemptHistoryForRound(studentId: string, unitId: strin
 
 
 export async function getOfflineScoresForStudent(studentId: string): Promise<OfflineTestScore[]> {
-  // console.log(`[Store] getOfflineScoresForStudent for student ${studentId}`);
-  // console.log('[Store] Inside getOfflineScoresForStudent - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
     console.error('[Store] CRITICAL in getOfflineScoresForStudent (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
    try {
-    const result = await sql<Omit<OfflineTestScore, 'studentId' | 'teacherId' | 'studentName'> & {student_id: string, teacher_id: string}>`
-      SELECT id, student_id, teacher_id, score, notes, date
+    const result = await sql<Omit<OfflineTestScore, 'studentId' | 'teacherId' | 'studentName' | 'testId'> & {student_id: string, teacher_id: string, test_id: string}>`
+      SELECT id, student_id, teacher_id, score, notes, date, passed, test_id
       FROM offline_scores WHERE student_id = ${studentId} ORDER BY date DESC;
     `;
     return result.rows.map(row => ({
@@ -273,8 +269,9 @@ export async function getOfflineScoresForStudent(studentId: string): Promise<Off
         teacherId: row.teacher_id,
         score: row.score as 2 | 3 | 4 | 5,
         notes: row.notes,
-        date: row.date
-        // studentName is not fetched here, it's added in getAllOfflineScores or API routes
+        date: row.date,
+        passed: row.passed,
+        testId: row.test_id,
     }));
   } catch (error) {
     const VercelPostgresError = (error as any)?.constructor?.name === 'VercelPostgresError' ? (error as any) : null;
@@ -287,14 +284,12 @@ export async function getOfflineScoresForStudent(studentId: string): Promise<Off
 }
 
 export async function getAllOfflineScores(): Promise<OfflineTestScore[]> {
-  // console.log('[Store] getAllOfflineScores called');
-  // console.log('[Store] Inside getAllOfflineScores - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
    if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
     console.error('[Store] CRITICAL in getAllOfflineScores (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
   try {
-    const result = await sql<Omit<OfflineTestScore, 'studentId' | 'teacherId'> & {student_id: string, teacher_id: string, student_name: string }>`
-      SELECT os.id, os.student_id, os.teacher_id, os.score, os.notes, os.date, u.name as student_name
+    const result = await sql<Omit<OfflineTestScore, 'studentId' | 'teacherId' | 'testId'> & {student_id: string, teacher_id: string, student_name: string, test_id: string }>`
+      SELECT os.id, os.student_id, os.teacher_id, os.score, os.notes, os.date, os.passed, os.test_id, u.name as student_name
       FROM offline_scores os
       JOIN users u ON os.student_id = u.id
       ORDER BY os.date DESC;
@@ -306,7 +301,9 @@ export async function getAllOfflineScores(): Promise<OfflineTestScore[]> {
         studentName: row.student_name,
         score: row.score as 2 | 3 | 4 | 5,
         notes: row.notes,
-        date: row.date
+        date: row.date,
+        passed: row.passed,
+        testId: row.test_id,
     }));
   } catch (error) {
     const VercelPostgresError = (error as any)?.constructor?.name === 'VercelPostgresError' ? (error as any) : null;
@@ -318,29 +315,27 @@ export async function getAllOfflineScores(): Promise<OfflineTestScore[]> {
   }
 }
 
-export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | 'date' | 'studentName'>): Promise<OfflineTestScore> {
-  // console.log(`[Store] addOfflineScore for student ${scoreData.studentId} by teacher ${scoreData.teacherId}`);
-  // console.log('[Store] Inside addOfflineScore - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
+export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | 'date' | 'studentName' | 'testName'>): Promise<OfflineTestScore> {
   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
     console.error('[Store] CRITICAL in addOfflineScore (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
   const currentDate = new Date().toISOString();
   try {
     const result = await sql`
-      INSERT INTO offline_scores (student_id, teacher_id, score, notes, date)
-      VALUES (${scoreData.studentId}, ${scoreData.teacherId}, ${scoreData.score}, ${scoreData.notes || null}, ${currentDate})
-      RETURNING id, student_id, teacher_id, score, notes, date;
+      INSERT INTO offline_scores (student_id, teacher_id, score, notes, passed, date, test_id)
+      VALUES (${scoreData.studentId}, ${scoreData.teacherId}, ${scoreData.score}, ${scoreData.notes || null}, ${scoreData.passed}, ${currentDate}, ${scoreData.testId || null})
+      RETURNING id, student_id, teacher_id, score, notes, passed, date, test_id;
     `;
     const row = result.rows[0];
-    // studentName is not returned by this insert, it's added in getAllOfflineScores by a JOIN
-    // or needs to be fetched separately if needed immediately after add.
     return {
         id: typeof row.id === 'string' ? row.id : String(row.id),
         studentId: row.student_id,
         teacherId: row.teacher_id,
         score: row.score as 2 | 3 | 4 | 5,
         notes: row.notes,
-        date: row.date
+        passed: row.passed,
+        date: row.date,
+        testId: row.test_id
     };
   } catch (error) {
     const dbError = error as any;
@@ -351,6 +346,49 @@ export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | '
     throw error;
   }
 }
+
+export async function updateOfflineScore(scoreId: string, scoreData: Omit<OfflineTestScore, 'id' | 'date' | 'studentId' | 'teacherId' | 'studentName'>): Promise<OfflineTestScore> {
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in updateOfflineScore (SERVER-SIDE): POSTGRES_URL is NOT SET.');
+  }
+  try {
+    const result = await sql`
+      UPDATE offline_scores
+      SET score = ${scoreData.score}, notes = ${scoreData.notes || null}, passed = ${scoreData.passed}
+      WHERE id = ${scoreId}
+      RETURNING id, student_id, teacher_id, score, notes, passed, date;
+    `;
+    if (result.rows.length === 0) {
+      throw new Error("Score not found for updating.");
+    }
+    const row = result.rows[0];
+    return {
+        id: row.id,
+        studentId: row.student_id,
+        teacherId: row.teacher_id,
+        score: row.score as 2 | 3 | 4 | 5,
+        notes: row.notes,
+        passed: row.passed,
+        date: row.date
+    };
+  } catch (error) {
+    console.error('[Store] Failed to update offline score:', error);
+    throw error;
+  }
+}
+
+export async function deleteOfflineScore(scoreId: string): Promise<void> {
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in deleteOfflineScore (SERVER-SIDE): POSTGRES_URL is NOT SET.');
+  }
+  try {
+    await sql`DELETE FROM offline_scores WHERE id = ${scoreId};`;
+  } catch (error) {
+    console.error('[Store] Failed to delete offline score:', error);
+    throw error;
+  }
+}
+
 
 // --- Student Unit Grade Functions ---
 
@@ -388,6 +426,48 @@ export async function addStudentUnitGrade(
         console.error('[Store] CRITICAL in addStudentUnitGrade: missing_connection_string.');
     }
     throw error; // Re-throw original error
+  }
+}
+
+export async function updateStudentUnitGrade(gradeId: string, gradeData: Omit<StudentUnitGrade, 'id' | 'date' | 'teacherId' | 'studentId' | 'studentName' | 'unitName'>): Promise<StudentUnitGrade> {
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in updateStudentUnitGrade (SERVER-SIDE): POSTGRES_URL is NOT SET.');
+  }
+  try {
+    const result = await sql`
+      UPDATE student_unit_grades
+      SET grade = ${gradeData.grade}, notes = ${gradeData.notes || null}
+      WHERE id = ${gradeId}
+      RETURNING id, student_id, teacher_id, unit_id, grade, notes, date;
+    `;
+    if (result.rows.length === 0) {
+      throw new Error("Unit grade not found for updating.");
+    }
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      studentId: row.student_id,
+      teacherId: row.teacher_id,
+      unitId: row.unit_id,
+      grade: row.grade as 2 | 3 | 4 | 5,
+      notes: row.notes,
+      date: row.date,
+    };
+  } catch (error) {
+    console.error('[Store] Failed to update unit grade:', error);
+    throw error;
+  }
+}
+
+export async function deleteStudentUnitGrade(gradeId: string): Promise<void> {
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in deleteStudentUnitGrade (SERVER-SIDE): POSTGRES_URL is NOT SET.');
+  }
+  try {
+    await sql`DELETE FROM student_unit_grades WHERE id = ${gradeId};`;
+  } catch (error) {
+    console.error('[Store] Failed to delete unit grade:', error);
+    throw error;
   }
 }
 
@@ -497,5 +577,3 @@ export async function getAllUnitGrades(): Promise<StudentUnitGrade[]> {
 export function resetStore() {
   console.warn("[Store] resetStore is a no-op when using a persistent database.");
 }
-
-

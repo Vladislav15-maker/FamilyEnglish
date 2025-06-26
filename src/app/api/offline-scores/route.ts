@@ -7,8 +7,10 @@ import * as z from 'zod';
 
 const offlineScoreSchema = z.object({
   studentId: z.string().min(1, "Student ID is required"),
+  testId: z.string().min(1, "Test ID is required"),
   score: z.coerce.number().min(2).max(5, "Score must be between 2 and 5"),
   notes: z.string().optional(),
+  passed: z.boolean(),
 });
 
 export async function POST(request: Request) {
@@ -36,13 +38,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: validation.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const { studentId, score, notes } = validation.data;
+    const { studentId, score, notes, passed, testId } = validation.data;
 
-    const scoreData: Omit<OfflineTestScore, 'id' | 'date'> = {
+    const scoreData: Omit<OfflineTestScore, 'id' | 'date' | 'studentName' | 'testName'> = {
       studentId,
       teacherId: loggedInUser.id, // Teacher is the one making the request
       score: score as 2 | 3 | 4 | 5,
       notes: notes || null,
+      passed,
+      testId,
     };
     
     console.log('[API /api/offline-scores] Prepared score data for DB:', JSON.stringify(scoreData, null, 2));

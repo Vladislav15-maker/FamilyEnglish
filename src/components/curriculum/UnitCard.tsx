@@ -3,14 +3,16 @@ import type { Unit, StudentRoundProgress } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { BookMarked, ArrowRight } from 'lucide-react';
+import { BookMarked, ArrowRight, GraduationCap } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface UnitCardProps {
   unit: Unit;
   progress?: StudentRoundProgress[]; // Progress for all rounds in this unit for a specific student
+  isRemediation?: boolean;
 }
 
-export default function UnitCard({ unit, progress = [] }: UnitCardProps) {
+export default function UnitCard({ unit, progress = [], isRemediation = false }: UnitCardProps) {
   const totalRoundsInUnit = unit.rounds.length;
   
   const completedRoundsInUnit = progress.filter(p => p.unitId === unit.id && p.completed);
@@ -44,10 +46,13 @@ export default function UnitCard({ unit, progress = [] }: UnitCardProps) {
                          (totalRoundsInUnit > 1 && totalRoundsInUnit < 5 ? 'раунда' : 'раундов');
 
   return (
-    <Card className="hover:shadow-lg transition-shadow duration-300 flex flex-col">
+    <Card className={cn("hover:shadow-lg transition-shadow duration-300 flex flex-col", isRemediation && "border-accent ring-2 ring-accent/50")}>
       <CardHeader>
         <div className="flex items-center space-x-3 mb-2">
-            <BookMarked className="h-8 w-8 text-primary" />
+            {isRemediation ? 
+              <GraduationCap className="h-8 w-8 text-accent" /> :
+              <BookMarked className="h-8 w-8 text-primary" />
+            }
             <CardTitle className="text-2xl font-headline">{unit.name}</CardTitle>
         </div>
         <CardDescription>{totalRoundsInUnit} {roundsCountText}</CardDescription>
@@ -58,12 +63,12 @@ export default function UnitCard({ unit, progress = [] }: UnitCardProps) {
             <span>Прогресс (средний балл по завершенным)</span>
             <span>{progressLabelText}</span>
           </div>
-          <Progress value={displayProgressPercentage} aria-label={`Средний балл по юниту ${unit.name}: ${displayProgressPercentage}%`} />
+          <Progress value={displayProgressPercentage} aria-label={`Средний балл по юниту ${unit.name}: ${displayProgressPercentage}%`} className={cn(isRemediation && "[&>div]:bg-accent")} />
           <p className="text-xs text-muted-foreground text-center mt-1">Статус: {unitStatusText}</p>
         </div>
       </CardContent>
       <CardFooter>
-        <Button asChild className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
+        <Button asChild className={cn("w-full", isRemediation ? "bg-accent hover:bg-accent/90 text-accent-foreground" : "bg-primary hover:bg-primary/90 text-primary-foreground")}>
           <Link href={`/dashboard/units/${unit.id}`}>
             Перейти к юниту
             <ArrowRight className="ml-2 h-4 w-4" />

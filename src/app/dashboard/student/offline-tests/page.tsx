@@ -1,15 +1,16 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-// DO NOT import store functions directly
+import { OFFLINE_TESTS } from '@/lib/curriculum-data';
 import type { OfflineTestScore } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Award, AlertCircle, BookOpen } from 'lucide-react';
+import { Award, AlertCircle, BookOpen, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from '@/components/ui/badge';
 
 export default function StudentOfflineTestsPage() {
   const { user } = useAuth();
@@ -31,7 +32,11 @@ export default function StudentOfflineTestsPage() {
           return res.json();
         })
         .then((data: OfflineTestScore[]) => {
-          setScores(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+          const scoresWithNames = data.map(score => ({
+            ...score,
+            testName: OFFLINE_TESTS.find(t => t.id === score.testId)?.name || score.testId || 'Неизвестный тест'
+          }));
+          setScores(scoresWithNames.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
         })
         .catch(err => {
           console.error("Failed to load offline scores from API:", err);
@@ -113,8 +118,9 @@ export default function StudentOfflineTestsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[150px]">Дата</TableHead>
+                  <TableHead>Тест</TableHead>
                   <TableHead className="text-center">Оценка</TableHead>
+                  <TableHead className="text-center">Статус</TableHead>
                   <TableHead>Комментарий учителя</TableHead>
                 </TableRow>
               </TableHeader>
@@ -122,7 +128,10 @@ export default function StudentOfflineTestsPage() {
                 {scores.map(score => (
                   <TableRow key={score.id}>
                     <TableCell className="font-medium">
-                      {format(new Date(score.date), 'dd MMMM yyyy, HH:mm', { locale: ru })}
+                      <div className="font-semibold">{score.testName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(score.date), 'dd MMMM yyyy, HH:mm', { locale: ru })}
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
                       <span 
@@ -135,6 +144,21 @@ export default function StudentOfflineTestsPage() {
                       >
                         {score.score}
                       </span>
+                    </TableCell>
+                     <TableCell className="text-center">
+                      {score.passed === true && (
+                        <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                          <Check className="mr-1 h-4 w-4" /> Пройден
+                        </Badge>
+                      )}
+                      {score.passed === false && (
+                         <Badge variant="destructive">
+                          <X className="mr-1 h-4 w-4" /> Не пройден
+                        </Badge>
+                      )}
+                      {score.passed === null && (
+                        <Badge variant="secondary">-</Badge>
+                      )}
                     </TableCell>
                     <TableCell>{score.notes || '-'}</TableCell>
                   </TableRow>

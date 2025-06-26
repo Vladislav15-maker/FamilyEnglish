@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { curriculum } from '@/lib/curriculum-data';
+import { curriculum, OFFLINE_TESTS } from '@/lib/curriculum-data';
 import type { User, StudentRoundProgress, Unit, Round, OfflineTestScore, StudentAttemptHistory } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award, TrendingUp, ListChecks, ClipboardCheck, Sigma, Repeat, History, Loader2 } from 'lucide-react';
+import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award, TrendingUp, ListChecks, ClipboardCheck, Sigma, Repeat, History, Loader2, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -62,7 +62,11 @@ export default function TeacherStudentDetailPage() {
           setProgress(progressData);
 
           if (!offlineScoresRes.ok) throw new Error(`Не удалось загрузить оффлайн оценки ученика. Статус: ${offlineScoresRes.status}`);
-          const offlineScoresData: OfflineTestScore[] = await offlineScoresRes.json();
+          let offlineScoresData: OfflineTestScore[] = await offlineScoresRes.json();
+          offlineScoresData = offlineScoresData.map(score => ({
+            ...score,
+            testName: OFFLINE_TESTS.find(t => t.id === score.testId)?.name || score.testId || 'Неизвестный тест'
+          }));
           setOfflineScores(offlineScoresData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
           
         } catch (err) {
@@ -322,15 +326,19 @@ export default function TeacherStudentDetailPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Дата</TableHead>
+                    <TableHead>Тест</TableHead>
                     <TableHead className="text-center">Оценка</TableHead>
+                    <TableHead className="text-center">Статус</TableHead>
                     <TableHead>Комментарий</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {offlineScores.map(score => (
                     <TableRow key={score.id}>
-                      <TableCell>{format(new Date(score.date), 'dd.MM.yyyy HH:mm', { locale: ru })}</TableCell>
+                      <TableCell>
+                        <div className="font-semibold">{score.testName}</div>
+                        <div className="text-xs text-muted-foreground">{format(new Date(score.date), 'dd.MM.yyyy HH:mm', { locale: ru })}</div>
+                      </TableCell>
                       <TableCell className="text-center">
                           <Badge 
                               className={`text-lg font-bold
@@ -342,6 +350,21 @@ export default function TeacherStudentDetailPage() {
                           >
                           {score.score}
                           </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {score.passed === true && (
+                          <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                            <Check className="mr-1 h-4 w-4" /> Пройден
+                          </Badge>
+                        )}
+                        {score.passed === false && (
+                          <Badge variant="destructive">
+                            <X className="mr-1 h-4 w-4" /> Не пройден
+                          </Badge>
+                        )}
+                        {score.passed === null && (
+                          <Badge variant="secondary">-</Badge>
+                        )}
                       </TableCell>
                       <TableCell>{score.notes || '-'}</TableCell>
                     </TableRow>

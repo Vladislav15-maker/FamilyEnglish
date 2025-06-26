@@ -1,13 +1,13 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-// DO NOT import store functions directly
+import { OFFLINE_TESTS } from '@/lib/curriculum-data';
 import type { User, OfflineTestScore } from '@/lib/types';
 import OfflineTestForm from '@/components/teacher/OfflineTestForm';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CheckSquare, AlertCircle, BookOpen, Edit } from 'lucide-react';
+import { CheckSquare, AlertCircle, BookOpen, Edit, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -22,7 +22,7 @@ export default function TeacherOfflineTestsPage() {
 
   const fetchStudents = useCallback(async () => {
     try {
-      const res = await fetch('/api/teacher/students'); // New API to get all students
+      const res = await fetch('/api/teacher/students');
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || `Failed to fetch students. Status: ${res.status}`);
@@ -37,12 +37,16 @@ export default function TeacherOfflineTestsPage() {
 
   const fetchScores = useCallback(async () => {
     try {
-      const res = await fetch('/api/offline-scores/all'); // New API to get all offline scores
+      const res = await fetch('/api/offline-scores/all');
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || `Failed to fetch offline scores. Status: ${res.status}`);
       }
-      const scoresData: OfflineTestScore[] = await res.json();
+      let scoresData: OfflineTestScore[] = await res.json();
+      scoresData = scoresData.map(score => ({
+        ...score,
+        testName: OFFLINE_TESTS.find(t => t.id === score.testId)?.name || score.testId || 'Неизвестный тест'
+      }));
       setScores(scoresData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     } catch (err) {
       console.error("Failed to load offline scores from API:", err);
@@ -75,7 +79,7 @@ export default function TeacherOfflineTestsPage() {
           <Skeleton className="h-10 w-10 rounded-full" />
           <Skeleton className="h-10 w-1/3" />
         </div>
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid md:grid-cols-2 gap-8 items-start">
             <div><Skeleton className="h-96 w-full" /></div>
             <div>
                  <Card>
@@ -178,10 +182,10 @@ export default function TeacherOfflineTestsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Дата</TableHead>
                       <TableHead>Ученик</TableHead>
+                      <TableHead>Тест</TableHead>
                       <TableHead className="text-center">Оценка</TableHead>
-                      <TableHead>Комментарий</TableHead>
+                      <TableHead className="text-center">Статус</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -189,10 +193,8 @@ export default function TeacherOfflineTestsPage() {
                       const studentInfo = students.find(s => s.id === score.studentId);
                       return (
                         <TableRow key={score.id}>
-                          <TableCell className="whitespace-nowrap">
-                            {format(new Date(score.date), 'dd.MM.yy HH:mm', { locale: ru })}
-                          </TableCell>
-                          <TableCell>{studentInfo?.name || score.studentId}</TableCell>
+                          <TableCell className="font-medium">{studentInfo?.name || score.studentId}</TableCell>
+                          <TableCell>{score.testName}</TableCell>
                           <TableCell className="text-center">
                              <Badge 
                                 className={`text-lg font-bold
@@ -205,7 +207,21 @@ export default function TeacherOfflineTestsPage() {
                                 {score.score}
                               </Badge>
                           </TableCell>
-                          <TableCell>{score.notes || '-'}</TableCell>
+                          <TableCell className="text-center">
+                            {score.passed === true && (
+                              <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                                <Check className="mr-1 h-4 w-4" /> Пройден
+                              </Badge>
+                            )}
+                            {score.passed === false && (
+                              <Badge variant="destructive">
+                                <X className="mr-1 h-4 w-4" /> Не пройден
+                              </Badge>
+                            )}
+                            {score.passed === null && (
+                              <Badge variant="secondary">-</Badge>
+                            )}
+                          </TableCell>
                         </TableRow>
                       );
                     })}

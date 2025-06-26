@@ -4,10 +4,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import type { User } from '@/lib/types';
-// DO NOT import addOfflineScore from '@/lib/store';
+import { OFFLINE_TESTS } from '@/lib/curriculum-data';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -17,7 +18,9 @@ import { useAuth } from '@/context/AuthContext';
 
 const offlineTestSchema = z.object({
   studentId: z.string().min(1, "Выберите ученика"),
+  testId: z.string().min(1, "Выберите оффлайн тест"),
   score: z.coerce.number().min(2, "Оценка должна быть от 2 до 5").max(5, "Оценка должна быть от 2 до 5"),
+  passed: z.boolean(),
   notes: z.string().optional(),
 });
 
@@ -37,8 +40,10 @@ export default function OfflineTestForm({ students, onScoreAdded }: OfflineTestF
     resolver: zodResolver(offlineTestSchema),
     defaultValues: {
       studentId: '',
+      testId: '',
       score: undefined, 
       notes: '',
+      passed: true,
     },
   });
 
@@ -52,12 +57,7 @@ export default function OfflineTestForm({ students, onScoreAdded }: OfflineTestF
       const response = await fetch('/api/offline-scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId: data.studentId,
-          score: data.score,
-          notes: data.notes,
-          // teacherId will be inferred from session on the backend
-        }),
+        body: JSON.stringify(data),
       });
 
       if (!response.ok) {
@@ -71,7 +71,7 @@ export default function OfflineTestForm({ students, onScoreAdded }: OfflineTestF
         description: `Оценка ${newScore.score} для ученика успешно сохранена.`,
         variant: 'default'
       });
-      form.reset();
+      form.reset({ passed: true, studentId: '', testId: '', score: undefined, notes: '' });
       onScoreAdded?.();
     } catch (error) {
       toast({
@@ -92,7 +92,7 @@ export default function OfflineTestForm({ students, onScoreAdded }: OfflineTestF
             <Edit className="h-8 w-8 text-primary" />
             <CardTitle className="text-2xl">Добавить Оценку за Оффлайн Тест</CardTitle>
         </div>
-        <CardDescription>Выберите ученика и выставьте оценку.</CardDescription>
+        <CardDescription>Выберите ученика, тест, и выставьте оценку.</CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -113,6 +113,31 @@ export default function OfflineTestForm({ students, onScoreAdded }: OfflineTestF
                       {students.map(student => (
                         <SelectItem key={student.id} value={student.id}>
                           {student.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="testId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Оффлайн Тест</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ''} defaultValue={field.value || ''}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите тест" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {OFFLINE_TESTS.map(test => (
+                        <SelectItem key={test.id} value={test.id}>
+                          {test.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -148,6 +173,25 @@ export default function OfflineTestForm({ students, onScoreAdded }: OfflineTestF
                 </FormItem>
               )}
             />
+
+             <FormField
+                control={form.control}
+                name="passed"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Тест пройден?</FormLabel>
+                      <FormMessage />
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
             <FormField
               control={form.control}

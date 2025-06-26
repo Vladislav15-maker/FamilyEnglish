@@ -283,11 +283,143 @@ export const curriculum: Unit[] = [
   },
 ];
 
-export function getUnitById(unitId: string) {
-  return curriculum.find(unit => unit.id === unitId) || null;
+export const OFFLINE_TESTS = [
+  { id: 'test-1', name: 'Оффлайн Тест 1 (Юниты 1-2)' },
+  { id: 'test-2', name: 'Оффлайн Тест 2 (Юниты 3-4)' },
+  { id: 'test-3', name: 'Оффлайн Тест 3 (Юниты 5-6)' },
+  { id: 'test-4', name: 'Оффлайн Тест 4 (Юниты 7-8)' },
+  { id: 'test-5', name: 'Оффлайн Тест 5 (Юниты 9-10)' },
+];
+
+export const REMEDIATION_UNITS: { [key: string]: Unit } = {
+  'test-1': {
+    id: 'rem-unit-1',
+    name: 'Работа над ошибками (Тест 1)',
+    rounds: [
+      {
+        id: 'rem-1-1', name: 'Повторение 1', words: [
+          { id: 'u1r1w1', english: 'hi', russian: 'привет', transcription: 'хай' },
+          { id: 'u1r2w2', english: 'I’m fine', russian: 'у меня все хорошо', transcription: 'айм файн' },
+          { id: 'u2r1w1', english: 'mother', russian: 'мама', transcription: 'мазэр' },
+          { id: 'u2r2w5', english: 'cousin', russian: 'двоюродный брат/сестра', transcription: 'казн' },
+          { id: 'u1r1w4', english: 'good morning', russian: 'доброе утро', transcription: 'гуд морнинг' },
+        ],
+      },
+      {
+        id: 'rem-1-2', name: 'Повторение 2', words: [
+          { id: 'u2r1w2', english: 'father', russian: 'папа', transcription: 'фазэр' },
+          { id: 'u1r2w3', english: 'nice to meet you', russian: 'приятно познакомиться', transcription: 'найс ту мит ю' },
+          { id: 'u2r2w1', english: 'grandmother', russian: 'бабушка', transcription: 'грэндмазэр' },
+          { id: 'u1r1w3', english: 'goodbye', russian: 'до свидания', transcription: 'гудбай' },
+          { id: 'u2r1w3', english: 'sister', russian: 'сестра', transcription: 'систэр' },
+        ],
+      },
+    ],
+  },
+  'test-2': {
+    id: 'rem-unit-2',
+    name: 'Работа над ошибками (Тест 2)',
+    rounds: [
+      {
+        id: 'rem-2-1', name: 'Повторение 1', words: [
+          { id: 'u3r1w1', english: 'bread', russian: 'хлеб', transcription: 'брэд' },
+          { id: 'u4r1w2', english: 'two', russian: 'два', transcription: 'ту' },
+          { id: 'u3r2w5', english: 'salad', russian: 'салат', transcription: 'сэлэд' },
+          { id: 'u4r2w3', english: 'eight', russian: 'восемь', transcription: 'эйт' },
+          { id: 'u3r1w5', english: 'apple', russian: 'яблоко', transcription: 'эпл' },
+        ],
+      },
+      {
+        id: 'rem-2-2', name: 'Повторение 2', words: [
+          { id: 'u4r2w1', english: 'six', russian: 'шесть', transcription: 'сикс' },
+          { id: 'u3r2w1', english: 'tea', russian: 'чай', transcription: 'ти' },
+          { id: 'u4r1w5', english: 'five', russian: 'пять', transcription: 'файв' },
+          { id: 'u3r1w3', english: 'water', russian: 'вода', transcription: 'уотэр' },
+          { id: 'u4r2w5', english: 'ten', russian: 'десять', transcription: 'тэн' },
+        ],
+      },
+    ],
+  },
+  'test-3': {
+    id: 'rem-unit-3',
+    name: 'Работа над ошибками (Тест 3)',
+    rounds: [
+      {
+        id: 'rem-3-1', name: 'Повторение 1', words: [
+          { id: 'u5r1w1', english: 'red', russian: 'красный', transcription: 'рэд' },
+          { id: 'u6r1w2', english: 'classroom', russian: 'класс', transcription: 'класрум' },
+          { id: 'u5r2w4', english: 'pink', russian: 'розовый', transcription: 'пинк' },
+          { id: 'u6r2w3', english: 'pencil', russian: 'карандаш', transcription: 'пэнсил' },
+          { id: 'u5r1w3', english: 'green', russian: 'зеленый', transcription: 'грин' },
+        ],
+      },
+      {
+        id: 'rem-3-2', name: 'Повторение 2', words: [
+          { id: 'u6r2w1', english: 'book', russian: 'книга', transcription: 'бук' },
+          { id: 'u5r2w1', english: 'white', russian: 'белый', transcription: 'уайт' },
+          { id: 'u6r1w4', english: 'student', russian: 'ученик', transcription: 'стьюдэнт' },
+          { id: 'u5r1w5', english: 'black', russian: 'черный', transcription: 'блэк' },
+          { id: 'u6r2w5', english: 'chair', russian: 'стул', transcription: 'чэар' },
+        ],
+      },
+    ],
+  },
+  'test-4': {
+    id: 'rem-unit-4',
+    name: 'Работа над ошибками (Тест 4)',
+    rounds: [
+      {
+        id: 'rem-4-1', name: 'Повторение 1', words: [
+          { id: 'u7r1w1', english: 'house', russian: 'дом', transcription: 'хаус' },
+          { id: 'u8r1w2', english: 'rainy', russian: 'дождливо', transcription: 'рэйни' },
+          { id: 'u7r2w3', english: 'table', russian: 'стол', transcription: 'тэйбл' },
+          { id: 'u8r2w4', english: 'cool', russian: 'прохладно', transcription: 'кул' },
+          { id: 'u7r1w4', english: 'bedroom', russian: 'спальня', transcription: 'бэдрум' },
+        ],
+      },
+      {
+        id: 'rem-4-2', name: 'Повторение 2', words: [
+          { id: 'u8r2w2', english: 'cold', russian: 'холодно', transcription: 'колд' },
+          { id: 'u7r2w2', english: 'door', russian: 'дверь', transcription: 'дор' },
+          { id: 'u8r1w5', english: 'snowy', russian: 'снежно', transcription: 'сноуи' },
+          { id: 'u7r1w3', english: 'kitchen', russian: 'кухня', transcription: 'китчэн' },
+          { id: 'u8r1w1', english: 'sunny', russian: 'солнечно', transcription: 'сани' },
+        ],
+      },
+    ],
+  },
+  'test-5': {
+    id: 'rem-unit-5',
+    name: 'Работа над ошибками (Тест 5)',
+    rounds: [
+      {
+        id: 'rem-5-1', name: 'Повторение 1', words: [
+          { id: 'u9r1w1', english: 'Monday', russian: 'понедельник', transcription: 'мандэй' },
+          { id: 'u10r1w2', english: 'playing', russian: 'игра', transcription: 'плэинг' },
+          { id: 'u9r2w3', english: 'today', russian: 'сегодня', transcription: 'тудэй' },
+          { id: 'u10r2w4', english: 'traveling', russian: 'путешествия', transcription: 'трэвэлинг' },
+          { id: 'u9r1w5', english: 'Friday', russian: 'пятница', transcription: 'фрайдэй' },
+        ],
+      },
+      {
+        id: 'rem-5-2', name: 'Повторение 2', words: [
+          { id: 'u10r2w1', english: 'dancing', russian: 'танцы', transcription: 'дэнсинг' },
+          { id: 'u9r2w2', english: 'Sunday', russian: 'воскресенье', transcription: 'сандэй' },
+          { id: 'u10r1w4', english: 'swimming', russian: 'плавание', transcription: 'суиминг' },
+          { id: 'u9r1w3', english: 'Wednesday', russian: 'среда', transcription: 'уэнздэй' },
+          { id: 'u10r2w5', english: 'watching TV', russian: 'просмотр телевизора', transcription: 'уотчинг тиви' },
+        ],
+      },
+    ],
+  },
+};
+
+export function getUnitById(unitId: string): Unit | null {
+  const allUnits = [...curriculum, ...Object.values(REMEDIATION_UNITS)];
+  return allUnits.find(unit => unit.id === unitId) || null;
 }
 
-export function getRoundById(unitId: string, roundId: string) {
+export function getRoundById(unitId: string, roundId: string): Unit['rounds'][0] | null {
   const unit = getUnitById(unitId);
   return unit?.rounds.find(round => round.id === roundId) || null;
 }

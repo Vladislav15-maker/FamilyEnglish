@@ -78,10 +78,13 @@ export interface OfflineTestScore {
   id: string; // Unique ID for the score entry
   studentId: string; // Corresponds to User.id
   teacherId: string; // Corresponds to User.id of the teacher who graded
+  testId?: string | null; // Identifier for the specific test, e.g., 'test-1'
+  testName?: string; // For display purposes, added programmatically
   studentName?: string; // For display purposes, can be joined from users table
   score: 2 | 3 | 4 | 5; // Fixed score values
   notes?: string | null; // Optional notes from the teacher
   date: string; // Date of the test/grading, stored as ISO string or similar
+  passed: boolean | null; // Teacher determines if the student passed
 }
 
 export interface StudentUnitGrade {
