@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { curriculum, OFFLINE_TESTS } from '@/lib/curriculum-data';
+import { curriculum, OFFLINE_TESTS, REMEDIATION_UNITS } from '@/lib/curriculum-data';
 import type { User, StudentRoundProgress, Unit, Round, OfflineTestScore, StudentAttemptHistory } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award, TrendingUp, ListChecks, ClipboardCheck, Sigma, Repeat, History, Loader2, Check, X } from 'lucide-react';
+import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award, TrendingUp, ListChecks, ClipboardCheck, Sigma, Repeat, History, Loader2, Check, X, GraduationCap } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 
 export default function TeacherStudentDetailPage() {
@@ -168,9 +169,10 @@ export default function TeacherStudentDetailPage() {
     );
   }
 
-  // Calculate statistics for the summary card
-  const totalOnlineRoundsCompleted = progress.filter(p => p.completed).length;
-  const sumOnlineScores = progress
+  // Calculate statistics for the summary card, excluding remediation units
+  const coreProgress = progress.filter(p => !p.unitId.startsWith('rem-unit-'));
+  const totalOnlineRoundsCompleted = coreProgress.filter(p => p.completed).length;
+  const sumOnlineScores = coreProgress
     .filter(p => p.completed)
     .reduce((acc, p) => acc + p.score, 0);
   const averageOnlineRoundScore = totalOnlineRoundsCompleted > 0 
@@ -182,6 +184,17 @@ export default function TeacherStudentDetailPage() {
   const averageOfflineTestScore = totalOfflineTestsTaken > 0 
     ? parseFloat((sumOfflineScoresValue / totalOfflineTestsTaken).toFixed(1))
     : 0;
+
+  // Determine which remediation units are relevant
+  const failedTestIds = new Set(
+    offlineScores
+      .filter(score => score.passed === false && score.testId)
+      .map(score => score.testId!)
+  );
+
+  const relevantRemediationUnits = Array.from(failedTestIds)
+    .map(testId => REMEDIATION_UNITS[testId])
+    .filter((unit): unit is Unit => !!unit);
 
 
   return (
@@ -312,6 +325,63 @@ export default function TeacherStudentDetailPage() {
           </CardContent>
         </Card>
 
+        {relevantRemediationUnits.length > 0 && (
+          <Card className="border-accent ring-2 ring-accent/50">
+            <CardHeader>
+              <CardTitle className="flex items-center text-accent">
+                <GraduationCap className="mr-2 h-6 w-6"/>
+                Работа над ошибками
+              </CardTitle>
+              <CardDescription>Прогресс по назначенным юнитам для исправления ошибок.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Accordion type="single" collapsible className="w-full">
+                {relevantRemediationUnits.map((unit: Unit) => (
+                  <AccordionItem value={unit.id} key={unit.id}>
+                    <AccordionTrigger className="text-xl hover:bg-muted/50 px-4 py-3 rounded-md text-accent">
+                      {unit.name}
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pt-2 pb-4 space-y-4 bg-background">
+                      {unit.rounds.map((round: Round) => {
+                        const roundProgress = progress.find(p => p.unitId === unit.id && p.roundId === round.id);
+                        return (
+                          <Card key={round.id} className="overflow-hidden">
+                            <CardHeader className="bg-muted/30 p-4">
+                               <CardTitle className="text-lg flex justify-between items-center flex-wrap gap-2">
+                                <span>{round.name}</span>
+                                <div className="flex items-center gap-2">
+                                    {roundProgress?.attemptCount > 0 && (
+                                      <DialogTrigger asChild>
+                                        <Button variant="secondary" size="sm" className="flex items-center gap-1" onClick={() => handleOpenHistoryDialog(unit.id, round.id, round.name)}>
+                                            <History className="h-4 w-4" />
+                                            Попыток: {roundProgress.attemptCount}
+                                        </Button>
+                                      </DialogTrigger>
+                                    )}
+                                    {roundProgress?.completed ? (
+                                    <Badge variant="default" className="bg-green-500 text-white">{roundProgress.score}%</Badge>
+                                    ) : (
+                                    <Badge variant="outline">Не пройден</Badge>
+                                    )}
+                                </div>
+                               </CardTitle>
+                              {roundProgress?.completed && <Progress value={roundProgress.score} className="h-2 mt-2" />}
+                            </CardHeader>
+                            <CardContent className="p-4 text-sm text-muted-foreground italic">
+                                Для просмотра детальных ответов, нажмите на количество попыток.
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </CardContent>
+          </Card>
+        )}
+
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -341,12 +411,12 @@ export default function TeacherStudentDetailPage() {
                       </TableCell>
                       <TableCell className="text-center">
                           <Badge 
-                              className={`text-lg font-bold
-                              ${score.score === 5 ? 'bg-green-500 hover:bg-green-600' : ''}
-                              ${score.score === 4 ? 'bg-blue-500 hover:bg-blue-600' : ''}
-                              ${score.score === 3 ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : ''}
-                              ${score.score === 2 ? 'bg-red-500 hover:bg-red-600' : ''}
-                              `}
+                              className={cn(`text-lg font-bold`,
+                                score.score === 5 && 'bg-green-500 hover:bg-green-600',
+                                score.score === 4 && 'bg-blue-500 hover:bg-blue-600',
+                                score.score === 3 && 'bg-yellow-500 hover:bg-yellow-600 text-black',
+                                score.score === 2 && 'bg-red-500 hover:bg-red-600'
+                              )}
                           >
                           {score.score}
                           </Badge>
@@ -429,6 +499,7 @@ export default function TeacherStudentDetailPage() {
                       <TableBody>
                         {selectedAttempt.attempts.map((attempt, index) => {
                           const wordDetail = curriculum
+                            .concat(Object.values(REMEDIATION_UNITS))
                             .find(u => u.id === selectedAttempt.unitId)?.rounds
                             .find(r => r.id === selectedAttempt.roundId)?.words
                             .find(w => w.id === attempt.wordId);

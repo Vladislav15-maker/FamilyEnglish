@@ -49,13 +49,17 @@ export default function StudentHomePage() {
           const totalUnits = curriculum.length;
           let unitsCompleted = 0;
           let unitsInProgress = 0;
+
+          // Exclude remediation units from all calculations on this page
+          const coreProgressData = progressData.filter(p => !p.unitId.startsWith('rem-unit-'));
+          
           let sumOfScoresCompletedRounds = 0;
           let completedRoundsCount = 0;
           let totalRoundsInCurriculum = 0;
 
           curriculum.forEach(unit => {
             totalRoundsInCurriculum += unit.rounds.length;
-            const unitProgress = progressData.filter(p => p.unitId === unit.id);
+            const unitProgress = coreProgressData.filter(p => p.unitId === unit.id);
             let completedRoundsInUnit = 0;
             let attemptedRoundsInUnit = 0;
 
@@ -218,4 +222,3 @@ export default function StudentHomePage() {
     </div>
   );
 }
-

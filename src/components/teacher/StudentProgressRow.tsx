@@ -13,13 +13,19 @@ interface StudentProgressRowProps {
 
 export default function StudentProgressRow({ student, progress }: StudentProgressRowProps) {
   const totalRoundsInCurriculum = curriculum.reduce((acc, unit) => acc + unit.rounds.length, 0);
-  const completedRounds = progress.filter(p => p.completed).length;
+  
+  // Filter out remediation units from progress calculation
+  const coreProgress = progress.filter(p => !p.unitId.startsWith('rem-unit-'));
+  const completedCoreProgress = coreProgress.filter(p => p.completed);
+
+  const completedRounds = completedCoreProgress.length;
+  
   const overallProgressPercentage = totalRoundsInCurriculum > 0 
     ? (completedRounds / totalRoundsInCurriculum) * 100 
     : 0;
 
   const averageScore = completedRounds > 0
-    ? progress.filter(p => p.completed).reduce((sum, p) => sum + p.score, 0) / completedRounds
+    ? completedCoreProgress.reduce((sum, p) => sum + p.score, 0) / completedRounds
     : 0;
 
   const getInitials = (name: string) => {
@@ -40,7 +46,7 @@ export default function StudentProgressRow({ student, progress }: StudentProgres
         <p className="text-lg font-semibold text-primary">{student.name}</p>
         <div className="flex items-center space-x-2 text-sm text-muted-foreground">
           <span>Общий прогресс:</span>
-          <Progress value={overallProgressPercentage} className="w-48 h-2" /> {/* Changed w-32 to w-48 */}
+          <Progress value={overallProgressPercentage} className="w-48 h-2" />
           <span>{Math.round(overallProgressPercentage)}%</span>
         </div>
          <p className="text-sm text-muted-foreground">

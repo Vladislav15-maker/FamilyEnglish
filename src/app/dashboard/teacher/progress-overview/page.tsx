@@ -20,6 +20,7 @@ interface StudentOnlineOverviewItem {
   progress: StudentRoundProgress[];
   overallProgressPercentage: number;
   averageOnlineScore: number;
+  completedCoreRounds: number;
 }
 
 export default function TeacherConsolidatedProgressOverviewPage() {
@@ -50,13 +51,18 @@ export default function TeacherConsolidatedProgressOverviewPage() {
           }
           const overviewData: { student: User; progress: StudentRoundProgress[] }[] = await res.json();
           const processedOverview = overviewData.map(item => {
-            const completedRounds = item.progress.filter(p => p.completed).length;
+            const coreProgress = item.progress.filter(p => !p.unitId.startsWith('rem-unit-'));
+            const completedCoreProgress = coreProgress.filter(p => p.completed);
+
+            const completedCoreRounds = completedCoreProgress.length;
             const overallProgressPercentage = totalRoundsInCurriculum > 0 
-              ? Math.round((completedRounds / totalRoundsInCurriculum) * 100)
+              ? Math.round((completedCoreRounds / totalRoundsInCurriculum) * 100)
               : 0;
-            const sumScores = item.progress.filter(p => p.completed).reduce((acc, p) => acc + p.score, 0);
-            const averageOnlineScore = completedRounds > 0 ? Math.round(sumScores / completedRounds) : 0;
-            return { ...item, overallProgressPercentage, averageOnlineScore };
+
+            const sumScores = completedCoreProgress.reduce((acc, p) => acc + p.score, 0);
+            const averageOnlineScore = completedCoreRounds > 0 ? Math.round(sumScores / completedCoreRounds) : 0;
+            
+            return { ...item, overallProgressPercentage, averageOnlineScore, completedCoreRounds };
           }).sort((a, b) => b.overallProgressPercentage - a.overallProgressPercentage || b.averageOnlineScore - a.averageOnlineScore);
           setClassOnlineOverview(processedOverview);
         } catch (err) {
@@ -156,7 +162,7 @@ export default function TeacherConsolidatedProgressOverviewPage() {
 
       {/* Online Progress Section */}
       <Card className="shadow-lg">
-        <CardHeader> <CardTitle className="flex items-center"><Users className="mr-2 h-6 w-6"/>Рейтинг успеваемости (онлайн)</CardTitle> <CardDescription>Обзор онлайн-прогресса всех учеников. Отсортировано по общему прогрессу.</CardDescription> </CardHeader>
+        <CardHeader> <CardTitle className="flex items-center"><Users className="mr-2 h-6 w-6"/>Рейтинг успеваемости (онлайн)</CardTitle> <CardDescription>Обзор онлайн-прогресса всех учеников (не включая юниты "Работа над ошибками"). Отсортировано по общему прогрессу.</CardDescription> </CardHeader>
         <CardContent className="p-0">
           {isLoadingOnline && classOnlineOverview.length === 0 ? <Skeleton className="h-40 w-full" /> : classOnlineOverview.length === 0 && !isLoadingOnline ? ( <Alert className="m-4"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Нет учеников</AlertTitle> <AlertDescription> В системе пока нет зарегистрированных учеников для отображения онлайн-прогресса. </AlertDescription> </Alert>
           ) : (
@@ -180,7 +186,7 @@ export default function TeacherConsolidatedProgressOverviewPage() {
                   </div>
                    <div className="text-right shrink-0"> {/* Added shrink-0 */}
                       <p className="text-sm text-muted-foreground whitespace-nowrap">Пройдено раундов</p>
-                      <p className="text-lg font-semibold">{item.progress.filter(p=>p.completed).length} / {totalRoundsInCurriculum}</p>
+                      <p className="text-lg font-semibold">{item.completedCoreRounds} / {totalRoundsInCurriculum}</p>
                    </div>
                 </div>
               ))}
@@ -250,5 +256,3 @@ export default function TeacherConsolidatedProgressOverviewPage() {
     </div>
   );
 }
-
-    
