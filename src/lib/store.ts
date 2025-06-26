@@ -180,7 +180,7 @@ export async function saveStudentRoundProgress(progress: Omit<StudentRoundProgre
     console.error('[Store] CRITICAL in saveStudentRoundProgress (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
 
-  const timestampToSave = BigInt(progress.timestamp);
+  const timestampToSave = progress.timestamp; // Should be a number (Date.now())
   const timestampForHistoryTable = new Date(progress.timestamp);
   const attemptsJson = JSON.stringify(progress.attempts);
 
@@ -347,16 +347,16 @@ export async function addOfflineScore(scoreData: Omit<OfflineTestScore, 'id' | '
   }
 }
 
-export async function updateOfflineScore(scoreId: string, scoreData: Omit<OfflineTestScore, 'id' | 'date' | 'studentId' | 'teacherId' | 'studentName'>): Promise<OfflineTestScore> {
+export async function updateOfflineScore(scoreId: string, scoreData: Pick<OfflineTestScore, 'score' | 'notes' | 'passed' | 'testId'>): Promise<OfflineTestScore> {
   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
     console.error('[Store] CRITICAL in updateOfflineScore (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
   try {
     const result = await sql`
       UPDATE offline_scores
-      SET score = ${scoreData.score}, notes = ${scoreData.notes || null}, passed = ${scoreData.passed}
+      SET score = ${scoreData.score}, notes = ${scoreData.notes || null}, passed = ${scoreData.passed}, test_id = ${scoreData.testId || null}
       WHERE id = ${scoreId}
-      RETURNING id, student_id, teacher_id, score, notes, passed, date;
+      RETURNING id, student_id, teacher_id, score, notes, passed, date, test_id;
     `;
     if (result.rows.length === 0) {
       throw new Error("Score not found for updating.");
@@ -369,7 +369,8 @@ export async function updateOfflineScore(scoreId: string, scoreData: Omit<Offlin
         score: row.score as 2 | 3 | 4 | 5,
         notes: row.notes,
         passed: row.passed,
-        date: row.date
+        date: row.date,
+        testId: row.test_id,
     };
   } catch (error) {
     console.error('[Store] Failed to update offline score:', error);
@@ -405,11 +406,14 @@ export async function addStudentUnitGrade(
     const result = await sql`
       INSERT INTO student_unit_grades (student_id, teacher_id, unit_id, grade, notes, date)
       VALUES (${gradeData.studentId}, ${teacherId}, ${gradeData.unitId}, ${gradeData.grade}, ${gradeData.notes || null}, ${currentDate})
+      ON CONFLICT (student_id, unit_id) DO UPDATE SET
+        grade = EXCLUDED.grade,
+        notes = EXCLUDED.notes,
+        date = EXCLUDED.date,
+        teacher_id = EXCLUDED.teacher_id
       RETURNING id, student_id, teacher_id, unit_id, grade, notes, date;
     `;
     const row = result.rows[0];
-    // The returned object here won't have studentName or unitName as they are not in student_unit_grades table
-    // These are typically added by the API route using curriculum-data or by joining with users table
     return {
       id: typeof row.id === 'string' ? row.id : String(row.id),
       studentId: row.student_id,
@@ -425,11 +429,11 @@ export async function addStudentUnitGrade(
     if (dbError.code === 'missing_connection_string' || dbError.message?.includes('missing_connection_string')) {
         console.error('[Store] CRITICAL in addStudentUnitGrade: missing_connection_string.');
     }
-    throw error; // Re-throw original error
+    throw error;
   }
 }
 
-export async function updateStudentUnitGrade(gradeId: string, gradeData: Omit<StudentUnitGrade, 'id' | 'date' | 'teacherId' | 'studentId' | 'studentName' | 'unitName'>): Promise<StudentUnitGrade> {
+export async function updateStudentUnitGrade(gradeId: string, gradeData: Pick<StudentUnitGrade, 'grade' | 'notes'>): Promise<StudentUnitGrade> {
   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
     console.error('[Store] CRITICAL in updateStudentUnitGrade (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
@@ -493,7 +497,6 @@ export async function getUnitGradesForStudent(studentId: string): Promise<Studen
       grade: row.grade as 2 | 3 | 4 | 5,
       notes: row.notes,
       date: row.date,
-      // unitName will be added by the API route using curriculum-data
     }));
   } catch (error) {
     const VercelPostgresError = (error as any)?.constructor?.name === 'VercelPostgresError' ? (error as any) : null;
@@ -501,7 +504,7 @@ export async function getUnitGradesForStudent(studentId: string): Promise<Studen
         console.error('[Store] CRITICAL in getUnitGradesForStudent: missing_connection_string.');
     }
     console.error('[Store] Failed to get unit grades for student:', error);
-    throw error; // Re-throw original error
+    throw error; 
   }
 }
 
@@ -527,7 +530,6 @@ export async function getAllUnitGradesByTeacher(teacherId: string): Promise<Stud
       grade: row.grade as 2 | 3 | 4 | 5,
       notes: row.notes,
       date: row.date,
-      // unitName will be added by the API route using curriculum-data
     }));
   } catch (error) {
     const VercelPostgresError = (error as any)?.constructor?.name === 'VercelPostgresError' ? (error as any) : null;
@@ -535,7 +537,7 @@ export async function getAllUnitGradesByTeacher(teacherId: string): Promise<Stud
         console.error('[Store] CRITICAL in getAllUnitGradesByTeacher: missing_connection_string.');
     }
     console.error('[Store] Failed to get all unit grades by teacher:', error);
-    throw error; // Re-throw original error
+    throw error;
   }
 }
 
@@ -545,7 +547,6 @@ export async function getAllUnitGrades(): Promise<StudentUnitGrade[]> {
     console.error('[Store] CRITICAL in getAllUnitGrades (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
   try {
-    // Fetches all unit grades and joins with users table to get student names
     const result = await sql`
       SELECT sug.id, sug.student_id, sug.teacher_id, sug.unit_id, sug.grade, sug.notes, sug.date, u.name as student_name
       FROM student_unit_grades sug
@@ -561,7 +562,6 @@ export async function getAllUnitGrades(): Promise<StudentUnitGrade[]> {
       grade: row.grade as 2 | 3 | 4 | 5,
       notes: row.notes,
       date: row.date,
-      // unitName will be added by the API route using curriculum-data
     }));
   } catch (error) {
     const VercelPostgresError = (error as any)?.constructor?.name === 'VercelPostgresError' ? (error as any) : null;
