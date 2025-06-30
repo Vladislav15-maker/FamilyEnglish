@@ -1,5 +1,5 @@
 import { sql } from '@vercel/postgres';
-import type { User, StudentRoundProgress, OfflineTestScore, UserForAuth, StudentUnitGrade, StudentAttemptHistory } from './types';
+import type { User, StudentRoundProgress, OfflineTestScore, UserForAuth, StudentUnitGrade, StudentAttemptHistory, OnlineTestResult } from './types';
 
 // This log runs when the module is first loaded.
 // If POSTGRES_URL is not set here when running on the server, then .env.local is not loaded correctly server-side.
@@ -180,14 +180,13 @@ export async function saveStudentRoundProgress(progress: Omit<StudentRoundProgre
     console.error('[Store] CRITICAL in saveStudentRoundProgress (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
 
-  const timestampToSave = progress.timestamp; // Should be a number (Date.now())
-  const timestampForHistoryTable = new Date(progress.timestamp);
+  const timestampToSave = new Date(progress.timestamp);
   const attemptsJson = JSON.stringify(progress.attempts);
 
   try {
      const progressResult = await sql`
       INSERT INTO student_progress (student_id, unit_id, round_id, score, attempts, completed, "timestamp", attempt_count)
-      VALUES (${progress.studentId}, ${progress.unitId}, ${progress.roundId}, ${progress.score}, ${attemptsJson}::jsonb, ${progress.completed}, ${timestampToSave}, 1)
+      VALUES (${progress.studentId}, ${progress.unitId}, ${progress.roundId}, ${progress.score}, ${attemptsJson}::jsonb, ${progress.completed}, ${progress.timestamp}, 1)
       ON CONFLICT (student_id, unit_id, round_id)
       DO UPDATE SET
         score = EXCLUDED.score,
@@ -211,7 +210,7 @@ export async function saveStudentRoundProgress(progress: Omit<StudentRoundProgre
         ${progress.score}, 
         ${attemptsJson}::jsonb, 
         ${newAttemptCount}, 
-        ${timestampForHistoryTable}
+        ${timestampToSave}
       );
     `;
     console.log(`[Store] Attempt #${newAttemptCount} saved to history.`);
@@ -402,17 +401,39 @@ export async function addStudentUnitGrade(
     console.error('[Store] CRITICAL in addStudentUnitGrade (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
   const currentDate = new Date().toISOString();
+  
   try {
-    const result = await sql`
-      INSERT INTO student_unit_grades (student_id, teacher_id, unit_id, grade, notes, date)
-      VALUES (${gradeData.studentId}, ${teacherId}, ${gradeData.unitId}, ${gradeData.grade}, ${gradeData.notes || null}, ${currentDate})
-      ON CONFLICT (student_id, unit_id) DO UPDATE SET
-        grade = EXCLUDED.grade,
-        notes = EXCLUDED.notes,
-        date = EXCLUDED.date,
-        teacher_id = EXCLUDED.teacher_id
-      RETURNING id, student_id, teacher_id, unit_id, grade, notes, date;
+    const existing = await sql`
+      SELECT id from student_unit_grades 
+      WHERE student_id = ${gradeData.studentId} AND unit_id = ${gradeData.unitId};
     `;
+
+    let result;
+    if (existing.rows.length > 0) {
+      console.log(`[Store] Found existing unit grade. Updating grade ID: ${existing.rows[0].id}`);
+      result = await sql`
+        UPDATE student_unit_grades
+        SET 
+          grade = ${gradeData.grade}, 
+          notes = ${gradeData.notes || null}, 
+          date = ${currentDate}, 
+          teacher_id = ${teacherId}
+        WHERE id = ${existing.rows[0].id}
+        RETURNING id, student_id, teacher_id, unit_id, grade, notes, date;
+      `;
+    } else {
+      console.log(`[Store] No existing unit grade found. Inserting new grade.`);
+      result = await sql`
+        INSERT INTO student_unit_grades (student_id, teacher_id, unit_id, grade, notes, date)
+        VALUES (${gradeData.studentId}, ${teacherId}, ${gradeData.unitId}, ${gradeData.grade}, ${gradeData.notes || null}, ${currentDate})
+        RETURNING id, student_id, teacher_id, unit_id, grade, notes, date;
+      `;
+    }
+    
+    if (result.rows.length === 0) {
+        throw new Error("Failed to insert or update the unit grade.");
+    }
+    
     const row = result.rows[0];
     return {
       id: typeof row.id === 'string' ? row.id : String(row.id),
@@ -425,13 +446,15 @@ export async function addStudentUnitGrade(
     };
   } catch (error) {
     const dbError = error as any;
-    console.error(`[Store] DB Error in addStudentUnitGrade (code: ${dbError.code}, constraint: ${dbError.constraint_name}): ${dbError.message}. Detail: ${dbError.detail}. Full error:`, dbError);
+    console.error(`[Store] DB Error in addStudentUnitGrade (code: ${dbError.code}): ${dbError.message}. Full error:`, dbError);
     if (dbError.code === 'missing_connection_string' || dbError.message?.includes('missing_connection_string')) {
         console.error('[Store] CRITICAL in addStudentUnitGrade: missing_connection_string.');
     }
+    // Re-throw the error so the API route can catch it and send a proper response.
     throw error;
   }
 }
+
 
 export async function updateStudentUnitGrade(gradeId: string, gradeData: Pick<StudentUnitGrade, 'grade' | 'notes'>): Promise<StudentUnitGrade> {
   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
@@ -573,7 +596,148 @@ export async function getAllUnitGrades(): Promise<StudentUnitGrade[]> {
   }
 }
 
+// --- Online Test Functions ---
+
+export async function submitOnlineTestResult(
+  resultData: Omit<OnlineTestResult, 'id' | 'completedAt' | 'isPassed' | 'grade' | 'teacherNotes'>
+): Promise<OnlineTestResult> {
+  const { studentId, onlineTestId, score, answers } = resultData;
+  const answersJson = JSON.stringify(answers);
+  
+  try {
+    // Upsert logic: if a student retakes a test, update their old result.
+    const result = await sql`
+      INSERT INTO online_test_results (student_id, online_test_id, score, answers)
+      VALUES (${studentId}, ${onlineTestId}, ${score}, ${answersJson}::jsonb)
+      ON CONFLICT (student_id, online_test_id) DO UPDATE SET
+        score = EXCLUDED.score,
+        answers = EXCLUDED.answers,
+        completed_at = CURRENT_TIMESTAMP,
+        is_passed = NULL, -- Reset grading status on retake
+        grade = NULL,
+        teacher_notes = NULL
+      RETURNING id, student_id, online_test_id, score, answers, completed_at, is_passed, grade, teacher_notes;
+    `;
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      studentId: row.student_id,
+      onlineTestId: row.online_test_id,
+      score: row.score,
+      answers: row.answers,
+      completedAt: row.completed_at,
+      isPassed: row.is_passed,
+      grade: row.grade,
+      teacherNotes: row.teacher_notes,
+    };
+  } catch (error) {
+    console.error('[Store] Failed to submit online test result:', error);
+    throw error;
+  }
+}
+
+export async function getOnlineTestResults(testId: string): Promise<OnlineTestResult[]> {
+  try {
+    const result = await sql`
+      SELECT
+        otr.id,
+        otr.student_id,
+        u.name as student_name,
+        otr.online_test_id,
+        otr.score,
+        otr.answers,
+        otr.completed_at,
+        otr.is_passed,
+        otr.grade,
+        otr.teacher_notes
+      FROM online_test_results otr
+      JOIN users u ON otr.student_id = u.id
+      WHERE otr.online_test_id = ${testId}
+      ORDER BY otr.score DESC, otr.completed_at ASC;
+    `;
+    return result.rows.map(row => ({
+      id: row.id,
+      studentId: row.student_id,
+      studentName: row.student_name,
+      onlineTestId: row.online_test_id,
+      score: row.score,
+      answers: row.answers,
+      completedAt: row.completed_at,
+      isPassed: row.is_passed,
+      grade: row.grade,
+      teacherNotes: row.teacher_notes,
+    }));
+  } catch (error) {
+    console.error(`[Store] Failed to get online test results for test ${testId}:`, error);
+    throw error;
+  }
+}
+
+export async function getStudentOnlineTestResults(studentId: string): Promise<OnlineTestResult[]> {
+    try {
+        const result = await sql`
+            SELECT id, student_id, online_test_id, score, answers, completed_at, is_passed, grade, teacher_notes
+            FROM online_test_results
+            WHERE student_id = ${studentId}
+            ORDER BY completed_at DESC;
+        `;
+        return result.rows.map(row => ({
+            id: row.id,
+            studentId: row.student_id,
+            onlineTestId: row.online_test_id,
+            score: row.score,
+            answers: row.answers,
+            completedAt: row.completed_at,
+            isPassed: row.is_passed,
+            grade: row.grade,
+            teacherNotes: row.teacher_notes
+        }));
+    } catch (error) {
+        console.error(`[Store] Failed to get online test results for student ${studentId}:`, error);
+        throw error;
+    }
+}
+
+
+export async function gradeOnlineTestResult(
+  resultId: string,
+  gradingData: { isPassed: boolean; grade: number; teacherNotes?: string }
+): Promise<OnlineTestResult> {
+  const { isPassed, grade, teacherNotes } = gradingData;
+  try {
+    const result = await sql`
+      UPDATE online_test_results
+      SET
+        is_passed = ${isPassed},
+        grade = ${grade},
+        teacher_notes = ${teacherNotes || null}
+      WHERE id = ${resultId}
+      RETURNING id, student_id, online_test_id, score, answers, completed_at, is_passed, grade, teacher_notes;
+    `;
+    if (result.rows.length === 0) {
+      throw new Error("Online test result not found for grading.");
+    }
+    const row = result.rows[0];
+     return {
+      id: row.id,
+      studentId: row.student_id,
+      onlineTestId: row.online_test_id,
+      score: row.score,
+      answers: row.answers,
+      completedAt: row.completed_at,
+      isPassed: row.is_passed,
+      grade: row.grade,
+      teacherNotes: row.teacher_notes,
+    };
+  } catch (error) {
+    console.error(`[Store] Failed to grade online test result ${resultId}:`, error);
+    throw error;
+  }
+}
+
 
 export function resetStore() {
   console.warn("[Store] resetStore is a no-op when using a persistent database.");
 }
+
