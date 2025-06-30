@@ -2,17 +2,17 @@
 import { useEffect, useState } from 'react';
 import UnitCard from '@/components/curriculum/UnitCard';
 import { curriculum, REMEDIATION_UNITS } from '@/lib/curriculum-data';
-import type { Unit, StudentRoundProgress, OfflineTestScore } from '@/lib/types';
+import type { Unit, StudentRoundProgress, OfflineTestScore, StudentUnitGrade } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
-// DO NOT import getAllStudentProgress directly from '@/lib/store' here
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { BookOpenText, AlertCircle, GraduationCap } from "lucide-react";
+import { BookOpenText, AlertCircle } from "lucide-react";
 
 export default function UnitsPage() {
   const { user } = useAuth();
   const [studentProgress, setStudentProgress] = useState<StudentRoundProgress[]>([]);
   const [offlineScores, setOfflineScores] = useState<OfflineTestScore[]>([]);
+  const [unitGrades, setUnitGrades] = useState<StudentUnitGrade[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,10 +21,11 @@ export default function UnitsPage() {
       setIsLoading(true);
       setError(null);
       Promise.all([
-        fetch(`/api/progress/student/${user.id}`), // Fetch online progress
-        fetch(`/api/offline-scores/student/${user.id}`) // Fetch offline scores
+        fetch(`/api/progress/student/${user.id}`),
+        fetch(`/api/offline-scores/student/${user.id}`),
+        fetch(`/api/student/unit-grades`), // Fetch unit grades
       ])
-      .then(async ([progressRes, scoresRes]) => {
+      .then(async ([progressRes, scoresRes, gradesRes]) => {
           if (!progressRes.ok) {
              const errData = await progressRes.json().catch(() => ({}));
              throw new Error(`Не удалось загрузить прогресс ученика: ${errData.error || progressRes.status}`);
@@ -33,10 +34,16 @@ export default function UnitsPage() {
              const errData = await scoresRes.json().catch(() => ({}));
              throw new Error(`Не удалось загрузить оффлайн оценки: ${errData.error || scoresRes.status}`);
           }
+          if (!gradesRes.ok) {
+             const errData = await gradesRes.json().catch(() => ({}));
+             throw new Error(`Не удалось загрузить оценки за юниты: ${errData.error || gradesRes.status}`);
+          }
           const progressData = await progressRes.json();
           const scoresData = await scoresRes.json();
+          const gradesData = await gradesRes.json();
           setStudentProgress(progressData);
           setOfflineScores(scoresData);
+          setUnitGrades(gradesData);
       })
       .catch(err => {
           console.error("Failed to load student data for units page:", err);
@@ -111,14 +118,18 @@ export default function UnitsPage() {
         </Alert>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {displayCurriculum.map((unit: Unit) => (
-            <UnitCard
-              key={unit.id}
-              unit={unit}
-              progress={studentProgress.filter(p => p.unitId === unit.id)}
-              isRemediation={unit.id.startsWith('rem-unit-')}
-            />
-          ))}
+          {displayCurriculum.map((unit: Unit) => {
+            const unitGrade = unitGrades.find(g => g.unitId === unit.id);
+            return (
+              <UnitCard
+                key={unit.id}
+                unit={unit}
+                progress={studentProgress.filter(p => p.unitId === unit.id)}
+                isRemediation={unit.id.startsWith('rem-unit-')}
+                unitGrade={unitGrade}
+              />
+            );
+          })}
         </div>
       )}
     </div>

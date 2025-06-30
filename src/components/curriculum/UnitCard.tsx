@@ -1,18 +1,20 @@
 import Link from 'next/link';
-import type { Unit, StudentRoundProgress } from '@/lib/types';
+import type { Unit, StudentRoundProgress, StudentUnitGrade } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { BookMarked, ArrowRight, GraduationCap } from 'lucide-react';
+import { BookMarked, ArrowRight, GraduationCap, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface UnitCardProps {
   unit: Unit;
-  progress?: StudentRoundProgress[]; // Progress for all rounds in this unit for a specific student
+  progress?: StudentRoundProgress[];
   isRemediation?: boolean;
+  unitGrade?: StudentUnitGrade;
 }
 
-export default function UnitCard({ unit, progress = [], isRemediation = false }: UnitCardProps) {
+export default function UnitCard({ unit, progress = [], isRemediation = false, unitGrade }: UnitCardProps) {
   const totalRoundsInUnit = unit.rounds.length;
   
   const completedRoundsInUnit = progress.filter(p => p.unitId === unit.id && p.completed);
@@ -36,7 +38,6 @@ export default function UnitCard({ unit, progress = [], isRemediation = false }:
         unitStatusText = `В процессе (${displayProgressPercentage}%)`;
     }
   } else if (attemptedRoundsInUnit.length > 0) {
-    // Если есть попытки, но ни один раунд не завершен, средний балл 0, но статус "В процессе"
     progressLabelText = "0%";
     unitStatusText = "В процессе";
   }
@@ -45,15 +46,45 @@ export default function UnitCard({ unit, progress = [], isRemediation = false }:
   const roundsCountText = totalRoundsInUnit === 1 ? 'раунд' : 
                          (totalRoundsInUnit > 1 && totalRoundsInUnit < 5 ? 'раунда' : 'раундов');
 
+  const gradeColorClass =
+    unitGrade?.grade === 5 ? 'text-green-500' :
+    unitGrade?.grade === 4 ? 'text-blue-500' :
+    unitGrade?.grade === 3 ? 'text-yellow-600' :
+    unitGrade?.grade === 2 ? 'text-red-500' :
+    '';
+
   return (
-    <Card className={cn("hover:shadow-lg transition-shadow duration-300 flex flex-col", isRemediation && "border-accent ring-2 ring-accent/50")}>
+    <Card className={cn("hover:shadow-lg transition-shadow duration-300 flex flex-col relative overflow-hidden", isRemediation && "border-accent ring-2 ring-accent/50")}>
+      {unitGrade && (
+        <div className="absolute top-4 right-4 text-center z-10">
+          <p className={cn("text-6xl font-bold font-headline drop-shadow-lg", gradeColorClass)}>
+            {unitGrade.grade}
+          </p>
+          {unitGrade.notes && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <MessageSquare className="h-4 w-4 mx-auto text-muted-foreground cursor-pointer" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-semibold">Комментарий учителя:</p>
+                  <p>{unitGrade.notes}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+      )}
+      
       <CardHeader>
-        <div className="flex items-center space-x-3 mb-2">
-            {isRemediation ? 
-              <GraduationCap className="h-8 w-8 text-accent" /> :
-              <BookMarked className="h-8 w-8 text-primary" />
-            }
-            <CardTitle className="text-2xl font-headline">{unit.name}</CardTitle>
+        <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-3 mb-2">
+                {isRemediation ? 
+                  <GraduationCap className="h-8 w-8 text-accent shrink-0" /> :
+                  <BookMarked className="h-8 w-8 text-primary shrink-0" />
+                }
+                <CardTitle className="text-2xl font-headline pr-12">{unit.name}</CardTitle>
+            </div>
         </div>
         <CardDescription>{totalRoundsInUnit} {roundsCountText}</CardDescription>
       </CardHeader>
