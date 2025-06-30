@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { BookMarked, ArrowRight, GraduationCap, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface UnitCardProps {
   unit: Unit;
@@ -61,17 +61,17 @@ export default function UnitCard({ unit, progress = [], isRemediation = false, u
             {unitGrade.grade}
           </p>
           {unitGrade.notes && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <MessageSquare className="h-4 w-4 mx-auto text-muted-foreground cursor-pointer" />
-                </TooltipTrigger>
-                <TooltipContent>
+             <Popover>
+                <PopoverTrigger asChild>
+                  <div className="mx-auto mt-1 cursor-pointer p-1">
+                     <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto max-w-xs" align="end">
                   <p className="font-semibold">Комментарий учителя:</p>
-                  <p>{unitGrade.notes}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+                  <p className="text-sm">{unitGrade.notes}</p>
+                </PopoverContent>
+              </Popover>
           )}
         </div>
       )}
