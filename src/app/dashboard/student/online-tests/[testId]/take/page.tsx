@@ -99,10 +99,12 @@ export default function OnlineTestTakePage() {
       timerRef.current = setInterval(() => {
         setTimeRemaining(prev => prev - 1);
       }, 1000);
-    } else if (timeRemaining === 0) {
+    } else if (timeRemaining <= 0) {
       // Time's up! Force finish.
       if (timerRef.current) clearInterval(timerRef.current);
-      setIsTestFinished(true);
+      if(!isTestFinished) { // prevent multiple calls
+        setIsTestFinished(true);
+      }
     }
 
     return () => {
@@ -138,8 +140,8 @@ export default function OnlineTestTakePage() {
           return response.json();
       })
       .then((savedResult: OnlineTestResult) => {
-          toast({ title: "Тест завершен!", description: `Ваш результат: ${score}%.` });
-          router.push(`/dashboard/student/online-tests/${test.id}/result/${savedResult.id}`);
+          toast({ title: "Тест завершен!", description: `Ваш результат сохранен.` });
+          router.push(`/dashboard/student/online-tests`);
       })
       .catch((error) => {
           console.error("[OnlineTest] Failed to save result:", error);
@@ -199,11 +201,6 @@ export default function OnlineTestTakePage() {
                     Вы уже прошли этот тест и не можете пройти его снова.
                 </AlertDescription>
                 <div className="mt-4 flex gap-4">
-                    <Button asChild>
-                        <Link href={`/dashboard/student/online-tests/${testId}/result/${existingResult.id}`}>
-                            Посмотреть результат
-                        </Link>
-                    </Button>
                     <Button asChild variant="outline">
                         <Link href="/dashboard/student/online-tests">
                            К списку тестов
@@ -229,6 +226,14 @@ export default function OnlineTestTakePage() {
             <p className="text-xl text-muted-foreground">Завершаем тест и сохраняем результаты...</p>
         </div>
       )
+  }
+  
+  if (isTestFinished && !isSubmitting) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)]">
+            <p className="text-xl text-muted-foreground">Неожиданное состояние. Попробуйте обновить страницу.</p>
+        </div>
+    )
   }
 
   return (
