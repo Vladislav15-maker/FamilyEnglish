@@ -298,16 +298,8 @@ export const ONLINE_TESTS: OnlineTest[] = [
         description: 'Этот тест проверяет знания по темам "Приветствия" и "Семья".',
         durationMinutes: 5,
         words: [
-          { id: 'u1r1w1', english: 'hi', russian: 'привет', transcription: 'хай' },
-          { id: 'u1r2w2', english: 'I’m fine', russian: 'у меня все хорошо', transcription: 'айм файн' },
-          { id: 'u1r2w3', english: 'nice to meet you', russian: 'приятно познакомиться', transcription: 'найс ту мит ю' },
-          { id: 'u1r1w5', english: 'good night', russian: 'спокойной ночи', transcription: 'гуд найт' },
-          { id: 'u1r2w5', english: 'take care', russian: 'береги себя', transcription: 'тэйк кэр' },
-          { id: 'u2r1w1', english: 'mother', russian: 'мама', transcription: 'мазэр' },
-          { id: 'u2r1w4', english: 'brother', russian: 'брат', transcription: 'бразэр' },
-          { id: 'u2r2w2', english: 'grandfather', russian: 'дедушка', transcription: 'грэндфазэр' },
-          { id: 'u2r2w3', english: 'uncle', russian: 'дядя', transcription: 'анкл' },
-          { id: 'u2r2w5', english: 'cousin', russian: 'двоюродный брат/сестра', transcription: 'казн' },
+          ...curriculum.find(u => u.id === 'unit-1')!.rounds.flatMap(r => r.words).slice(0, 5),
+          ...curriculum.find(u => u.id === 'unit-2')!.rounds.flatMap(r => r.words).slice(0, 5)
         ]
     },
     {
@@ -316,16 +308,8 @@ export const ONLINE_TESTS: OnlineTest[] = [
         description: 'Этот тест проверяет знания по темам "Еда" и "Числа".',
         durationMinutes: 5,
         words: [
-          { id: 'u3r1w2', english: 'milk', russian: 'молоко', transcription: 'милк' },
-          { id: 'u3r1w5', english: 'apple', russian: 'яблоко', transcription: 'эпл' },
-          { id: 'u3r2w2', english: 'coffee', russian: 'кофе', transcription: 'кофи' },
-          { id: 'u3r2w4', english: 'banana', russian: 'банан', transcription: 'бэнана' },
-          { id: 'u3r2w5', english: 'salad', russian: 'салат', transcription: 'сэлэд' },
-          { id: 'u4r1w1', english: 'one', russian: 'один', transcription: 'уан' },
-          { id: 'u4r1w3', english: 'three', russian: 'три', transcription: 'сри' },
-          { id: 'u4r1w5', english: 'five', russian: 'пять', transcription: 'файв' },
-          { id: 'u4r2w2', english: 'seven', russian: 'семь', transcription: 'сэвэн' },
-          { id: 'u4r2w4', english: 'nine', russian: 'девять', transcription: 'найн' },
+          ...curriculum.find(u => u.id === 'unit-3')!.rounds.flatMap(r => r.words).slice(0, 5),
+          ...curriculum.find(u => u.id === 'unit-4')!.rounds.flatMap(r => r.words).slice(0, 5)
         ]
     },
      {
@@ -334,16 +318,28 @@ export const ONLINE_TESTS: OnlineTest[] = [
         description: 'Этот тест проверяет знания по темам "Цвета" и "Школа".',
         durationMinutes: 5,
         words: [
-          { id: 'u5r1w1', english: 'red', russian: 'красный', transcription: 'рэд' },
-          { id: 'u5r2w2', english: 'brown', russian: 'коричневый', transcription: 'браун' },
-          { id: 'u5r1w3', english: 'green', russian: 'зеленый', transcription: 'грин' },
-          { id: 'u5r2w5', english: 'purple', russian: 'фиолетовый', transcription: 'пёрпл' },
-          { id: 'u6r1w1', english: 'school', russian: 'школа', transcription: 'скул' },
-          { id: 'u6r1w3', english: 'teacher', russian: 'учитель', transcription: 'тичэр' },
-          { id: 'u6r2w1', english: 'book', russian: 'книга', transcription: 'бук' },
-          { id: 'u6r2w4', english: 'desk', russian: 'парта', transcription: 'дэск' },
-          { id: 'u6r1w5', english: 'lesson', russian: 'урок', transcription: 'лэсэн' },
-          { id: 'u6r2w3', english: 'pencil', russian: 'карандаш', transcription: 'пэнсил' },
+          ...curriculum.find(u => u.id === 'unit-5')!.rounds.flatMap(r => r.words).slice(0, 5),
+          ...curriculum.find(u => u.id === 'unit-6')!.rounds.flatMap(r => r.words).slice(0, 5)
+        ]
+    },
+    {
+        id: 'online-test-4',
+        name: 'Онлайн Тест 4 (Юниты 7-8)',
+        description: 'Этот тест проверяет знания по темам "Дом" и "Погода".',
+        durationMinutes: 5,
+        words: [
+          ...curriculum.find(u => u.id === 'unit-7')!.rounds.flatMap(r => r.words).slice(0, 5),
+          ...curriculum.find(u => u.id === 'unit-8')!.rounds.flatMap(r => r.words).slice(0, 5)
+        ]
+    },
+    {
+        id: 'online-test-5',
+        name: 'Онлайн Тест 5 (Юниты 9-10)',
+        description: 'Этот тест проверяет знания по темам "Дни недели" и "Хобби".',
+        durationMinutes: 5,
+        words: [
+          ...curriculum.find(u => u.id === 'unit-9')!.rounds.flatMap(r => r.words).slice(0, 5),
+          ...curriculum.find(u => u.id === 'unit-10')!.rounds.flatMap(r => r.words).slice(0, 5)
         ]
     },
 ];
@@ -351,87 +347,73 @@ export const ONLINE_TESTS: OnlineTest[] = [
 
 export const REMEDIATION_UNITS: { [key: string]: Unit } = {
   'offline-test-1': {
-    id: 'rem-unit-offline-1',
-    name: 'Работа над ошибками (Оффлайн Тест 1)',
+    id: 'rem-unit-offline-1', name: 'Работа над ошибками (Оффлайн Тест 1)',
     rounds: [
-      {
-        id: 'rem-offline-1-1', name: 'Повторение 1', words: [
-          { id: 'u1r1w1', english: 'hi', russian: 'привет', transcription: 'хай' },
-          { id: 'u1r2w2', english: 'I’m fine', russian: 'у меня все хорошо', transcription: 'айм файн' },
-          { id: 'u2r1w1', english: 'mother', russian: 'мама', transcription: 'мазэр' },
-          { id: 'u2r2w5', english: 'cousin', russian: 'двоюродный брат/сестра', transcription: 'казн' },
-          { id: 'u1r1w4', english: 'good morning', russian: 'доброе утро', transcription: 'гуд морнинг' },
-        ],
-      },
-      {
-        id: 'rem-offline-1-2', name: 'Повторение 2', words: [
-          { id: 'u2r1w2', english: 'father', russian: 'папа', transcription: 'фазэр' },
-          { id: 'u1r2w3', english: 'nice to meet you', russian: 'приятно познакомиться', transcription: 'найс ту мит ю' },
-          { id: 'u2r2w1', english: 'grandmother', russian: 'бабушка', transcription: 'грэндмазэр' },
-          { id: 'u1r1w3', english: 'goodbye', russian: 'до свидания', transcription: 'гудбай' },
-          { id: 'u2r1w3', english: 'sister', russian: 'сестра', transcription: 'систэр' },
-        ],
-      },
+      { id: 'rem-offline-1-1', name: 'Повторение 1', words: curriculum.find(u => u.id === 'unit-1')!.rounds[0].words },
+      { id: 'rem-offline-1-2', name: 'Повторение 2', words: curriculum.find(u => u.id === 'unit-2')!.rounds[0].words },
     ],
   },
   'offline-test-2': {
-    id: 'rem-unit-offline-2',
-    name: 'Работа над ошибками (Оффлайн Тест 2)',
+    id: 'rem-unit-offline-2', name: 'Работа над ошибками (Оффлайн Тест 2)',
     rounds: [
-      {
-        id: 'rem-offline-2-1', name: 'Повторение 1', words: [
-          { id: 'u3r1w1', english: 'bread', russian: 'хлеб', transcription: 'брэд' },
-          { id: 'u4r1w2', english: 'two', russian: 'два', transcription: 'ту' },
-          { id: 'u3r2w5', english: 'salad', russian: 'салат', transcription: 'сэлэд' },
-          { id: 'u4r2w3', english: 'eight', russian: 'восемь', transcription: 'эйт' },
-          { id: 'u3r1w5', english: 'apple', russian: 'яблоко', transcription: 'эпл' },
-        ],
-      },
+      { id: 'rem-offline-2-1', name: 'Повторение 1', words: curriculum.find(u => u.id === 'unit-3')!.rounds[0].words },
+      { id: 'rem-offline-2-2', name: 'Повторение 2', words: curriculum.find(u => u.id === 'unit-4')!.rounds[0].words },
+    ],
+  },
+  'offline-test-3': {
+    id: 'rem-unit-offline-3', name: 'Работа над ошибками (Оффлайн Тест 3)',
+    rounds: [
+      { id: 'rem-offline-3-1', name: 'Повторение 1', words: curriculum.find(u => u.id === 'unit-5')!.rounds[0].words },
+      { id: 'rem-offline-3-2', name: 'Повторение 2', words: curriculum.find(u => u.id === 'unit-6')!.rounds[0].words },
+    ],
+  },
+  'offline-test-4': {
+    id: 'rem-unit-offline-4', name: 'Работа над ошибками (Оффлайн Тест 4)',
+    rounds: [
+      { id: 'rem-offline-4-1', name: 'Повторение 1', words: curriculum.find(u => u.id === 'unit-7')!.rounds[0].words },
+      { id: 'rem-offline-4-2', name: 'Повторение 2', words: curriculum.find(u => u.id === 'unit-8')!.rounds[0].words },
+    ],
+  },
+  'offline-test-5': {
+    id: 'rem-unit-offline-5', name: 'Работа над ошибками (Оффлайн Тест 5)',
+    rounds: [
+      { id: 'rem-offline-5-1', name: 'Повторение 1', words: curriculum.find(u => u.id === 'unit-9')!.rounds[0].words },
+      { id: 'rem-offline-5-2', name: 'Повторение 2', words: curriculum.find(u => u.id === 'unit-10')!.rounds[0].words },
     ],
   },
   'online-test-1': {
-    id: 'rem-unit-online-1',
-    name: 'Работа над ошибками (Онлайн Тест 1)',
+    id: 'rem-unit-online-1', name: 'Работа над ошибками (Онлайн Тест 1)',
     rounds: [
-      {
-        id: 'rem-online-1-1', name: 'Повторение 1', words: [
-          { id: 'u1r1w1', english: 'hi', russian: 'привет', transcription: 'хай' },
-          { id: 'u1r2w3', english: 'nice to meet you', russian: 'приятно познакомиться', transcription: 'найс ту мит ю' },
-          { id: 'u2r1w4', english: 'brother', russian: 'брат', transcription: 'бразэр' },
-          { id: 'u2r2w3', english: 'uncle', russian: 'дядя', transcription: 'анкл' },
-          { id: 'u1r1w5', english: 'good night', russian: 'спокойной ночи', transcription: 'гуд найт' },
-        ],
-      },
+      { id: 'rem-online-1-1', name: 'Повторение 1', words: curriculum.find(u => u.id === 'unit-1')!.rounds[1].words },
+      { id: 'rem-online-1-2', name: 'Повторение 2', words: curriculum.find(u => u.id === 'unit-2')!.rounds[1].words },
     ],
   },
    'online-test-2': {
-    id: 'rem-unit-online-2',
-    name: 'Работа над ошибками (Онлайн Тест 2)',
+    id: 'rem-unit-online-2', name: 'Работа над ошибками (Онлайн Тест 2)',
     rounds: [
-      {
-        id: 'rem-online-2-1', name: 'Повторение 1', words: [
-          { id: 'u3r1w2', english: 'milk', russian: 'молоко', transcription: 'милк' },
-          { id: 'u3r2w4', english: 'banana', russian: 'банан', transcription: 'бэнана' },
-          { id: 'u4r1w3', english: 'three', russian: 'три', transcription: 'сри' },
-          { id: 'u4r2w2', english: 'seven', russian: 'семь', transcription: 'сэвэн' },
-          { id: 'u4r2w4', english: 'nine', russian: 'девять', transcription: 'найн' },
-        ],
-      },
+      { id: 'rem-online-2-1', name: 'Повторение 1', words: curriculum.find(u => u.id === 'unit-3')!.rounds[1].words },
+      { id: 'rem-online-2-2', name: 'Повторение 2', words: curriculum.find(u => u.id === 'unit-4')!.rounds[1].words },
     ],
   },
   'online-test-3': {
-    id: 'rem-unit-online-3',
-    name: 'Работа над ошибками (Онлайн Тест 3)',
+    id: 'rem-unit-online-3', name: 'Работа над ошибками (Онлайн Тест 3)',
     rounds: [
-      {
-        id: 'rem-online-3-1', name: 'Повторение 1', words: [
-          { id: 'u5r1w2', english: 'blue', russian: 'синий', transcription: 'блу' },
-          { id: 'u5r2w1', english: 'white', russian: 'белый', transcription: 'уайт' },
-          { id: 'u6r1w2', english: 'classroom', russian: 'класс', transcription: 'класрум' },
-          { id: 'u6r2w2', english: 'pen', russian: 'ручка', transcription: 'пэн' },
-          { id: 'u6r2w5', english: 'chair', russian: 'стул', transcription: 'чэар' },
-        ],
-      },
+      { id: 'rem-online-3-1', name: 'Повторение 1', words: curriculum.find(u => u.id === 'unit-5')!.rounds[1].words },
+      { id: 'rem-online-3-2', name: 'Повторение 2', words: curriculum.find(u => u.id === 'unit-6')!.rounds[1].words },
+    ],
+  },
+  'online-test-4': {
+    id: 'rem-unit-online-4', name: 'Работа над ошибками (Онлайн Тест 4)',
+    rounds: [
+      { id: 'rem-online-4-1', name: 'Повторение 1', words: curriculum.find(u => u.id === 'unit-7')!.rounds[1].words },
+      { id: 'rem-online-4-2', name: 'Повторение 2', words: curriculum.find(u => u.id === 'unit-8')!.rounds[1].words },
+    ],
+  },
+  'online-test-5': {
+    id: 'rem-unit-online-5', name: 'Работа над ошибками (Онлайн Тест 5)',
+    rounds: [
+      { id: 'rem-online-5-1', name: 'Повторение 1', words: curriculum.find(u => u.id === 'unit-9')!.rounds[1].words },
+      { id: 'rem-online-5-2', name: 'Повторение 2', words: curriculum.find(u => u.id === 'unit-10')!.rounds[1].words },
     ],
   },
 };

@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { curriculum, OFFLINE_TESTS, REMEDIATION_UNITS } from '@/lib/curriculum-data';
-import type { User, StudentRoundProgress, Unit, Round, OfflineTestScore, StudentAttemptHistory } from '@/lib/types';
+import type { User, StudentRoundProgress, Unit, Round, OfflineTestScore, StudentAttemptHistory, OnlineTestResult } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -31,6 +31,7 @@ export default function TeacherStudentDetailPage() {
   const [student, setStudent] = useState<User | null>(null);
   const [progress, setProgress] = useState<StudentRoundProgress[]>([]);
   const [offlineScores, setOfflineScores] = useState<OfflineTestScore[]>([]);
+  const [onlineTestResults, setOnlineTestResults] = useState<OnlineTestResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,10 +49,11 @@ export default function TeacherStudentDetailPage() {
 
       const fetchStudentData = async () => {
         try {
-          const [studentRes, progressRes, offlineScoresRes] = await Promise.all([
+          const [studentRes, progressRes, offlineScoresRes, onlineResultsRes] = await Promise.all([
             fetch(`/api/teacher/students/${studentId}`),
             fetch(`/api/progress/student/${studentId}`),
-            fetch(`/api/offline-scores/student/${studentId}`)
+            fetch(`/api/offline-scores/student/${studentId}`),
+            fetch(`/api/teacher/students/${studentId}/online-test-results`) // New API call
           ]);
 
           if (!studentRes.ok) throw new Error(`Не удалось загрузить данные ученика. Статус: ${studentRes.status}`);
@@ -70,6 +72,10 @@ export default function TeacherStudentDetailPage() {
           }));
           setOfflineScores(offlineScoresData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
           
+          if (!onlineResultsRes.ok) throw new Error(`Не удалось загрузить результаты онлайн тестов. Статус: ${onlineResultsRes.status}`);
+          const onlineResultsData: OnlineTestResult[] = await onlineResultsRes.json();
+          setOnlineTestResults(onlineResultsData);
+
         } catch (err) {
           console.error("Failed to load student details:", err);
           setError((err as Error).message);
@@ -186,13 +192,21 @@ export default function TeacherStudentDetailPage() {
     : 0;
 
   // Determine which remediation units are relevant
-  const failedTestIds = new Set(
+  const failedOfflineTestIds = new Set(
     offlineScores
       .filter(score => score.passed === false && score.testId)
       .map(score => score.testId!)
   );
+  
+  const failedOnlineTestIds = new Set(
+    onlineTestResults
+      .filter(result => result.isPassed === false && result.onlineTestId)
+      .map(result => result.onlineTestId)
+  );
 
-  const relevantRemediationUnits = Array.from(failedTestIds)
+  const allFailedTestIds = new Set([...failedOfflineTestIds, ...failedOnlineTestIds]);
+
+  const relevantRemediationUnits = Array.from(allFailedTestIds)
     .map(testId => REMEDIATION_UNITS[testId])
     .filter((unit): unit is Unit => !!unit);
 
