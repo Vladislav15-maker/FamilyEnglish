@@ -34,33 +34,9 @@ export default function OnlineTestTakePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
 
-  // --- Initial Setup ---
-  useEffect(() => {
-    if (testId) {
-      const testData = getOnlineTestById(testId);
-      setTest(testData);
-      if (testData) {
-        setShuffledWords([...testData.words].sort(() => Math.random() - 0.5));
-        setTimeRemaining(testData.durationMinutes * 60);
-      }
-      setIsLoading(false);
-    }
-  }, [testId]);
-
-  // --- Timer Logic ---
-  useEffect(() => {
-    if (timeRemaining > 0 && !isTestFinished) {
-      timerRef.current = setInterval(() => {
-        setTimeRemaining(prev => prev - 1);
-      }, 1000);
-    } else if (timeRemaining === 0 && !isTestFinished) {
-      // Time's up! Force finish.
-      finishTest(attempts);
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [timeRemaining, isTestFinished, attempts]); // `attempts` is a dependency for finishTest
+  // New state to handle logic for tests already taken
+  const [existingResult, setExistingResult] = useState<OnlineTestResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -68,45 +44,103 @@ export default function OnlineTestTakePage() {
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // --- Test Submission Logic ---
-  const finishTest = useCallback(async (finalAttempts: Attempt[]) => {
-    if (isSubmitting || isTestFinished || !user || !test) return;
-    
-    setIsSubmitting(true);
-    setIsTestFinished(true); // Stop the test
-    if (timerRef.current) clearInterval(timerRef.current);
+  // --- Initial Setup & Pre-test Check ---
+  useEffect(() => {
+    if (testId && user) {
+      setIsLoading(true);
+      setError(null);
+      setExistingResult(null);
 
-    const correctAnswers = finalAttempts.filter(a => a.correct).length;
-    const score = test.words.length > 0 ? Math.round((correctAnswers / test.words.length) * 100) : 0;
+      // Check for an existing result first
+      fetch('/api/student/online-tests')
+        .then(res => {
+          if (!res.ok) throw new Error("Не удалось проверить статус теста.");
+          return res.json();
+        })
+        .then((testsWithStatus: (OnlineTest & { lastResult: OnlineTestResult | null })[]) => {
+          const currentTestStatus = testsWithStatus.find(t => t.id === testId);
+          if (currentTestStatus?.lastResult) {
+            // Test already taken, store result for redirect/message
+            setExistingResult(currentTestStatus.lastResult);
+          } else {
+            // Test not taken, set it up for taking
+            const testData = getOnlineTestById(testId);
+            if (testData) {
+              setTest(testData);
+              setShuffledWords([...testData.words].sort(() => Math.random() - 0.5));
+              setTimeRemaining(testData.durationMinutes * 60);
+            } else {
+              setError("Тест с таким ID не найден.");
+            }
+          }
+        })
+        .catch(err => {
+          console.error("Failed to setup test:", err);
+          setError((err as Error).message);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
 
-    const payload = {
-      onlineTestId: test.id,
-      score,
-      answers: finalAttempts,
+    } else if (!user) {
+        setIsLoading(false); // If there's no user, stop loading
+    }
+  }, [testId, user]);
+
+  // --- Timer Logic ---
+  useEffect(() => {
+    if (timeRemaining > 0 && !isTestFinished && !existingResult) { // Added !existingResult
+      timerRef.current = setInterval(() => {
+        setTimeRemaining(prev => prev - 1);
+      }, 1000);
+    } else if (timeRemaining <= 0 && !isTestFinished && !existingResult) {
+      // Time's up! Force finish.
+      setIsTestFinished(true);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
     };
+  }, [timeRemaining, isTestFinished, existingResult]);
 
-    try {
-      const response = await fetch('/api/student/online-tests/submit', {
+  // --- Test Submission Logic (useEffect driven) ---
+  useEffect(() => {
+    if (isTestFinished && !isSubmitting && user && test) {
+      setIsSubmitting(true);
+      if (timerRef.current) clearInterval(timerRef.current);
+      
+      const correctAnswers = attempts.filter(a => a.correct).length;
+      const score = test.words.length > 0 ? Math.round((correctAnswers / test.words.length) * 100) : 0;
+
+      const payload = {
+        onlineTestId: test.id,
+        score,
+        answers: attempts,
+      };
+
+      fetch('/api/student/online-tests/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+      })
+      .then(async (response) => {
+          if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(errorData.error || 'Не удалось сохранить результат теста.');
+          }
+          return response.json();
+      })
+      .then((savedResult: OnlineTestResult) => {
+          toast({ title: "Тест завершен!", description: `Ваш результат: ${score}%.` });
+          router.push(`/dashboard/student/online-tests/${test.id}/result/${savedResult.id}`);
+      })
+      .catch((error) => {
+          console.error("[OnlineTest] Failed to save result:", error);
+          toast({ title: "Ошибка", description: (error as Error).message, variant: "destructive" });
+          setIsSubmitting(false); // Allow retry if submission fails
+          setIsTestFinished(false);
       });
-
-      if (!response.ok) {
-        throw new Error('Не удалось сохранить результат теста.');
-      }
-      
-      const savedResult: OnlineTestResult = await response.json();
-      toast({ title: "Тест завершен!", description: `Ваш результат: ${score}%.` });
-      // Redirect to the result page
-      router.push(`/dashboard/student/online-tests/${test.id}/result/${savedResult.id}`);
-
-    } catch (error) {
-      console.error("[OnlineTest] Failed to save result:", error);
-      toast({ title: "Ошибка", description: (error as Error).message, variant: "destructive" });
-      setIsSubmitting(false); // Allow retry if submission fails
     }
-  }, [user, test, router, toast, isSubmitting, isTestFinished]);
+  }, [isTestFinished, attempts, user, test, router, toast, isSubmitting]);
 
   const handleAnswerSubmit = (isCorrect: boolean, userAnswer: string) => {
     if (!test || !shuffledWords[currentWordIndex]) return;
@@ -122,8 +156,7 @@ export default function OnlineTestTakePage() {
     if (currentWordIndex < shuffledWords.length - 1) {
       setCurrentWordIndex(prev => prev + 1);
     } else {
-      // This is the last word, finish the test with the latest state of attempts
-      finishTest(attempts);
+      setIsTestFinished(true);
     }
   };
 
@@ -131,12 +164,51 @@ export default function OnlineTestTakePage() {
   if (isLoading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
   }
+  
+  if (error) {
+     return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Ошибка</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>;
+  }
+
+  if (!user) {
+     return <Alert variant="destructive"><BookOpen className="h-4 w-4" /><AlertTitle>Доступ запрещен</AlertTitle><AlertDescription>Пожалуйста, войдите в систему.</AlertDescription></Alert>;
+  }
+
+  // New guard clause for already taken tests
+  if (existingResult) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] space-y-6 p-4">
+            <Breadcrumb className="w-full max-w-2xl">
+              <BreadcrumbList>
+                <BreadcrumbItem><Link href="/dashboard/student/online-tests">Онлайн Тесты</Link></BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem><BreadcrumbPage>Тест: {getOnlineTestById(testId)?.name}</BreadcrumbPage></BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <Alert className="max-w-md">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Тест уже пройден</AlertTitle>
+                <AlertDescription>
+                    Вы уже прошли этот тест и не можете пройти его снова.
+                </AlertDescription>
+                <div className="mt-4 flex gap-4">
+                    <Button asChild>
+                        <Link href={`/dashboard/student/online-tests/${testId}/result/${existingResult.id}`}>
+                            Посмотреть результат
+                        </Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                        <Link href="/dashboard/student/online-tests">
+                           К списку тестов
+                        </Link>
+                    </Button>
+                </div>
+            </Alert>
+        </div>
+    );
+  }
 
   if (!test) {
      return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Тест не найден</AlertTitle></Alert>;
-  }
-  if (!user) {
-     return <Alert variant="destructive"><BookOpen className="h-4 w-4" /><AlertTitle>Доступ запрещен</AlertTitle></Alert>;
   }
 
   const currentWord: Word | undefined = shuffledWords[currentWordIndex];

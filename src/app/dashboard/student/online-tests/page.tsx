@@ -100,14 +100,9 @@ export default function StudentOnlineTestsPage() {
                       {test.lastResult.isPassed === null && <Badge variant="secondary">Ожидает проверки</Badge>}
                     </div>
                      <div className="flex gap-2">
-                        <Button asChild className="flex-1">
+                        <Button asChild className="w-full">
                           <Link href={`/dashboard/student/online-tests/${test.id}/result/${test.lastResult.id}`}>
                             <CheckCircle className="mr-2 h-4 w-4" /> Посмотреть результат
-                          </Link>
-                        </Button>
-                        <Button asChild variant="outline" className="flex-1">
-                          <Link href={`/dashboard/student/online-tests/${test.id}/take`}>
-                            <RotateCcw className="mr-2 h-4 w-4" /> Пройти еще раз
                           </Link>
                         </Button>
                     </div>
