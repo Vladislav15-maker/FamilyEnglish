@@ -19,6 +19,15 @@ export interface Unit {
   rounds: Round[];
 }
 
+export interface OnlineTest {
+  id: string;
+  name: string;
+  description: string;
+  durationMinutes: number; // Duration in minutes
+  words: Word[];
+}
+
+
 // User and Auth Types
 // User type as stored in the database (excluding sensitive info like password_hash for general use)
 export interface User {
@@ -97,4 +106,17 @@ export interface StudentUnitGrade {
   grade: 2 | 3 | 4 | 5;
   notes?: string | null;
   date: string; // ISO string date
+}
+
+export interface OnlineTestResult {
+  id: string;
+  studentId: string;
+  studentName?: string; // For display
+  onlineTestId: string;
+  score: number;
+  answers: { wordId: string; userAnswer: string; correct: boolean }[];
+  completedAt: string; // ISO string
+  isPassed: boolean | null;
+  grade: (2 | 3 | 4 | 5) | null;
+  teacherNotes: string | null;
 }

@@ -628,7 +628,7 @@ export async function submitOnlineTestResult(
       answers: row.answers,
       completedAt: row.completed_at,
       isPassed: row.is_passed,
-      grade: row.grade,
+      grade: row.grade as (2 | 3 | 4 | 5) | null,
       teacherNotes: row.teacher_notes,
     };
   } catch (error) {
@@ -673,6 +673,46 @@ export async function getOnlineTestResults(testId: string): Promise<OnlineTestRe
     throw error;
   }
 }
+
+export async function getOnlineTestResultById(resultId: string): Promise<OnlineTestResult | null> {
+    try {
+        const result = await sql`
+            SELECT
+                otr.id,
+                otr.student_id,
+                u.name as student_name,
+                otr.online_test_id,
+                otr.score,
+                otr.answers,
+                otr.completed_at,
+                otr.is_passed,
+                otr.grade,
+                otr.teacher_notes
+            FROM online_test_results otr
+            JOIN users u ON otr.student_id = u.id
+            WHERE otr.id = ${resultId};
+        `;
+        if (result.rows.length === 0) return null;
+
+        const row = result.rows[0];
+        return {
+            id: row.id,
+            studentId: row.student_id,
+            studentName: row.student_name,
+            onlineTestId: row.online_test_id,
+            score: row.score,
+            answers: row.answers,
+            completedAt: row.completed_at,
+            isPassed: row.is_passed,
+            grade: row.grade,
+            teacherNotes: row.teacher_notes
+        };
+    } catch (error) {
+        console.error(`[Store] Failed to get online test result by ID ${resultId}:`, error);
+        throw error;
+    }
+}
+
 
 export async function getStudentOnlineTestResults(studentId: string): Promise<OnlineTestResult[]> {
     try {
@@ -727,7 +767,7 @@ export async function gradeOnlineTestResult(
       answers: row.answers,
       completedAt: row.completed_at,
       isPassed: row.is_passed,
-      grade: row.grade,
+      grade: row.grade as (2 | 3 | 4 | 5) | null,
       teacherNotes: row.teacher_notes,
     };
   } catch (error) {
@@ -740,4 +780,3 @@ export async function gradeOnlineTestResult(
 export function resetStore() {
   console.warn("[Store] resetStore is a no-op when using a persistent database.");
 }
-

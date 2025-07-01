@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import UnitCard from '@/components/curriculum/UnitCard';
 import { curriculum, REMEDIATION_UNITS } from '@/lib/curriculum-data';
-import type { Unit, StudentRoundProgress, OfflineTestScore, StudentUnitGrade } from '@/lib/types';
+import type { Unit, StudentRoundProgress, OfflineTestScore, StudentUnitGrade, OnlineTestResult } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -12,6 +12,7 @@ export default function UnitsPage() {
   const { user } = useAuth();
   const [studentProgress, setStudentProgress] = useState<StudentRoundProgress[]>([]);
   const [offlineScores, setOfflineScores] = useState<OfflineTestScore[]>([]);
+  const [onlineTestResults, setOnlineTestResults] = useState<OnlineTestResult[]>([]);
   const [unitGrades, setUnitGrades] = useState<StudentUnitGrade[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,27 +24,28 @@ export default function UnitsPage() {
       Promise.all([
         fetch(`/api/progress/student/${user.id}`),
         fetch(`/api/offline-scores/student/${user.id}`),
-        fetch(`/api/student/unit-grades`), // Fetch unit grades
+        fetch(`/api/student/unit-grades`),
+        fetch(`/api/student/online-tests`), // This returns all tests with latest results
       ])
-      .then(async ([progressRes, scoresRes, gradesRes]) => {
-          if (!progressRes.ok) {
-             const errData = await progressRes.json().catch(() => ({}));
-             throw new Error(`Не удалось загрузить прогресс ученика: ${errData.error || progressRes.status}`);
-          }
-          if (!scoresRes.ok) {
-             const errData = await scoresRes.json().catch(() => ({}));
-             throw new Error(`Не удалось загрузить оффлайн оценки: ${errData.error || scoresRes.status}`);
-          }
-          if (!gradesRes.ok) {
-             const errData = await gradesRes.json().catch(() => ({}));
-             throw new Error(`Не удалось загрузить оценки за юниты: ${errData.error || gradesRes.status}`);
-          }
+      .then(async ([progressRes, offlineScoresRes, gradesRes, onlineResultsRes]) => {
+          if (!progressRes.ok) throw new Error(`Не удалось загрузить прогресс ученика: ${await progressRes.text()}`);
+          if (!offlineScoresRes.ok) throw new Error(`Не удалось загрузить оффлайн оценки: ${await offlineScoresRes.text()}`);
+          if (!gradesRes.ok) throw new Error(`Не удалось загрузить оценки за юниты: ${await gradesRes.text()}`);
+          if (!onlineResultsRes.ok) throw new Error(`Не удалось загрузить онлайн тесты: ${await onlineResultsRes.text()}`);
+          
           const progressData = await progressRes.json();
-          const scoresData = await scoresRes.json();
+          const offlineScoresData = await offlineScoresRes.json();
           const gradesData = await gradesRes.json();
+          const onlineTestsWithResults = await onlineResultsRes.json();
+          // Filter out only the actual results for failed tests
+          const failedOnlineResults = onlineTestsWithResults
+            .map((test: any) => test.lastResult)
+            .filter((result: OnlineTestResult | null): result is OnlineTestResult => result !== null && result.isPassed === false);
+
           setStudentProgress(progressData);
-          setOfflineScores(scoresData);
+          setOfflineScores(offlineScoresData);
           setUnitGrades(gradesData);
+          setOnlineTestResults(failedOnlineResults);
       })
       .catch(err => {
           console.error("Failed to load student data for units page:", err);
@@ -58,13 +60,21 @@ export default function UnitsPage() {
   }, [user]);
 
   // Determine which remediation units to show
-  const failedTestIds = new Set(
+  const failedOfflineTestIds = new Set(
     offlineScores
       .filter(score => score.passed === false && score.testId)
       .map(score => score.testId!)
   );
 
-  const relevantRemediationUnits = Array.from(failedTestIds)
+  const failedOnlineTestIds = new Set(
+    onlineTestResults
+      .filter(result => result.isPassed === false && result.onlineTestId)
+      .map(result => result.onlineTestId)
+  );
+  
+  const allFailedTestIds = new Set([...failedOfflineTestIds, ...failedOnlineTestIds]);
+
+  const relevantRemediationUnits = Array.from(allFailedTestIds)
     .map(testId => REMEDIATION_UNITS[testId])
     .filter(Boolean); // Filter out any undefined units
 
