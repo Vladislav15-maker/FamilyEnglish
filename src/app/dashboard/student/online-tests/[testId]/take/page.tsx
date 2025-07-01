@@ -99,12 +99,10 @@ export default function OnlineTestTakePage() {
       timerRef.current = setInterval(() => {
         setTimeRemaining(prev => prev - 1);
       }, 1000);
-    } else if (timeRemaining <= 0) {
+    } else if (timeRemaining <= 0 && !isTestFinished) {
       // Time's up! Force finish.
       if (timerRef.current) clearInterval(timerRef.current);
-      if(!isTestFinished) { // prevent multiple calls
-        setIsTestFinished(true);
-      }
+      setIsTestFinished(true); // Trigger submission useEffect
     }
 
     return () => {
@@ -120,11 +118,13 @@ export default function OnlineTestTakePage() {
       
       const correctAnswers = attempts.filter(a => a.correct).length;
       const score = test.words.length > 0 ? Math.round((correctAnswers / test.words.length) * 100) : 0;
+      const durationSeconds = (test.durationMinutes * 60) - timeRemaining;
 
       const payload = {
         onlineTestId: test.id,
         score,
         answers: attempts,
+        durationSeconds,
       };
 
       fetch('/api/student/online-tests/submit', {
@@ -150,7 +150,7 @@ export default function OnlineTestTakePage() {
           setIsTestFinished(false);
       });
     }
-  }, [isTestFinished, attempts, user, test, router, toast, isSubmitting]);
+  }, [isTestFinished, attempts, user, test, router, toast, isSubmitting, timeRemaining]);
 
   const handleAnswerSubmit = (isCorrect: boolean, userAnswer: string) => {
     if (!test || !shuffledWords[currentWordIndex]) return;

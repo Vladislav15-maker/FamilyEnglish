@@ -32,6 +32,7 @@ import {
   HelpCircle,
   CheckCircle,
   XCircle,
+  Timer,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -54,6 +55,13 @@ type TestDetailsWithResults = {
   testDetails: OnlineTest;
   results: (OnlineTestResult & { studentName: string; })[];
 };
+
+function formatDuration(seconds: number | null | undefined): string {
+    if (seconds === null || seconds === undefined) return '-';
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
 
 export default function TeacherOnlineTestResultsPage() {
   const { user } = useAuth();
@@ -137,6 +145,7 @@ export default function TeacherOnlineTestResultsPage() {
                 <TableRow>
                   <TableHead>Ученик</TableHead>
                   <TableHead className="text-center">Прогресс</TableHead>
+                  <TableHead className="text-center">Время</TableHead>
                   <TableHead className="text-center">Оценка (учитель)</TableHead>
                   <TableHead className="text-center">Статус</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
@@ -144,7 +153,7 @@ export default function TeacherOnlineTestResultsPage() {
               </TableHeader>
               <TableBody>
                 {data.results.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center h-24">Учеников нет или они еще не сдавали тест.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center h-24">Учеников нет или они еще не сдавали тест.</TableCell></TableRow>
                 ) : (
                   data.results.map(result => (
                     <TableRow key={result.id}>
@@ -153,6 +162,9 @@ export default function TeacherOnlineTestResultsPage() {
                         {result.completedAt && <p className="text-xs text-muted-foreground">{format(new Date(result.completedAt), 'dd.MM.yyyy HH:mm', { locale: ru })}</p>}
                       </TableCell>
                       <TableCell className="text-center font-mono text-lg">{result.completedAt ? `${result.score}%` : 'Не сдавал'}</TableCell>
+                      <TableCell className="text-center font-mono">
+                        {result.completedAt ? formatDuration(result.durationSeconds) : '-'}
+                      </TableCell>
                       <TableCell className="text-center">
                         {result.grade ? (
                             <Badge className="text-lg font-bold">{result.grade}</Badge>

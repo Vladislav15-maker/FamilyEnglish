@@ -13,6 +13,7 @@ const resultSchema = z.object({
     userAnswer: z.string(),
     correct: z.boolean(),
   })),
+  durationSeconds: z.number().int().optional(),
 });
 
 export async function POST(request: Request) {
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
     const resultData: Omit<OnlineTestResult, 'id' | 'completedAt' | 'isPassed' | 'grade' | 'teacherNotes'> = {
       studentId: user.id,
       ...validation.data,
+      durationSeconds: validation.data.durationSeconds ?? null,
     };
     
     const savedResult = await submitOnlineTestResult(resultData);

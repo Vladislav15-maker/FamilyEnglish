@@ -119,4 +119,5 @@ export interface OnlineTestResult {
   isPassed: boolean | null;
   grade: (2 | 3 | 4 | 5) | null;
   teacherNotes: string | null;
+  durationSeconds: number | null;
 }

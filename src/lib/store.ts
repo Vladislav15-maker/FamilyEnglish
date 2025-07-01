@@ -601,22 +601,23 @@ export async function getAllUnitGrades(): Promise<StudentUnitGrade[]> {
 export async function submitOnlineTestResult(
   resultData: Omit<OnlineTestResult, 'id' | 'completedAt' | 'isPassed' | 'grade' | 'teacherNotes'>
 ): Promise<OnlineTestResult> {
-  const { studentId, onlineTestId, score, answers } = resultData;
+  const { studentId, onlineTestId, score, answers, durationSeconds } = resultData;
   const answersJson = JSON.stringify(answers);
   
   try {
     // Upsert logic: if a student retakes a test, update their old result.
     const result = await sql`
-      INSERT INTO online_test_results (student_id, online_test_id, score, answers)
-      VALUES (${studentId}, ${onlineTestId}, ${score}, ${answersJson}::jsonb)
+      INSERT INTO online_test_results (student_id, online_test_id, score, answers, duration_seconds)
+      VALUES (${studentId}, ${onlineTestId}, ${score}, ${answersJson}::jsonb, ${durationSeconds ?? null})
       ON CONFLICT (student_id, online_test_id) DO UPDATE SET
         score = EXCLUDED.score,
         answers = EXCLUDED.answers,
         completed_at = CURRENT_TIMESTAMP,
         is_passed = NULL, -- Reset grading status on retake
         grade = NULL,
-        teacher_notes = NULL
-      RETURNING id, student_id, online_test_id, score, answers, completed_at, is_passed, grade, teacher_notes;
+        teacher_notes = NULL,
+        duration_seconds = EXCLUDED.duration_seconds
+      RETURNING id, student_id, online_test_id, score, answers, completed_at, is_passed, grade, teacher_notes, duration_seconds;
     `;
 
     const row = result.rows[0];
@@ -630,6 +631,7 @@ export async function submitOnlineTestResult(
       isPassed: row.is_passed,
       grade: row.grade as (2 | 3 | 4 | 5) | null,
       teacherNotes: row.teacher_notes,
+      durationSeconds: row.duration_seconds,
     };
   } catch (error) {
     console.error('[Store] Failed to submit online test result:', error);
@@ -650,7 +652,8 @@ export async function getOnlineTestResults(testId: string): Promise<(OnlineTestR
         otr.completed_at,
         otr.is_passed,
         otr.grade,
-        otr.teacher_notes
+        otr.teacher_notes,
+        otr.duration_seconds
       FROM online_test_results otr
       JOIN users u ON otr.student_id = u.id
       WHERE otr.online_test_id = ${testId}
@@ -667,6 +670,7 @@ export async function getOnlineTestResults(testId: string): Promise<(OnlineTestR
       isPassed: row.is_passed,
       grade: row.grade,
       teacherNotes: row.teacher_notes,
+      durationSeconds: row.duration_seconds,
     }));
   } catch (error) {
     console.error(`[Store] Failed to get online test results for test ${testId}:`, error);
@@ -674,7 +678,7 @@ export async function getOnlineTestResults(testId: string): Promise<(OnlineTestR
   }
 }
 
-export async function getOnlineTestResultById(resultId: string): Promise<OnlineTestResult | null> {
+export async function getOnlineTestResultById(resultId: string): Promise<(OnlineTestResult & { studentName: string }) | null> {
     try {
         const result = await sql`
             SELECT
@@ -687,7 +691,8 @@ export async function getOnlineTestResultById(resultId: string): Promise<OnlineT
                 otr.completed_at,
                 otr.is_passed,
                 otr.grade,
-                otr.teacher_notes
+                otr.teacher_notes,
+                otr.duration_seconds
             FROM online_test_results otr
             JOIN users u ON otr.student_id = u.id
             WHERE otr.id = ${resultId};
@@ -705,7 +710,8 @@ export async function getOnlineTestResultById(resultId: string): Promise<OnlineT
             completedAt: row.completed_at,
             isPassed: row.is_passed,
             grade: row.grade,
-            teacherNotes: row.teacher_notes
+            teacherNotes: row.teacher_notes,
+            durationSeconds: row.duration_seconds,
         };
     } catch (error) {
         console.error(`[Store] Failed to get online test result by ID ${resultId}:`, error);
@@ -717,7 +723,7 @@ export async function getOnlineTestResultById(resultId: string): Promise<OnlineT
 export async function getStudentOnlineTestResults(studentId: string): Promise<OnlineTestResult[]> {
     try {
         const result = await sql`
-            SELECT id, student_id, online_test_id, score, answers, completed_at, is_passed, grade, teacher_notes
+            SELECT id, student_id, online_test_id, score, answers, completed_at, is_passed, grade, teacher_notes, duration_seconds
             FROM online_test_results
             WHERE student_id = ${studentId}
             ORDER BY completed_at DESC;
@@ -731,7 +737,8 @@ export async function getStudentOnlineTestResults(studentId: string): Promise<On
             completedAt: row.completed_at,
             isPassed: row.is_passed,
             grade: row.grade,
-            teacherNotes: row.teacher_notes
+            teacherNotes: row.teacher_notes,
+            durationSeconds: row.duration_seconds,
         }));
     } catch (error) {
         console.error(`[Store] Failed to get online test results for student ${studentId}:`, error);
@@ -753,7 +760,7 @@ export async function gradeOnlineTestResult(
         grade = ${grade},
         teacher_notes = ${teacherNotes || null}
       WHERE id = ${resultId}
-      RETURNING id, student_id, online_test_id, score, answers, completed_at, is_passed, grade, teacher_notes;
+      RETURNING id, student_id, online_test_id, score, answers, completed_at, is_passed, grade, teacher_notes, duration_seconds;
     `;
     if (result.rows.length === 0) {
       throw new Error("Online test result not found for grading.");
@@ -769,6 +776,7 @@ export async function gradeOnlineTestResult(
       isPassed: row.is_passed,
       grade: row.grade as (2 | 3 | 4 | 5) | null,
       teacherNotes: row.teacher_notes,
+      durationSeconds: row.duration_seconds,
     };
   } catch (error) {
     console.error(`[Store] Failed to grade online test result ${resultId}:`, error);
