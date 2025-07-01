@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -186,23 +186,29 @@ export default function TeacherOnlineTestResultsPage() {
                                     <DropdownMenuItem onClick={() => setResultToGrade(result)}><UserIcon className="mr-2 h-4 w-4" />Оценить работу</DropdownMenuItem>
                                 </DropdownMenuContent>
                                 </DropdownMenu>
-                                <DialogContent className="max-w-2xl">
+                                <DialogContent className="max-w-3xl">
                                     <DialogHeader>
                                         <DialogTitle>Ответы ученика: {result.studentName}</DialogTitle>
-                                        <DialogDescription>Тест: {data.testDetails.name}</DialogDescription>
+                                        <DialogDescription>Тест: {data.testDetails.name}. Результат: {result.score}%</DialogDescription>
                                     </DialogHeader>
                                     <div className="max-h-[60vh] overflow-y-auto pr-4">
                                         <Table>
                                             <TableHeader>
-                                                <TableRow><TableHead>Слово (Рус)</TableHead><TableHead>Ответ</TableHead><TableHead>Результат</TableHead></TableRow>
+                                                <TableRow>
+                                                  <TableHead>Слово (Рус)</TableHead>
+                                                  <TableHead>Ответ ученика</TableHead>
+                                                  <TableHead>Правильный ответ</TableHead>
+                                                  <TableHead className="text-center">Результат</TableHead>
+                                                </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {result.answers.map((ans, i) => {
+                                                {result.answers && result.answers.map((ans, i) => {
                                                     const word = data.testDetails.words.find(w => w.id === ans.wordId);
-                                                    return (<TableRow key={i}>
+                                                    return (<TableRow key={i} className={!ans.correct ? 'bg-destructive/10' : ''}>
                                                         <TableCell>{word?.russian}</TableCell>
-                                                        <TableCell className="font-mono">{ans.userAnswer}</TableCell>
-                                                        <TableCell>{ans.correct ? <CheckCircle className="text-green-500" /> : <XCircle className="text-red-500" />}</TableCell>
+                                                        <TableCell className="font-mono">{ans.userAnswer || "(пусто)"}</TableCell>
+                                                        <TableCell className="font-mono text-green-600 dark:text-green-400">{word?.english}</TableCell>
+                                                        <TableCell className="text-center">{ans.correct ? <CheckCircle className="text-green-500" /> : <XCircle className="text-red-500" />}</TableCell>
                                                     </TableRow>)
                                                 })}
                                             </TableBody>
@@ -230,7 +236,7 @@ export default function TeacherOnlineTestResultsPage() {
           onClose={() => setResultToGrade(null)}
           onGraded={() => {
             setResultToGrade(null);
-            fetchData(); // Refresh data
+            fetchData();
           }}
         />
       )}

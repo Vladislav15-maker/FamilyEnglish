@@ -34,7 +34,6 @@ export default function OnlineTestTakePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
 
-  // New state to handle logic for tests already taken
   const [existingResult, setExistingResult] = useState<OnlineTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,14 +43,12 @@ export default function OnlineTestTakePage() {
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // --- Initial Setup & Pre-test Check ---
   useEffect(() => {
     if (testId && user) {
       setIsLoading(true);
       setError(null);
       setExistingResult(null);
 
-      // Check for an existing result first
       fetch('/api/student/online-tests')
         .then(res => {
           if (!res.ok) throw new Error("Не удалось проверить статус теста.");
@@ -60,10 +57,8 @@ export default function OnlineTestTakePage() {
         .then((testsWithStatus: (OnlineTest & { lastResult: OnlineTestResult | null })[]) => {
           const currentTestStatus = testsWithStatus.find(t => t.id === testId);
           if (currentTestStatus?.lastResult) {
-            // Test already taken, store result for redirect/message
             setExistingResult(currentTestStatus.lastResult);
           } else {
-            // Test not taken, set it up for taking
             const testData = getOnlineTestById(testId);
             if (testData) {
               setTest(testData);
@@ -83,13 +78,11 @@ export default function OnlineTestTakePage() {
         });
 
     } else if (!user) {
-        setIsLoading(false); // If there's no user, stop loading
+        setIsLoading(false);
     }
   }, [testId, user]);
 
-  // --- Timer Logic ---
   useEffect(() => {
-    // Guard clause: Don't run timer logic if the test isn't set up, is already finished, or an existing result was found.
     if (!test || isTestFinished || existingResult) {
       if (timerRef.current) clearInterval(timerRef.current);
       return;
@@ -100,9 +93,8 @@ export default function OnlineTestTakePage() {
         setTimeRemaining(prev => prev - 1);
       }, 1000);
     } else if (timeRemaining <= 0 && !isTestFinished) {
-      // Time's up! Force finish.
       if (timerRef.current) clearInterval(timerRef.current);
-      setIsTestFinished(true); // Trigger submission useEffect
+      setIsTestFinished(true);
     }
 
     return () => {
@@ -110,20 +102,27 @@ export default function OnlineTestTakePage() {
     };
   }, [test, timeRemaining, isTestFinished, existingResult]);
 
-  // --- Test Submission Logic (useEffect driven) ---
   useEffect(() => {
     if (isTestFinished && !isSubmitting && user && test) {
       setIsSubmitting(true);
       if (timerRef.current) clearInterval(timerRef.current);
       
-      const correctAnswers = attempts.filter(a => a.correct).length;
+      const finalAnswers = test.words.map(word => {
+        const attempt = attempts.find(a => a.wordId === word.id);
+        if (attempt) {
+          return attempt;
+        }
+        return { wordId: word.id, userAnswer: '', correct: false };
+      });
+
+      const correctAnswers = finalAnswers.filter(a => a.correct).length;
       const score = test.words.length > 0 ? Math.round((correctAnswers / test.words.length) * 100) : 0;
       const durationSeconds = (test.durationMinutes * 60) - timeRemaining;
 
       const payload = {
         onlineTestId: test.id,
         score,
-        answers: attempts,
+        answers: finalAnswers,
         durationSeconds,
       };
 
@@ -146,7 +145,7 @@ export default function OnlineTestTakePage() {
       .catch((error) => {
           console.error("[OnlineTest] Failed to save result:", error);
           toast({ title: "Ошибка", description: (error as Error).message, variant: "destructive" });
-          setIsSubmitting(false); // Allow retry if submission fails
+          setIsSubmitting(false);
           setIsTestFinished(false);
       });
     }
@@ -183,7 +182,6 @@ export default function OnlineTestTakePage() {
      return <Alert variant="destructive"><BookOpen className="h-4 w-4" /><AlertTitle>Доступ запрещен</AlertTitle><AlertDescription>Пожалуйста, войдите в систему.</AlertDescription></Alert>;
   }
 
-  // New guard clause for already taken tests
   if (existingResult) {
     return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] space-y-6 p-4">
