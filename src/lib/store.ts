@@ -637,7 +637,7 @@ export async function submitOnlineTestResult(
   }
 }
 
-export async function getOnlineTestResults(testId: string): Promise<OnlineTestResult[]> {
+export async function getOnlineTestResults(testId: string): Promise<(OnlineTestResult & { studentName: string })[]> {
   try {
     const result = await sql`
       SELECT

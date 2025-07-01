@@ -327,7 +327,25 @@ export const ONLINE_TESTS: OnlineTest[] = [
           { id: 'u4r2w2', english: 'seven', russian: 'семь', transcription: 'сэвэн' },
           { id: 'u4r2w4', english: 'nine', russian: 'девять', transcription: 'найн' },
         ]
-    }
+    },
+     {
+        id: 'online-test-3',
+        name: 'Онлайн Тест 3 (Юниты 5-6)',
+        description: 'Этот тест проверяет знания по темам "Цвета" и "Школа".',
+        durationMinutes: 5,
+        words: [
+          { id: 'u5r1w1', english: 'red', russian: 'красный', transcription: 'рэд' },
+          { id: 'u5r2w2', english: 'brown', russian: 'коричневый', transcription: 'браун' },
+          { id: 'u5r1w3', english: 'green', russian: 'зеленый', transcription: 'грин' },
+          { id: 'u5r2w5', english: 'purple', russian: 'фиолетовый', transcription: 'пёрпл' },
+          { id: 'u6r1w1', english: 'school', russian: 'школа', transcription: 'скул' },
+          { id: 'u6r1w3', english: 'teacher', russian: 'учитель', transcription: 'тичэр' },
+          { id: 'u6r2w1', english: 'book', russian: 'книга', transcription: 'бук' },
+          { id: 'u6r2w4', english: 'desk', russian: 'парта', transcription: 'дэск' },
+          { id: 'u6r1w5', english: 'lesson', russian: 'урок', transcription: 'лэсэн' },
+          { id: 'u6r2w3', english: 'pencil', russian: 'карандаш', transcription: 'пэнсил' },
+        ]
+    },
 ];
 
 
@@ -397,6 +415,21 @@ export const REMEDIATION_UNITS: { [key: string]: Unit } = {
           { id: 'u4r1w3', english: 'three', russian: 'три', transcription: 'сри' },
           { id: 'u4r2w2', english: 'seven', russian: 'семь', transcription: 'сэвэн' },
           { id: 'u4r2w4', english: 'nine', russian: 'девять', transcription: 'найн' },
+        ],
+      },
+    ],
+  },
+  'online-test-3': {
+    id: 'rem-unit-online-3',
+    name: 'Работа над ошибками (Онлайн Тест 3)',
+    rounds: [
+      {
+        id: 'rem-online-3-1', name: 'Повторение 1', words: [
+          { id: 'u5r1w2', english: 'blue', russian: 'синий', transcription: 'блу' },
+          { id: 'u5r2w1', english: 'white', russian: 'белый', transcription: 'уайт' },
+          { id: 'u6r1w2', english: 'classroom', russian: 'класс', transcription: 'класрум' },
+          { id: 'u6r2w2', english: 'pen', russian: 'ручка', transcription: 'пэн' },
+          { id: 'u6r2w5', english: 'chair', russian: 'стул', transcription: 'чэар' },
         ],
       },
     ],

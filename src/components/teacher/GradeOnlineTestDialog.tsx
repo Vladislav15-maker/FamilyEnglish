@@ -22,7 +22,7 @@ const gradingSchema = z.object({
 type GradingFormValues = z.infer<typeof gradingSchema>;
 
 interface GradeOnlineTestDialogProps {
-  result: OnlineTestResult;
+  result: OnlineTestResult & { studentName: string };
   isOpen: boolean;
   onClose: () => void;
   onGraded: () => void;
@@ -99,7 +99,7 @@ export default function GradeOnlineTestDialog({ result, isOpen, onClose, onGrade
               control={form.control}
               name="teacherNotes"
               render={({ field }) => (
-                <FormItem><FormLabel>Комментарий (необязательно)</FormLabel><FormControl><Textarea placeholder="Добавьте комментарий..." {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Комментарий (необязательно)</FormLabel><FormControl><Textarea placeholder="Добавьте комментарий..." {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
               )}
             />
             <DialogFooter>

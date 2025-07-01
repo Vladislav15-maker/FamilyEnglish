@@ -6,7 +6,7 @@ import type { Unit, StudentRoundProgress, OfflineTestScore, StudentUnitGrade, On
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { BookOpenText, AlertCircle } from "lucide-react";
+import { BookOpenText, AlertCircle, GraduationCap } from "lucide-react";
 
 export default function UnitsPage() {
   const { user } = useAuth();
@@ -37,6 +37,7 @@ export default function UnitsPage() {
           const offlineScoresData = await offlineScoresRes.json();
           const gradesData = await gradesRes.json();
           const onlineTestsWithResults = await onlineResultsRes.json();
+          
           // Filter out only the actual results for failed tests
           const failedOnlineResults = onlineTestsWithResults
             .map((test: any) => test.lastResult)
@@ -76,9 +77,8 @@ export default function UnitsPage() {
 
   const relevantRemediationUnits = Array.from(allFailedTestIds)
     .map(testId => REMEDIATION_UNITS[testId])
-    .filter(Boolean); // Filter out any undefined units
+    .filter((unit): unit is Unit => !!unit);
 
-  const displayCurriculum = [...relevantRemediationUnits, ...curriculum];
 
   if (isLoading) {
     return (
@@ -117,31 +117,58 @@ export default function UnitsPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-4xl font-bold font-headline text-primary">Учебные юниты</h1>
-      {displayCurriculum.length === 0 ? (
-         <Alert>
-            <BookOpenText className="h-4 w-4" />
-            <AlertTitle>Юниты не найдены</AlertTitle>
-            <AlertDescription>
-                В данный момент нет доступных юнитов для изучения.
-            </AlertDescription>
-        </Alert>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {displayCurriculum.map((unit: Unit) => {
-            const unitGrade = unitGrades.find(g => g.unitId === unit.id);
-            return (
-              <UnitCard
-                key={unit.id}
-                unit={unit}
-                progress={studentProgress.filter(p => p.unitId === unit.id)}
-                isRemediation={unit.id.startsWith('rem-unit-')}
-                unitGrade={unitGrade}
-              />
-            );
-          })}
-        </div>
+      
+      {relevantRemediationUnits.length > 0 && (
+          <div className="space-y-4">
+               <h2 className="text-3xl font-bold font-headline text-accent flex items-center">
+                    <GraduationCap className="mr-3 h-8 w-8"/>
+                    Работа над ошибками
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {relevantRemediationUnits.map((unit: Unit) => {
+                         const unitGrade = unitGrades.find(g => g.unitId === unit.id);
+                         return (
+                            <UnitCard
+                                key={unit.id}
+                                unit={unit}
+                                progress={studentProgress.filter(p => p.unitId === unit.id)}
+                                isRemediation={true}
+                                unitGrade={unitGrade}
+                            />
+                         );
+                    })}
+                </div>
+          </div>
       )}
+
+      <div className="space-y-4">
+        <h1 className="text-4xl font-bold font-headline text-primary">Учебные юниты</h1>
+        {curriculum.length === 0 ? (
+            <Alert>
+                <BookOpenText className="h-4 w-4" />
+                <AlertTitle>Юниты не найдены</AlertTitle>
+                <AlertDescription>
+                    В данный момент нет доступных юнитов для изучения.
+                </AlertDescription>
+            </Alert>
+        ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {curriculum.map((unit: Unit) => {
+                const unitGrade = unitGrades.find(g => g.unitId === unit.id);
+                return (
+                <UnitCard
+                    key={unit.id}
+                    unit={unit}
+                    progress={studentProgress.filter(p => p.unitId === unit.id)}
+                    isRemediation={false}
+                    unitGrade={unitGrade}
+                />
+                );
+            })}
+            </div>
+        )}
+      </div>
+
     </div>
   );
 }

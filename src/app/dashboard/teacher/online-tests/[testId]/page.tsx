@@ -30,6 +30,8 @@ import {
   FileText,
   User as UserIcon,
   HelpCircle,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -50,7 +52,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 
 type TestDetailsWithResults = {
   testDetails: OnlineTest;
-  results: OnlineTestResult[];
+  results: (OnlineTestResult & { studentName: string; })[];
 };
 
 export default function TeacherOnlineTestResultsPage() {
@@ -63,7 +65,7 @@ export default function TeacherOnlineTestResultsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  const [resultToGrade, setResultToGrade] = useState<OnlineTestResult | null>(null);
+  const [resultToGrade, setResultToGrade] = useState<(OnlineTestResult & { studentName: string; }) | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
