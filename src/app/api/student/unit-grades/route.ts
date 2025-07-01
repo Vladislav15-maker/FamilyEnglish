@@ -1,7 +1,7 @@
 // File: src/app/api/student/unit-grades/route.ts
 import { NextResponse } from 'next/server';
 import { getUnitGradesForStudent } from '@/lib/store';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
+import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser } from '@/lib/types';
 import { curriculum } from '@/lib/curriculum-data'; // To map unit names
 

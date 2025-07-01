@@ -1,7 +1,7 @@
 // File: src/app/api/teacher/unit-grades/[gradeId]/route.ts
 import { NextResponse } from 'next/server';
 import { updateStudentUnitGrade, deleteStudentUnitGrade } from '@/lib/store';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
+import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser } from '@/lib/types';
 import * as z from 'zod';
 

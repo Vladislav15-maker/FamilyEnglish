@@ -1,7 +1,7 @@
 // File: src/app/api/student/class-unit-grades/route.ts
 import { NextResponse } from 'next/server';
 import { getAllUnitGrades as fetchAllUnitGradesFromDb } from '@/lib/store'; // Using the new store function
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
+import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser, StudentUnitGrade } from '@/lib/types';
 import { curriculum } from '@/lib/curriculum-data';
 

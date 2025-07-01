@@ -1,7 +1,7 @@
 // File: src/app/api/progress/student/[studentId]/round/[roundId]/attempts/route.ts
 import { NextResponse } from 'next/server';
 import { getAttemptHistoryForRound } from '@/lib/store';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
+import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser } from '@/lib/types';
 
 console.log('[API ROUTE ATTEMPTING TO LOAD] /api/progress/student/[studentId]/round/[roundId]/attempts/route.ts');

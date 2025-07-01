@@ -1,6 +1,6 @@
 // File: src/app/api/student/class-overview/route.ts
 import { NextResponse } from 'next/server';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
+import { getAppSession } from '@/lib/auth';
 import { getAllStudents, getAllStudentProgress } from '@/lib/store';
 import type { AuthenticatedUser, User, StudentRoundProgress } from '@/lib/types';
 
@@ -41,4 +41,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Failed to fetch class overview data', details: (error as Error).message }, { status: 500 });
   }
 }
-

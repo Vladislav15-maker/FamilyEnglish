@@ -1,7 +1,7 @@
 // File: src/app/api/offline-scores/all/route.ts
 import { NextResponse } from 'next/server';
 import { getAllOfflineScores as fetchAllOfflineScoresFromDb } from '@/lib/store';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
+import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser } from '@/lib/types';
 
 export async function GET(request: Request) {

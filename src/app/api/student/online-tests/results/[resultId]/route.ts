@@ -1,6 +1,6 @@
 // src/app/api/student/online-tests/results/[resultId]/route.ts
 import { NextResponse } from 'next/server';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
+import { getAppSession } from '@/lib/auth';
 import { getOnlineTestResultById } from '@/lib/store';
 import type { AuthenticatedUser } from '@/lib/types';
 import { getOnlineTestById } from '@/lib/curriculum-data';

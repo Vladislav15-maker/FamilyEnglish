@@ -1,6 +1,6 @@
 // File: src/app/api/teacher/students-overview/route.ts
 import { NextResponse } from 'next/server';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
+import { getAppSession } from '@/lib/auth';
 import { getAllStudents, getAllStudentProgress } from '@/lib/store';
 import type { AuthenticatedUser, User, StudentRoundProgress } from '@/lib/types';
 

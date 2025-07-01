@@ -1,7 +1,7 @@
 // File: src/app/api/progress/round/route.ts
 import { NextResponse } from 'next/server';
 import { saveStudentRoundProgress as saveProgressToDb } from '@/lib/store';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
+import { getAppSession } from '@/lib/auth';
 import type { StudentRoundProgress, AuthenticatedUser } from '@/lib/types';
 
 export async function POST(request: Request) {

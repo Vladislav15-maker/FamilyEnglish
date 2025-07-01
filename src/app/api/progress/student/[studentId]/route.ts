@@ -1,7 +1,7 @@
 // File: src/app/api/progress/student/[studentId]/route.ts
 import { NextResponse } from 'next/server';
 import { getAllStudentProgress as fetchAllStudentProgressFromDb } from '@/lib/store';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route'; 
+import { getAppSession } from '@/lib/auth'; 
 import type { AuthenticatedUser } from '@/lib/types';
 
 export async function GET(

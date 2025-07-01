@@ -1,7 +1,7 @@
 // File: src/app/api/teacher/unit-grades/route.ts
 import { NextResponse } from 'next/server';
 import { addStudentUnitGrade, getAllUnitGradesByTeacher } from '@/lib/store';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
+import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser, StudentUnitGrade } from '@/lib/types';
 import * as z from 'zod';
 import { curriculum } from '@/lib/curriculum-data';

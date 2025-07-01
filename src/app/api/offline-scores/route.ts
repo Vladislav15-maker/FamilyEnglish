@@ -1,7 +1,7 @@
 // File: src/app/api/offline-scores/route.ts
 import { NextResponse } from 'next/server';
 import { addOfflineScore as addOfflineScoreToDb } from '@/lib/store';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
+import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser, OfflineTestScore } from '@/lib/types';
 import * as z from 'zod';
 

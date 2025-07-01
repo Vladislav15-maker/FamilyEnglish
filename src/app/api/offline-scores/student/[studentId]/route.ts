@@ -1,7 +1,7 @@
 // File: src/app/api/offline-scores/student/[studentId]/route.ts
 import { NextResponse } from 'next/server';
 import { getOfflineScoresForStudent as fetchOfflineScoresFromDb } from '@/lib/store';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
+import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser } from '@/lib/types';
 
 console.log('[API ROUTE ATTEMPTING TO LOAD] /api/offline-scores/student/[studentId]/route.ts');

@@ -1,7 +1,7 @@
 // File: src/app/api/teacher/students/route.ts
 import { NextResponse } from 'next/server';
 import { getAllStudents as fetchAllStudentsFromDb } from '@/lib/store';
-import { getAppSession } from '@/app/api/auth/[...nextauth]/route';
+import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser } from '@/lib/types';
 
 export async function GET(request: Request) {
