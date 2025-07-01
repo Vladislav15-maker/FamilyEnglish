@@ -89,18 +89,26 @@ export default function OnlineTestTakePage() {
 
   // --- Timer Logic ---
   useEffect(() => {
-    if (timeRemaining > 0 && !isTestFinished && !existingResult) { // Added !existingResult
+    // Guard clause: Don't run timer logic if the test isn't set up, is already finished, or an existing result was found.
+    if (!test || isTestFinished || existingResult) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+
+    if (timeRemaining > 0) {
       timerRef.current = setInterval(() => {
         setTimeRemaining(prev => prev - 1);
       }, 1000);
-    } else if (timeRemaining <= 0 && !isTestFinished && !existingResult) {
+    } else if (timeRemaining === 0) {
       // Time's up! Force finish.
+      if (timerRef.current) clearInterval(timerRef.current);
       setIsTestFinished(true);
     }
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [timeRemaining, isTestFinished, existingResult]);
+  }, [test, timeRemaining, isTestFinished, existingResult]);
 
   // --- Test Submission Logic (useEffect driven) ---
   useEffect(() => {
