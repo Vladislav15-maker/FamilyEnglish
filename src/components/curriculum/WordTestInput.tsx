@@ -47,11 +47,12 @@ export default function WordTestInput({
     setUserAnswer('');
     setIsSubmitted(false);
     setIsCorrect(false);
-    setIsPasswordVisible(false);
+    // For online tests, always keep the input hidden by default.
+    setIsPasswordVisible(isOnlineTestMode ? false : isPasswordVisible);
     if (inputRef.current) {
       inputRef.current.focus();
     }
-  }, [word]);
+  }, [word, isOnlineTestMode]); // Re-run effect if mode changes, though it shouldn't mid-test
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();

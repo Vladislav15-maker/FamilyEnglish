@@ -90,7 +90,7 @@ export default function StudentTestResultPage() {
   }
 
   const answers = Array.isArray(result.answers) ? result.answers : [];
-  const correctCount = answers.filter(a => a.correct).length;
+  const correctCount = answers.filter(a => a.correct === true).length;
   const incorrectCount = answers.length - correctCount;
   // SAFEGUARD: Ensure we don't divide by zero if there are no answers
   const progressValue = answers.length > 0 ? (correctCount / answers.length) * 100 : 0;
@@ -116,7 +116,7 @@ export default function StudentTestResultPage() {
             <CardHeader><CardTitle>Сводка по результатам</CardTitle></CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-2 items-center">
                 <div className="flex flex-col items-center justify-center space-y-2">
-                    <p className="text-7xl font-bold text-primary">{result.score}%</p>
+                    <p className="text-7xl font-bold text-primary">{result.score || 0}%</p>
                     <p className="text-muted-foreground">Ваш результат</p>
                     {result.grade && (
                          <p className="text-2xl font-bold">Оценка учителя: <span className={`
@@ -148,34 +148,42 @@ export default function StudentTestResultPage() {
         <Card>
             <CardHeader><CardTitle>Подробные ответы</CardTitle></CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Слово (Рус)</TableHead>
-                            <TableHead>Ваш ответ</TableHead>
-                            <TableHead>Правильный ответ</TableHead>
-                            <TableHead className="text-center">Результат</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {answers.map((answer, index) => {
-                            const word = testDetails.words.find(w => w.id === answer.wordId);
-                            return (
-                                <TableRow key={index} className={answer.correct ? '' : 'bg-destructive/10'}>
-                                    <TableCell>{word?.russian}</TableCell>
-                                    <TableCell className="font-mono">{answer.userAnswer || '(пусто)'}</TableCell>
-                                    <TableCell className="font-mono text-green-600 dark:text-green-400">{word?.english}</TableCell>
-                                    <TableCell className="text-center">
-                                        {answer.correct 
-                                            ? <CheckCircle className="h-5 w-5 text-green-500 inline-block" /> 
-                                            : <XCircle className="h-5 w-5 text-red-500 inline-block" />
-                                        }
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                </Table>
+                {answers.length > 0 ? (
+                  <Table>
+                      <TableHeader>
+                          <TableRow>
+                              <TableHead>Слово (Рус)</TableHead>
+                              <TableHead>Ваш ответ</TableHead>
+                              <TableHead>Правильный ответ</TableHead>
+                              <TableHead className="text-center">Результат</TableHead>
+                          </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                          {answers.map((answer, index) => {
+                              const word = testDetails.words.find(w => w.id === answer.wordId);
+                              return (
+                                  <TableRow key={index} className={answer.correct ? '' : 'bg-destructive/10'}>
+                                      <TableCell>{word?.russian || 'Слово не найдено'}</TableCell>
+                                      <TableCell className="font-mono">{answer.userAnswer || '(пусто)'}</TableCell>
+                                      <TableCell className="font-mono text-green-600 dark:text-green-400">{word?.english}</TableCell>
+                                      <TableCell className="text-center">
+                                          {answer.correct 
+                                              ? <CheckCircle className="h-5 w-5 text-green-500 inline-block" /> 
+                                              : <XCircle className="h-5 w-5 text-red-500 inline-block" />
+                                          }
+                                      </TableCell>
+                                  </TableRow>
+                              );
+                          })}
+                      </TableBody>
+                  </Table>
+                ) : (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Нет ответов</AlertTitle>
+                    <AlertDescription>Не найдено ответов для этого теста.</AlertDescription>
+                  </Alert>
+                )}
             </CardContent>
         </Card>
     </div>
