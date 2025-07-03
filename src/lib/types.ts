@@ -119,7 +119,7 @@ export interface OnlineTestResult {
   studentId: string;
   studentName?: string; // For display
   onlineTestId: string;
-  score: number | null; // null until graded
+  score: number; // 0 for ungraded, then calculated score.
   answers: OnlineTestResultAnswer[];
   completedAt: string; // ISO string
   isPassed: boolean | null; // null until graded

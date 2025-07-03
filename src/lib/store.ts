@@ -617,9 +617,9 @@ export async function submitOnlineTestResult(
   try {
     const result = await sql`
       INSERT INTO online_test_results (student_id, online_test_id, score, answers, duration_seconds, is_passed, grade, teacher_notes)
-      VALUES (${studentId}, ${onlineTestId}, ${null}, ${answersJson}::jsonb, ${durationSeconds ?? null}, ${null}, ${null}, ${null})
+      VALUES (${studentId}, ${onlineTestId}, 0, ${answersJson}::jsonb, ${durationSeconds ?? null}, ${null}, ${null}, ${null})
       ON CONFLICT (student_id, online_test_id) DO UPDATE SET
-        score = NULL,
+        score = 0,
         answers = EXCLUDED.answers,
         completed_at = CURRENT_TIMESTAMP,
         is_passed = NULL, 
