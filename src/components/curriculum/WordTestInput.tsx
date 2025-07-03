@@ -9,13 +9,13 @@ import { ChevronRight, Send, CheckCircle, XCircle, RotateCcw, Eye, EyeOff } from
 
 interface WordTestInputProps {
   word: Word;
-  // Callback for regular tests with immediate feedback
+  // Callback for regular tests (practice) with immediate feedback
   onAnswer?: (isCorrect: boolean, userAnswer: string) => void;
-  // Callback for moving to the next step (used by both test types)
+  // Callback for moving to the next step (used by practice tests)
   onNext?: () => void;
   // Callback for online tests (no immediate feedback)
   onSubmitAnswer?: (userAnswer: string) => void;
-  // UI flags
+  // UI flag for online tests
   isLastWord?: boolean;
 }
 
@@ -37,54 +37,45 @@ export default function WordTestInput({
   const [isCorrect, setIsCorrect] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const randomId = useRef(`word-input-${Math.random()}`);
-  
-  // Determine the mode based on which callback is provided
+
+  // This is the definitive way to determine the mode.
+  // If onSubmitAnswer is provided, it's an online test. No feedback is shown.
   const isOnlineTestMode = !!onSubmitAnswer;
 
   useEffect(() => {
     // Reset state for the new word
     setUserAnswer('');
     setIsSubmitted(false);
-    setIsPasswordVisible(false); // Hide password again for new word
+    setIsCorrect(false);
+    setIsPasswordVisible(false);
     if (inputRef.current) {
       inputRef.current.focus();
     }
-  }, [word]); // Key change: this resets for every new word
+  }, [word]);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (isOnlineTestMode) {
-      // Online test: just submit the answer and the parent component handles the rest.
+      // ONLINE TEST MODE: Just submit the answer. The parent component handles moving to the next word.
       onSubmitAnswer?.(userAnswer.trim());
     } else {
-      // Regular test with immediate feedback
+      // PRACTICE TEST MODE: Check answer and show feedback.
       if (isSubmitted) { // If feedback is already shown, button acts as "Next"
         onNext?.();
-        return;
-      }
-      
-      const cleanUserAnswer = normalizeAnswer(userAnswer);
-      const cleanCorrectAnswer = normalizeAnswer(word.english);
-      const correct = cleanUserAnswer === cleanCorrectAnswer;
+      } else {
+        const cleanUserAnswer = normalizeAnswer(userAnswer);
+        const cleanCorrectAnswer = normalizeAnswer(word.english);
+        const correct = cleanUserAnswer === cleanCorrectAnswer;
 
-      setIsCorrect(correct);
-      setIsSubmitted(true);
-      setIsPasswordVisible(true); // Automatically show answer on submit
-      onAnswer?.(correct, userAnswer.trim());
+        setIsCorrect(correct);
+        setIsSubmitted(true);
+        setIsPasswordVisible(true); // Automatically show answer on submit
+        onAnswer?.(correct, userAnswer.trim());
+      }
     }
   };
   
-  const handleRetryInternal = () => {
-    setUserAnswer('');
-    setIsSubmitted(false);
-    setIsPasswordVisible(false);
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  };
-
   const buttonText = isOnlineTestMode 
     ? (isLastWord ? 'Завершить тест' : 'Дальше') 
     : (isSubmitted ? 'Дальше' : 'Проверить');
@@ -105,14 +96,12 @@ export default function WordTestInput({
            <div className="relative">
             <Input
               ref={inputRef}
-              id={randomId.current}
-              name={randomId.current}
               type={isPasswordVisible || (isSubmitted && !isOnlineTestMode) ? 'text' : 'password'}
-              autoComplete="new-password" // Strong hint to disable autofill
+              autoComplete="off"
               value={userAnswer}
               onChange={(e) => setUserAnswer(e.target.value)}
               placeholder="Введите перевод на английском"
-              disabled={isSubmitted && !isOnlineTestMode}
+              disabled={isSubmitted && !isOnlineTestMode} // Only disable in practice mode after submit
               className={`text-lg p-4 h-14 pr-12 ${isSubmitted && !isOnlineTestMode ? (isCorrect ? 'border-green-500' : 'border-red-500') : ''}`}
               aria-label="Поле для ввода перевода"
             />
@@ -123,18 +112,18 @@ export default function WordTestInput({
                 className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
                 onClick={() => setIsPasswordVisible(!isPasswordVisible)}
                 aria-label={isPasswordVisible ? "Скрыть ответ" : "Показать ответ"}
-                tabIndex={-1} // Prevent tabbing to it
+                tabIndex={-1}
               >
                 {isPasswordVisible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </Button>
           </div>
             <Button type="submit" className="w-full text-lg py-3" size="lg">
               {buttonText}
-              {isOnlineTestMode && (isLastWord ? <Send className="ml-2 h-5 w-5" /> : <ChevronRight className="ml-2 h-5 w-5" />)}
-              {!isOnlineTestMode && <ChevronRight className="ml-2 h-5 w-5" />}
+              {isOnlineTestMode ? (isLastWord ? <Send className="ml-2 h-5 w-5" /> : <ChevronRight className="ml-2 h-5 w-5" />) : <ChevronRight className="ml-2 h-5 w-5" />}
             </Button>
         </form>
 
+        {/* This feedback block will ONLY render in practice mode */}
         {!isOnlineTestMode && isSubmitted && (
           <div className={`p-4 rounded-md text-center ${isCorrect ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'}`}>
             {isCorrect ? (
@@ -150,11 +139,6 @@ export default function WordTestInput({
                 </div>
                 <p className="text-md">Ваш ответ: <span className="font-mono">{userAnswer || "(пусто)"}</span></p>
                 <p className="text-md">Правильный ответ: <span className="font-semibold font-mono">{word.english}</span></p>
-                {!onNext && (
-                  <Button onClick={handleRetryInternal} variant="outline" size="sm" className="mt-2">
-                    <RotateCcw className="mr-2 h-4 w-4" /> Попробовать еще раз
-                  </Button>
-                )}
               </div>
             )}
           </div>
