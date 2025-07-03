@@ -9,7 +9,7 @@ export async function GET(
   request: Request,
   { params }: { params: { resultId: string } }
 ) {
-  const { resultId } = params;
+  const resultId = params.resultId;
   const session = await getAppSession();
 
   if (!session?.user) {

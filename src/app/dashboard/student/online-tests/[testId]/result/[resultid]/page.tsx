@@ -92,8 +92,9 @@ export default function StudentTestResultPage() {
       )
   }
 
-  const correctCount = result.answers.filter(a => a.correct).length;
-  const incorrectCount = result.answers.length - correctCount;
+  const answers = Array.isArray(result.answers) ? result.answers : [];
+  const correctCount = answers.filter(a => a.correct).length;
+  const incorrectCount = answers.length - correctCount;
 
   const chartData = [
     { name: 'Правильно', value: correctCount, fill: '#22c55e' },
@@ -160,7 +161,7 @@ export default function StudentTestResultPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {result.answers.map((answer, index) => {
+                        {answers.map((answer, index) => {
                             const word = testDetails.words.find(w => w.id === answer.wordId);
                             return (
                                 <TableRow key={index} className={answer.correct ? '' : 'bg-destructive/10'}>

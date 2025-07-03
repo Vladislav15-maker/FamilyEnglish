@@ -9,7 +9,7 @@ export async function GET(
   request: Request,
   { params }: { params: { testId: string } }
 ) {
-  const { testId } = params;
+  const testId = params.testId;
   const session = await getAppSession();
 
   if (!session?.user || (session.user as AuthenticatedUser).role !== 'teacher') {
@@ -45,6 +45,7 @@ export async function GET(
             isPassed: null,
             grade: null,
             teacherNotes: null,
+            durationSeconds: null,
         }));
 
     const combinedResults = [...results, ...unsubmittedStudents];

@@ -8,7 +8,7 @@ export async function GET(
   request: Request,
   { params }: { params: { studentId: string } } 
 ) {
-  const { studentId } = params;
+  const studentId = params.studentId;
   console.log(`[API /api/progress/student/:studentId] Received GET request for studentId: ${studentId}`);
   const session = await getAppSession();
 
