@@ -5,7 +5,7 @@ import type { Word } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ChevronRight, Send, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import { ChevronRight, Send, CheckCircle, XCircle, RotateCcw, Eye, EyeOff } from 'lucide-react';
 
 interface WordTestInputProps {
   word: Word;
@@ -35,20 +35,22 @@ export default function WordTestInput({
   const [userAnswer, setUserAnswer] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const randomId = useRef(`word-input-${Math.random()}`);
   
   // Determine the mode based on which callback is provided
   const isOnlineTestMode = !!onSubmitAnswer;
-  const uniqueId = `word-input-${word.id}`;
 
   useEffect(() => {
     // Reset state for the new word
     setUserAnswer('');
     setIsSubmitted(false);
+    setIsPasswordVisible(false); // Hide password again for new word
     if (inputRef.current) {
       inputRef.current.focus();
     }
-  }, [word]);
+  }, [word]); // Key change: this resets for every new word
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +71,7 @@ export default function WordTestInput({
 
       setIsCorrect(correct);
       setIsSubmitted(true);
+      setIsPasswordVisible(true); // Automatically show answer on submit
       onAnswer?.(correct, userAnswer.trim());
     }
   };
@@ -76,10 +79,15 @@ export default function WordTestInput({
   const handleRetryInternal = () => {
     setUserAnswer('');
     setIsSubmitted(false);
+    setIsPasswordVisible(false);
     if (inputRef.current) {
       inputRef.current.focus();
     }
   };
+
+  const buttonText = isOnlineTestMode 
+    ? (isLastWord ? 'Завершить тест' : 'Дальше') 
+    : (isSubmitted ? 'Дальше' : 'Проверить');
 
   return (
     <Card className="w-full max-w-lg mx-auto shadow-xl">
@@ -97,24 +105,32 @@ export default function WordTestInput({
            <div className="relative">
             <Input
               ref={inputRef}
-              id={uniqueId}
-              name={uniqueId}
-              type="text"
-              autoComplete="one-time-code" // Helps prevent browser autofill
+              id={randomId.current}
+              name={randomId.current}
+              type={isPasswordVisible || (isSubmitted && !isOnlineTestMode) ? 'text' : 'password'}
+              autoComplete="new-password" // Strong hint to disable autofill
               value={userAnswer}
               onChange={(e) => setUserAnswer(e.target.value)}
               placeholder="Введите перевод на английском"
-              disabled={isSubmitted && !isOnlineTestMode} // Disable only for regular tests after submission
-              className={`text-lg p-4 h-14 ${isSubmitted && !isOnlineTestMode ? (isCorrect ? 'border-green-500' : 'border-red-500') : ''}`}
+              disabled={isSubmitted && !isOnlineTestMode}
+              className={`text-lg p-4 h-14 pr-12 ${isSubmitted && !isOnlineTestMode ? (isCorrect ? 'border-green-500' : 'border-red-500') : ''}`}
               aria-label="Поле для ввода перевода"
             />
+             <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
+                onClick={() => setIsPasswordVisible(!isPasswordVisible)}
+                aria-label={isPasswordVisible ? "Скрыть ответ" : "Показать ответ"}
+                tabIndex={-1} // Prevent tabbing to it
+              >
+                {isPasswordVisible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </Button>
           </div>
             <Button type="submit" className="w-full text-lg py-3" size="lg">
-              {isOnlineTestMode 
-                ? (isLastWord ? 'Завершить тест' : 'Дальше') 
-                : (isSubmitted ? 'Дальше' : 'Проверить')}
-              {isLastWord && isOnlineTestMode && <Send className="ml-2 h-5 w-5" />}
-              {!isLastWord && isOnlineTestMode && <ChevronRight className="ml-2 h-5 w-5" />}
+              {buttonText}
+              {isOnlineTestMode && (isLastWord ? <Send className="ml-2 h-5 w-5" /> : <ChevronRight className="ml-2 h-5 w-5" />)}
               {!isOnlineTestMode && <ChevronRight className="ml-2 h-5 w-5" />}
             </Button>
         </form>
@@ -134,7 +150,7 @@ export default function WordTestInput({
                 </div>
                 <p className="text-md">Ваш ответ: <span className="font-mono">{userAnswer || "(пусто)"}</span></p>
                 <p className="text-md">Правильный ответ: <span className="font-semibold font-mono">{word.english}</span></p>
-                {!onNext && ( // Show retry only if it's a single-word practice (no onNext)
+                {!onNext && (
                   <Button onClick={handleRetryInternal} variant="outline" size="sm" className="mt-2">
                     <RotateCcw className="mr-2 h-4 w-4" /> Попробовать еще раз
                   </Button>
