@@ -7,11 +7,10 @@ import * as z from 'zod';
 
 const resultSchema = z.object({
   onlineTestId: z.string(),
-  score: z.number().min(0).max(100),
   answers: z.array(z.object({
     wordId: z.string(),
     userAnswer: z.string(),
-    correct: z.boolean(),
+    // `correct` is no longer sent from the client
   })),
   durationSeconds: z.number().int().optional(),
 });
@@ -33,10 +32,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: validation.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const resultData: Omit<OnlineTestResult, 'id' | 'completedAt' | 'isPassed' | 'grade' | 'teacherNotes'> = {
+    const { onlineTestId, answers, durationSeconds } = validation.data;
+
+    const resultData = {
       studentId: user.id,
-      ...validation.data,
-      durationSeconds: validation.data.durationSeconds ?? null,
+      onlineTestId,
+      answers, // These answers do not have the 'correct' field yet
+      durationSeconds: durationSeconds ?? null,
     };
     
     const savedResult = await submitOnlineTestResult(resultData);

@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CheckCircle, XCircle, FileText, Percent, BookOpen, AlertCircle } from 'lucide-react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { ArrowLeft, CheckCircle, XCircle, FileText, Percent, BookOpen, AlertCircle, Clock } from 'lucide-react';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 type ResultData = {
   result: OnlineTestResult;
@@ -20,10 +20,8 @@ type ResultData = {
 
 export default function StudentTestResultPage() {
   const params = useParams();
-  const router = useRouter();
   const { user } = useAuth();
   const resultId = typeof params.resultId === 'string' ? params.resultId : '';
-  const testId = typeof params.testId === 'string' ? params.testId : '';
 
   const [data, setData] = useState<ResultData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,6 +32,7 @@ export default function StudentTestResultPage() {
       setIsLoading(true);
       fetch(`/api/student/online-tests/results/${resultId}`)
         .then(res => {
+          if (res.status === 403) throw new Error('У вас нет доступа к этому результату.');
           if (!res.ok) throw new Error('Не удалось загрузить результат теста.');
           return res.json();
         })
@@ -42,7 +41,7 @@ export default function StudentTestResultPage() {
         })
         .catch(err => setError((err as Error).message))
         .finally(() => setIsLoading(false));
-    } else {
+    } else if(!user) {
         setIsLoading(false);
     }
   }, [user, resultId]);
@@ -70,8 +69,26 @@ export default function StudentTestResultPage() {
   }
 
   const { result, testDetails } = data;
+
+  if (result.isPassed === null) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] space-y-6 p-4 text-center">
+            <Clock className="h-16 w-16 text-primary animate-pulse" />
+            <h1 className="text-3xl font-bold font-headline">Тест на проверке</h1>
+            <p className="text-lg text-muted-foreground max-w-md">
+                Ваш тест "{testDetails.name}" был успешно отправлен. Учитель скоро проверит его, и вы сможете увидеть здесь свои результаты.
+            </p>
+            <Button asChild>
+                <Link href="/dashboard/student/online-tests">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Вернуться к списку тестов
+                </Link>
+            </Button>
+        </div>
+      )
+  }
+
   const correctCount = result.answers.filter(a => a.correct).length;
-  const incorrectCount = result.answers.length - correctCount;
+  const incorrectCount = result.answers.filter(a => a.correct === false).length;
 
   const chartData = [
     { name: 'Правильно', value: correctCount, fill: '#22c55e' },
@@ -118,6 +135,7 @@ export default function StudentTestResultPage() {
                                 {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
                             </Pie>
                             <Tooltip />
+                            <Legend />
                         </PieChart>
                     </ResponsiveContainer>
                 </div>
@@ -142,8 +160,8 @@ export default function StudentTestResultPage() {
                             return (
                                 <TableRow key={index} className={answer.correct ? '' : 'bg-destructive/10'}>
                                     <TableCell>{word?.russian}</TableCell>
-                                    <TableCell className="font-mono">{answer.userAnswer}</TableCell>
-                                    <TableCell className="font-mono">{word?.english}</TableCell>
+                                    <TableCell className="font-mono">{answer.userAnswer || '(пусто)'}</TableCell>
+                                    <TableCell className="font-mono text-green-600 dark:text-green-400">{word?.english}</TableCell>
                                     <TableCell className="text-center">
                                         {answer.correct 
                                             ? <CheckCircle className="h-5 w-5 text-green-500 inline-block" /> 

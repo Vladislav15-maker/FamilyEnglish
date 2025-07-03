@@ -33,6 +33,7 @@ import {
   CheckCircle,
   XCircle,
   Timer,
+  Edit,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -83,6 +84,15 @@ export default function TeacherOnlineTestResultsPage() {
         throw new Error('Не удалось загрузить результаты теста');
       }
       const jsonData: TestDetailsWithResults = await response.json();
+      // Sort results: pending ones first, then by date
+      jsonData.results.sort((a, b) => {
+          if (a.isPassed === null && b.isPassed !== null) return -1;
+          if (a.isPassed !== null && b.isPassed === null) return 1;
+          if (a.completedAt && b.completedAt) {
+              return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
+          }
+          return 0;
+      });
       setData(jsonData);
     } catch (err) {
       setError((err as Error).message);
@@ -144,9 +154,9 @@ export default function TeacherOnlineTestResultsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Ученик</TableHead>
-                  <TableHead className="text-center">Прогресс</TableHead>
+                  <TableHead className="text-center">Результат (%)</TableHead>
                   <TableHead className="text-center">Время</TableHead>
-                  <TableHead className="text-center">Оценка (учитель)</TableHead>
+                  <TableHead className="text-center">Оценка</TableHead>
                   <TableHead className="text-center">Статус</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
@@ -156,12 +166,12 @@ export default function TeacherOnlineTestResultsPage() {
                   <TableRow><TableCell colSpan={6} className="text-center h-24">Учеников нет или они еще не сдавали тест.</TableCell></TableRow>
                 ) : (
                   data.results.map(result => (
-                    <TableRow key={result.id}>
+                    <TableRow key={result.id} className={result.isPassed === null && result.completedAt ? "bg-yellow-500/10" : ""}>
                       <TableCell className="font-medium">
                         <p>{result.studentName}</p>
                         {result.completedAt && <p className="text-xs text-muted-foreground">{format(new Date(result.completedAt), 'dd.MM.yyyy HH:mm', { locale: ru })}</p>}
                       </TableCell>
-                      <TableCell className="text-center font-mono text-lg">{result.completedAt ? `${result.score}%` : 'Не сдавал'}</TableCell>
+                      <TableCell className="text-center font-mono text-lg">{result.score !== null ? `${result.score}%` : 'N/A'}</TableCell>
                       <TableCell className="text-center font-mono">
                         {result.completedAt ? formatDuration(result.durationSeconds) : '-'}
                       </TableCell>
@@ -173,49 +183,15 @@ export default function TeacherOnlineTestResultsPage() {
                        <TableCell className="text-center">
                         {result.isPassed === true && <Badge className="bg-green-500 hover:bg-green-600"><Check className="mr-1 h-4 w-4" />Сдано</Badge>}
                         {result.isPassed === false && <Badge variant="destructive"><X className="mr-1 h-4 w-4" />Не сдано</Badge>}
-                        {result.isPassed === null && result.completedAt && <Badge variant="secondary">Ожидает</Badge>}
+                        {result.isPassed === null && result.completedAt && <Badge variant="secondary">На проверке</Badge>}
                         {!result.completedAt && <Badge variant="outline">Не сдавал</Badge>}
                       </TableCell>
                       <TableCell className="text-right">
                          {result.completedAt ? (
-                            <Dialog>
-                                <DropdownMenu>
-                                <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DialogTrigger asChild><DropdownMenuItem><FileText className="mr-2 h-4 w-4" />Посмотреть ответы</DropdownMenuItem></DialogTrigger>
-                                    <DropdownMenuItem onClick={() => setResultToGrade(result)}><UserIcon className="mr-2 h-4 w-4" />Оценить работу</DropdownMenuItem>
-                                </DropdownMenuContent>
-                                </DropdownMenu>
-                                <DialogContent className="max-w-3xl">
-                                    <DialogHeader>
-                                        <DialogTitle>Ответы ученика: {result.studentName}</DialogTitle>
-                                        <DialogDescription>Тест: {data.testDetails.name}. Результат: {result.score}%</DialogDescription>
-                                    </DialogHeader>
-                                    <div className="max-h-[60vh] overflow-y-auto pr-4">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                  <TableHead>Слово (Рус)</TableHead>
-                                                  <TableHead>Ответ ученика</TableHead>
-                                                  <TableHead>Правильный ответ</TableHead>
-                                                  <TableHead className="text-center">Результат</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {result.answers && result.answers.map((ans, i) => {
-                                                    const word = data.testDetails.words.find(w => w.id === ans.wordId);
-                                                    return (<TableRow key={i} className={!ans.correct ? 'bg-destructive/10' : ''}>
-                                                        <TableCell>{word?.russian}</TableCell>
-                                                        <TableCell className="font-mono">{ans.userAnswer || "(пусто)"}</TableCell>
-                                                        <TableCell className="font-mono text-green-600 dark:text-green-400">{word?.english}</TableCell>
-                                                        <TableCell className="text-center">{ans.correct ? <CheckCircle className="text-green-500" /> : <XCircle className="text-red-500" />}</TableCell>
-                                                    </TableRow>)
-                                                })}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </DialogContent>
-                            </Dialog>
+                            <Button variant="outline" size="sm" onClick={() => setResultToGrade(result)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                {result.isPassed === null ? 'Проверить' : 'Изменить'}
+                            </Button>
                          ) : (
                             <HelpCircle className="h-4 w-4 text-muted-foreground mx-auto" />
                          )}

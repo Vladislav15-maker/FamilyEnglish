@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import type { OnlineTest, OnlineTestResult } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TestTube2, AlertCircle, BookOpen, Play, CheckCircle, RotateCcw } from 'lucide-react';
+import { TestTube2, AlertCircle, BookOpen, Play, CheckCircle, FileText, Clock } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
@@ -90,19 +90,29 @@ export default function StudentOnlineTestsPage() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm p-3 bg-muted rounded-md">
                       <div>
-                        <p className="font-semibold">Последний результат: {test.lastResult.score}%</p>
+                        <p className="font-semibold">
+                          {test.lastResult.isPassed === null ? 'Отправлено на проверку' : `Результат: ${test.lastResult.score}%`}
+                        </p>
                         <p className="text-muted-foreground">
                           Сдано {formatDistanceToNow(new Date(test.lastResult.completedAt), { addSuffix: true, locale: ru })}
                         </p>
                       </div>
                       {test.lastResult.isPassed === true && <Badge className="bg-green-500 hover:bg-green-600">Сдано</Badge>}
                       {test.lastResult.isPassed === false && <Badge variant="destructive">Не сдано</Badge>}
-                      {test.lastResult.isPassed === null && <Badge variant="secondary">Ожидает проверки</Badge>}
+                      {test.lastResult.isPassed === null && <Badge variant="secondary"><Clock className="mr-1.5 h-3 w-3" />Ожидает проверки</Badge>}
                     </div>
                      <div className="flex gap-2">
-                        <Button disabled className="w-full">
-                          <CheckCircle className="mr-2 h-4 w-4" /> Тест пройден
-                        </Button>
+                        {test.lastResult.isPassed !== null ? (
+                          <Button asChild className="w-full">
+                            <Link href={`/dashboard/student/online-tests/${test.id}/result/${test.lastResult.id}`}>
+                              <FileText className="mr-2 h-4 w-4" /> Посмотреть результат
+                            </Link>
+                          </Button>
+                        ) : (
+                          <Button disabled className="w-full">
+                            <CheckCircle className="mr-2 h-4 w-4" /> Тест на проверке
+                          </Button>
+                        )}
                     </div>
                   </div>
                 ) : (

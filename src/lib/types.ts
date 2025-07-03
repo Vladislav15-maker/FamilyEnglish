@@ -108,16 +108,22 @@ export interface StudentUnitGrade {
   date: string; // ISO string date
 }
 
+export interface OnlineTestResultAnswer {
+  wordId: string;
+  userAnswer: string;
+  correct: boolean | null; // null until graded by teacher, then boolean
+}
+
 export interface OnlineTestResult {
   id: string;
   studentId: string;
   studentName?: string; // For display
   onlineTestId: string;
-  score: number;
-  answers: { wordId: string; userAnswer: string; correct: boolean }[];
+  score: number | null; // null until graded
+  answers: OnlineTestResultAnswer[];
   completedAt: string; // ISO string
-  isPassed: boolean | null;
-  grade: (2 | 3 | 4 | 5) | null;
+  isPassed: boolean | null; // null until graded
+  grade: (2 | 3 | 4 | 5) | null; // null until graded
   teacherNotes: string | null;
   durationSeconds: number | null;
 }

@@ -1,5 +1,5 @@
 import { sql } from '@vercel/postgres';
-import type { User, StudentRoundProgress, OfflineTestScore, UserForAuth, StudentUnitGrade, StudentAttemptHistory, OnlineTestResult } from './types';
+import type { User, StudentRoundProgress, OfflineTestScore, UserForAuth, StudentUnitGrade, StudentAttemptHistory, OnlineTestResult, OnlineTestResultAnswer } from './types';
 
 // This log runs when the module is first loaded.
 // If POSTGRES_URL is not set here when running on the server, then .env.local is not loaded correctly server-side.
@@ -599,21 +599,23 @@ export async function getAllUnitGrades(): Promise<StudentUnitGrade[]> {
 // --- Online Test Functions ---
 
 export async function submitOnlineTestResult(
-  resultData: Omit<OnlineTestResult, 'id' | 'completedAt' | 'isPassed' | 'grade' | 'teacherNotes'>
+  resultData: Omit<OnlineTestResult, 'id' | 'completedAt' | 'isPassed' | 'grade' | 'teacherNotes' | 'score' | 'answers'> & { answers: Omit<OnlineTestResultAnswer, 'correct'>[] }
 ): Promise<OnlineTestResult> {
-  const { studentId, onlineTestId, score, answers, durationSeconds } = resultData;
-  const answersJson = JSON.stringify(answers);
+  const { studentId, onlineTestId, answers, durationSeconds } = resultData;
+  
+  // Augment answers with `correct: null` for initial submission
+  const answersToStore = answers.map(ans => ({ ...ans, correct: null }));
+  const answersJson = JSON.stringify(answersToStore);
   
   try {
-    // Upsert logic: if a student retakes a test, update their old result.
     const result = await sql`
-      INSERT INTO online_test_results (student_id, online_test_id, score, answers, duration_seconds)
-      VALUES (${studentId}, ${onlineTestId}, ${score}, ${answersJson}::jsonb, ${durationSeconds ?? null})
+      INSERT INTO online_test_results (student_id, online_test_id, score, answers, duration_seconds, is_passed, grade)
+      VALUES (${studentId}, ${onlineTestId}, ${null}, ${answersJson}::jsonb, ${durationSeconds ?? null}, ${null}, ${null})
       ON CONFLICT (student_id, online_test_id) DO UPDATE SET
-        score = EXCLUDED.score,
+        score = ${null},
         answers = EXCLUDED.answers,
         completed_at = CURRENT_TIMESTAMP,
-        is_passed = NULL, -- Reset grading status on retake
+        is_passed = NULL, 
         grade = NULL,
         teacher_notes = NULL,
         duration_seconds = EXCLUDED.duration_seconds
@@ -629,7 +631,7 @@ export async function submitOnlineTestResult(
       answers: row.answers,
       completedAt: row.completed_at,
       isPassed: row.is_passed,
-      grade: row.grade as (2 | 3 | 4 | 5) | null,
+      grade: row.grade,
       teacherNotes: row.teacher_notes,
       durationSeconds: row.duration_seconds,
     };
@@ -657,7 +659,7 @@ export async function getOnlineTestResults(testId: string): Promise<(OnlineTestR
       FROM online_test_results otr
       JOIN users u ON otr.student_id = u.id
       WHERE otr.online_test_id = ${testId}
-      ORDER BY otr.score DESC, otr.completed_at ASC;
+      ORDER BY otr.completed_at ASC;
     `;
     return result.rows.map(row => ({
       id: row.id,
@@ -749,13 +751,22 @@ export async function getStudentOnlineTestResults(studentId: string): Promise<On
 
 export async function gradeOnlineTestResult(
   resultId: string,
-  gradingData: { isPassed: boolean; grade: number; teacherNotes?: string }
+  gradingData: { 
+    score: number;
+    answers: OnlineTestResultAnswer[];
+    isPassed: boolean;
+    grade: number;
+    teacherNotes?: string 
+  }
 ): Promise<OnlineTestResult> {
-  const { isPassed, grade, teacherNotes } = gradingData;
+  const { score, answers, isPassed, grade, teacherNotes } = gradingData;
+  const answersJson = JSON.stringify(answers);
   try {
     const result = await sql`
       UPDATE online_test_results
       SET
+        score = ${score},
+        answers = ${answersJson}::jsonb,
         is_passed = ${isPassed},
         grade = ${grade},
         teacher_notes = ${teacherNotes || null}
