@@ -598,8 +598,15 @@ export async function getAllUnitGrades(): Promise<StudentUnitGrade[]> {
 
 // --- Online Test Functions ---
 
+interface InitialSubmissionPayload {
+  studentId: string;
+  onlineTestId: string;
+  answers: Omit<OnlineTestResultAnswer, 'correct'>[];
+  durationSeconds: number | null;
+}
+
 export async function submitOnlineTestResult(
-  resultData: Omit<OnlineTestResult, 'id' | 'completedAt' | 'isPassed' | 'grade' | 'teacherNotes' | 'score' | 'answers'> & { answers: Omit<OnlineTestResultAnswer, 'correct'>[] }
+  resultData: InitialSubmissionPayload
 ): Promise<OnlineTestResult> {
   const { studentId, onlineTestId, answers, durationSeconds } = resultData;
   
@@ -609,10 +616,10 @@ export async function submitOnlineTestResult(
   
   try {
     const result = await sql`
-      INSERT INTO online_test_results (student_id, online_test_id, score, answers, duration_seconds, is_passed, grade)
-      VALUES (${studentId}, ${onlineTestId}, ${null}, ${answersJson}::jsonb, ${durationSeconds ?? null}, ${null}, ${null})
+      INSERT INTO online_test_results (student_id, online_test_id, score, answers, duration_seconds, is_passed, grade, teacher_notes)
+      VALUES (${studentId}, ${onlineTestId}, ${null}, ${answersJson}::jsonb, ${durationSeconds ?? null}, ${null}, ${null}, ${null})
       ON CONFLICT (student_id, online_test_id) DO UPDATE SET
-        score = ${null},
+        score = NULL,
         answers = EXCLUDED.answers,
         completed_at = CURRENT_TIMESTAMP,
         is_passed = NULL, 
@@ -799,5 +806,3 @@ export async function gradeOnlineTestResult(
 export function resetStore() {
   console.warn("[Store] resetStore is a no-op when using a persistent database.");
 }
-
-    
