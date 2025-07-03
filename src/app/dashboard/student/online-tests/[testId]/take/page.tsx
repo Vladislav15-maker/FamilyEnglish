@@ -20,7 +20,7 @@ type Attempt = { wordId: string; userAnswer: string; };
 export default function OnlineTestTakePage() {
   const params = useParams();
   const router = useRouter();
-  const testId = typeof params.testId === 'string' ? params.testId : '';
+  const testId = (params.testId || params.testid) as string | undefined;
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -137,10 +137,10 @@ export default function OnlineTestTakePage() {
         })
         .finally(() => setIsLoading(false));
 
-    } else if (!user) {
+    } else if (!user && isLoading) {
         setIsLoading(false);
     }
-  }, [testId, user]);
+  }, [testId, user, isLoading]);
 
   // Effect for timer
   useEffect(() => {
@@ -163,8 +163,8 @@ export default function OnlineTestTakePage() {
     };
   }, [test, timeRemaining, isTestFinished, existingResult, handleFinishTest]);
 
-  // Effect for handling page exit
-   useEffect(() => {
+  // Effect for handling page exit (auto-submit)
+  useEffect(() => {
     const handleVisibilityChange = () => {
       // Use the ref here to get the latest state
       const { attempts, timeRemaining, isTestFinished } = latestStateRef.current;
@@ -200,7 +200,7 @@ export default function OnlineTestTakePage() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [test, user]); // Simplified dependency array
+  }, [test, user]);
 
 
   const handleWordSubmit = (userAnswer: string) => {
@@ -243,7 +243,7 @@ export default function OnlineTestTakePage() {
               <BreadcrumbList>
                 <BreadcrumbItem><Link href="/dashboard/student/online-tests">Онлайн Тесты</Link></BreadcrumbItem>
                 <BreadcrumbSeparator />
-                <BreadcrumbItem><BreadcrumbPage>Тест: {getOnlineTestById(testId)?.name}</BreadcrumbPage></BreadcrumbItem>
+                <BreadcrumbItem><BreadcrumbPage>Тест: {getOnlineTestById(testId || '')?.name}</BreadcrumbPage></BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
             <Alert className="max-w-md">
@@ -259,7 +259,7 @@ export default function OnlineTestTakePage() {
                            К списку тестов
                         </Link>
                     </Button>
-                    {!isPending && (
+                    {!isPending && existingResult.id && (
                        <Button asChild>
                            <Link href={`/dashboard/student/online-tests/${testId}/result/${existingResult.id}`}>
                                Посмотреть результат

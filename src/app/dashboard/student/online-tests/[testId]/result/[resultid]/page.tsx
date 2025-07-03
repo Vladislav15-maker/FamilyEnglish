@@ -20,13 +20,16 @@ type ResultData = {
 export default function StudentTestResultPage() {
   const params = useParams();
   const { user } = useAuth();
-  const resultId = typeof params.resultId === 'string' ? params.resultId : '';
+  
+  // Fix: Handle potential lowercase key from Next.js router
+  const resultId = (params.resultId || params.resultid) as string | undefined;
 
   const [data, setData] = useState<ResultData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Only fetch if we have a user and a resultId
     if (user && resultId) {
       setIsLoading(true);
       fetch(`/api/student/online-tests/results/${resultId}`)
@@ -38,12 +41,18 @@ export default function StudentTestResultPage() {
         .then(resultData => {
           setData(resultData);
         })
-        .catch(err => setError((err as Error).message))
-        .finally(() => setIsLoading(false));
-    } else if(!user) {
+        .catch(err => {
+            console.error("Failed to fetch test result:", err);
+            setError((err as Error).message);
+        })
+        .finally(() => {
+            setIsLoading(false)
+        });
+    } else if (!user && isLoading) {
+        // If auth is resolved and there's no user, stop loading.
         setIsLoading(false);
     }
-  }, [user, resultId]);
+  }, [user, resultId, isLoading]);
 
   if (isLoading) {
     return (
@@ -60,6 +69,7 @@ export default function StudentTestResultPage() {
   if (error) {
     return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Ошибка</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>;
   }
+
   if (!user) {
     return <Alert variant="default"><BookOpen className="h-4 w-4" /><AlertTitle>Доступ запрещен</AlertTitle><AlertDescription>Пожалуйста, войдите в систему.</AlertDescription></Alert>;
   }
