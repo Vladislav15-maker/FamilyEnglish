@@ -252,6 +252,28 @@ export async function getAttemptHistoryForRound(studentId: string, unitId: strin
   }
 }
 
+export async function deleteStudentRoundProgress(studentId: string, unitId: string, roundId: string): Promise<void> {
+  if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
+    console.error('[Store] CRITICAL in deleteStudentRoundProgress (SERVER-SIDE): POSTGRES_URL is NOT SET.');
+    throw new Error('Database connection not configured.');
+  }
+  try {
+    await sql`
+      DELETE FROM student_attempt_history 
+      WHERE student_id = ${studentId} AND unit_id = ${unitId} AND round_id = ${roundId};
+    `;
+    
+    await sql`
+      DELETE FROM student_progress 
+      WHERE student_id = ${studentId} AND unit_id = ${unitId} AND round_id = ${roundId};
+    `;
+    console.log(`[Store] Deleted all progress and history for student ${studentId}, unit ${unitId}, round ${roundId}.`);
+  } catch (error) {
+    console.error(`[Store] Failed to delete student round progress:`, error);
+    throw error;
+  }
+}
+
 
 export async function getOfflineScoresForStudent(studentId: string): Promise<OfflineTestScore[]> {
   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
@@ -806,3 +828,4 @@ export async function gradeOnlineTestResult(
 export function resetStore() {
   console.warn("[Store] resetStore is a no-op when using a persistent database.");
 }
+

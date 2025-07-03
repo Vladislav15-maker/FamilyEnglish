@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award, TrendingUp, ListChecks, ClipboardCheck, Sigma, Repeat, History, Loader2, Check, X, GraduationCap } from 'lucide-react';
+import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award, TrendingUp, ListChecks, ClipboardCheck, Sigma, Repeat, History, Loader2, Check, X, GraduationCap, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -20,6 +20,8 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
 export default function TeacherStudentDetailPage() {
@@ -27,6 +29,7 @@ export default function TeacherStudentDetailPage() {
   const router = useRouter();
   const studentId = typeof params.studentId === 'string' ? params.studentId : '';
   const { user: teacherUser } = useAuth();
+  const { toast } = useToast();
 
   const [student, setStudent] = useState<User | null>(null);
   const [progress, setProgress] = useState<StudentRoundProgress[]>([]);
@@ -42,57 +45,55 @@ export default function TeacherStudentDetailPage() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [currentRoundForHistory, setCurrentRoundForHistory] = useState<{unitId: string, roundId: string, roundName: string} | null>(null);
 
-  useEffect(() => {
-    if (teacherUser && teacherUser.role === 'teacher' && studentId) {
-      setIsLoading(true);
-      setError(null);
+  // State for progress deletion dialog
+  const [roundToDelete, setRoundToDelete] = useState<{ studentId: string; unitId: string; roundId: string; roundName: string } | null>(null);
 
-      const fetchStudentData = async () => {
-        try {
-          const [studentRes, progressRes, offlineScoresRes, onlineResultsRes] = await Promise.all([
-            fetch(`/api/teacher/students/${studentId}`),
-            fetch(`/api/progress/student/${studentId}`),
-            fetch(`/api/offline-scores/student/${studentId}`),
-            fetch(`/api/teacher/students/${studentId}/online-test-results`) // New API call
-          ]);
-
-          if (!studentRes.ok) throw new Error(`Не удалось загрузить данные ученика. Статус: ${studentRes.status}`);
-          const studentData: User = await studentRes.json();
-          setStudent(studentData);
-
-          if (!progressRes.ok) throw new Error(`Не удалось загрузить онлайн прогресс ученика. Статус: ${progressRes.status}`);
-          const progressData: StudentRoundProgress[] = await progressRes.json();
-          setProgress(progressData);
-
-          if (!offlineScoresRes.ok) throw new Error(`Не удалось загрузить оффлайн оценки ученика. Статус: ${offlineScoresRes.status}`);
-          let offlineScoresData: OfflineTestScore[] = await offlineScoresRes.json();
-          offlineScoresData = offlineScoresData.map(score => ({
-            ...score,
-            testName: OFFLINE_TESTS.find(t => t.id === score.testId)?.name || score.testId || 'Неизвестный тест'
-          }));
-          setOfflineScores(offlineScoresData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-          
-          if (!onlineResultsRes.ok) throw new Error(`Не удалось загрузить результаты онлайн тестов. Статус: ${onlineResultsRes.status}`);
-          const onlineResultsData: OnlineTestResult[] = await onlineResultsRes.json();
-          setOnlineTestResults(onlineResultsData);
-
-        } catch (err) {
-          console.error("Failed to load student details:", err);
-          setError((err as Error).message);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      fetchStudentData();
-
-    } else if (!teacherUser || teacherUser.role !== 'teacher') {
+  const fetchData = useCallback(async () => {
+    if (!teacherUser || teacherUser.role !== 'teacher' || !studentId) {
       setIsLoading(false);
-      setError("Доступ запрещен.");
-    } else {
-      setIsLoading(false); // No studentId or not a teacher
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [studentRes, progressRes, offlineScoresRes, onlineResultsRes] = await Promise.all([
+        fetch(`/api/teacher/students/${studentId}`),
+        fetch(`/api/progress/student/${studentId}`),
+        fetch(`/api/offline-scores/student/${studentId}`),
+        fetch(`/api/teacher/students/${studentId}/online-test-results`)
+      ]);
+
+      if (!studentRes.ok) throw new Error(`Не удалось загрузить данные ученика. Статус: ${studentRes.status}`);
+      const studentData: User = await studentRes.json();
+      setStudent(studentData);
+
+      if (!progressRes.ok) throw new Error(`Не удалось загрузить онлайн прогресс ученика. Статус: ${progressRes.status}`);
+      const progressData: StudentRoundProgress[] = await progressRes.json();
+      setProgress(progressData);
+
+      if (!offlineScoresRes.ok) throw new Error(`Не удалось загрузить оффлайн оценки ученика. Статус: ${offlineScoresRes.status}`);
+      let offlineScoresData: OfflineTestScore[] = await offlineScoresRes.json();
+      offlineScoresData = offlineScoresData.map(score => ({
+        ...score,
+        testName: OFFLINE_TESTS.find(t => t.id === score.testId)?.name || score.testId || 'Неизвестный тест'
+      }));
+      setOfflineScores(offlineScoresData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      
+      if (!onlineResultsRes.ok) throw new Error(`Не удалось загрузить результаты онлайн тестов. Статус: ${onlineResultsRes.status}`);
+      const onlineResultsData: OnlineTestResult[] = await onlineResultsRes.json();
+      setOnlineTestResults(onlineResultsData);
+
+    } catch (err) {
+      console.error("Failed to load student details:", err);
+      setError((err as Error).message);
+    } finally {
+      setIsLoading(false);
     }
   }, [teacherUser, studentId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
 
   const handleOpenHistoryDialog = async (unitId: string, roundId: string, roundName: string) => {
@@ -109,16 +110,36 @@ export default function TeacherStudentDetailPage() {
       const data: StudentAttemptHistory[] = await res.json();
       setHistoryForRound(data.sort((a, b) => a.attemptNumber - b.attemptNumber));
       if(data.length > 0) {
-        // Select the last attempt by default
         setSelectedAttempt(data[data.length - 1]);
       }
     } catch (err) {
       console.error(err);
-      setError("Ошибка при загрузке истории попыток.");
+      toast({ title: 'Ошибка', description: "Ошибка при загрузке истории попыток.", variant: "destructive"});
     } finally {
         setIsLoadingHistory(false);
     }
   }
+
+  const handleDeleteProgress = async () => {
+    if (!roundToDelete) return;
+    try {
+      const { studentId: sId, unitId, roundId } = roundToDelete;
+      const response = await fetch(`/api/progress/student/${sId}/round/${roundId}?unitId=${unitId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Не удалось сбросить прогресс');
+      }
+
+      toast({ title: 'Успех', description: 'Прогресс для раунда был успешно сброшен.' });
+      setRoundToDelete(null);
+      fetchData(); // Refetch all data to update the UI
+    } catch (error) {
+      toast({ title: 'Ошибка', description: (error as Error).message, variant: 'destructive' });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -315,6 +336,11 @@ export default function TeacherStudentDetailPage() {
                                   ) : (
                                   <Badge variant="outline">Не пройден</Badge>
                                   )}
+                                  {roundProgress && (
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/70 hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); setRoundToDelete({ studentId, unitId: unit.id, roundId: round.id, roundName: round.name }); }} title="Сбросить прогресс">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
                               </div>
                              </CardTitle>
                             {roundProgress?.completed && <Progress value={roundProgress.score} className="h-2 mt-2" />}
@@ -376,6 +402,11 @@ export default function TeacherStudentDetailPage() {
                                     <Badge variant="default" className="bg-green-500 text-white">{roundProgress.score}%</Badge>
                                     ) : (
                                     <Badge variant="outline">Не пройден</Badge>
+                                    )}
+                                    {roundProgress && (
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/70 hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); setRoundToDelete({ studentId, unitId: unit.id, roundId: round.id, roundName: round.name }); }} title="Сбросить прогресс">
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
                                     )}
                                 </div>
                                </CardTitle>
@@ -543,6 +574,22 @@ export default function TeacherStudentDetailPage() {
           )}
         </div>
       </DialogContent>
+       <AlertDialog open={!!roundToDelete} onOpenChange={(isOpen) => !isOpen && setRoundToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Это действие необратимо. Весь прогресс (включая все попытки) для раунда "{roundToDelete?.roundName}" ученика {student?.name} будет удален.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRoundToDelete(null)}>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProgress} className="bg-destructive hover:bg-destructive/90">
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
