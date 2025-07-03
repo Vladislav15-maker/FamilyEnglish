@@ -88,9 +88,6 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  
-  // Generate a random name for the input field to prevent browser autofill heuristics
-  const randomName = useMemo(() => `input_${Math.random().toString(36).substring(7)}`, [word]);
 
   useEffect(() => {
     setUserAnswer('');
@@ -148,7 +145,6 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
         <form onSubmit={handleFormSubmit} className="space-y-4" autoComplete="off">
           <Input
             ref={inputRef}
-            name={randomName}
             type="text"
             value={userAnswer}
             onChange={(e) => setUserAnswer(e.target.value)}
@@ -156,19 +152,15 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
             disabled={isSubmitted}
             className={`text-lg p-4 h-14 ${isSubmitted ? (isCorrect ? 'border-green-500 focus:border-green-500 ring-green-500' : 'border-red-500 focus:border-red-500 ring-red-500') : ''}`}
             aria-label="Поле для ввода перевода"
-            // The ULTIMATE combo to disable autofill and suggestions
-            autoComplete="new-password"
+            autoComplete="off"
+            role="presentation"
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
-            inputMode="verbatim"
             onPaste={(e) => e.preventDefault()}
             onCopy={(e) => e.preventDefault()}
             onCut={(e) => e.preventDefault()}
             onDrop={(e) => e.preventDefault()}
-            // The final trick: prevent autofill by making it readonly until focused.
-            readOnly
-            onFocus={(e) => { e.target.readOnly = false; }}
           />
           {!isSubmitted ? (
             <Button type="submit" className="w-full text-lg py-3" size="lg">
