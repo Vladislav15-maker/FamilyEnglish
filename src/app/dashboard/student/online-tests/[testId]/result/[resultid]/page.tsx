@@ -71,6 +71,7 @@ export default function StudentTestResultPage() {
 
   const { result, testDetails } = data;
 
+  // Render a "pending review" page if the test has not been graded yet
   if (result.isPassed === null) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] space-y-6 p-4 text-center">
@@ -91,6 +92,7 @@ export default function StudentTestResultPage() {
   const answers = Array.isArray(result.answers) ? result.answers : [];
   const correctCount = answers.filter(a => a.correct).length;
   const incorrectCount = answers.length - correctCount;
+  // SAFEGUARD: Ensure we don't divide by zero if there are no answers
   const progressValue = answers.length > 0 ? (correctCount / answers.length) * 100 : 0;
 
   return (
