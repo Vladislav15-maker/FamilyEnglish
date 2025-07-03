@@ -234,6 +234,7 @@ export default function TestRoundPage() {
 
       {currentWord ? (
         <WordTestInput 
+          key={currentWord.id}
           word={currentWord} 
           onAnswer={handleAnswerSubmit} 
           showNextButton={true}
@@ -248,4 +249,3 @@ export default function TestRoundPage() {
     </div>
   );
 }
-

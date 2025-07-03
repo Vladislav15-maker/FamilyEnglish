@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Word } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -89,6 +89,9 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
   const [isCorrect, setIsCorrect] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Generate a unique ID for the input field on each mount to trick autofill
+  const uniqueId = useRef(`word-input-${Math.random().toString(36).substring(2, 9)}`).current;
+
   useEffect(() => {
     setUserAnswer('');
     setIsSubmitted(false);
@@ -104,11 +107,9 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
     const normalizedUserAnswer = normalizeAnswer(userAnswer);
     const normalizedCorrectAnswer = normalizeAnswer(word.english);
     
-    // Also check if normalized user answer matches original correct answer (if it wasn't a contraction)
-    // And if normalized correct answer matches original user answer
     const correct = normalizedUserAnswer === normalizedCorrectAnswer ||
-                    normalizedUserAnswer === word.english.trim().toLowerCase() || // User typed full, DB has full
-                    normalizeAnswer(userAnswer) === word.english.trim().toLowerCase(); // User typed contraction, DB has full (normalizeAnswer will expand user's)
+                    normalizedUserAnswer === word.english.trim().toLowerCase() ||
+                    normalizeAnswer(userAnswer) === word.english.trim().toLowerCase();
 
     
     setIsCorrect(correct);
@@ -145,6 +146,8 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
         <form onSubmit={handleFormSubmit} className="space-y-4" autoComplete="off">
           <Input
             ref={inputRef}
+            id={uniqueId}
+            name={uniqueId}
             type="text"
             value={userAnswer}
             onChange={(e) => setUserAnswer(e.target.value)}

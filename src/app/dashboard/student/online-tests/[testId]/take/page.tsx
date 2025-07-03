@@ -256,6 +256,7 @@ export default function OnlineTestTakePage() {
 
       {currentWord ? (
         <WordTestInput 
+          key={currentWord.id}
           word={currentWord} 
           onAnswer={handleAnswerSubmit} 
           showNextButton={true}
