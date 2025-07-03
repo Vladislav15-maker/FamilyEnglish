@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ArrowLeft, CheckCircle, XCircle, FileText, BookOpen, AlertCircle, Clock } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 type ResultData = {
   result: OnlineTestResult;
@@ -126,7 +127,7 @@ export default function StudentTestResultPage() {
             <CardHeader><CardTitle>Сводка по результатам</CardTitle></CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-2 items-center">
                 <div className="flex flex-col items-center justify-center space-y-2">
-                    <p className="text-7xl font-bold text-primary">{result.score || 0}%</p>
+                    <p className="text-5xl md:text-7xl font-bold text-primary">{result.score || 0}%</p>
                     <p className="text-muted-foreground">Ваш результат</p>
                     {result.grade && (
                          <p className="text-2xl font-bold">Оценка учителя: <span className={`
@@ -159,34 +160,37 @@ export default function StudentTestResultPage() {
             <CardHeader><CardTitle>Подробные ответы</CardTitle></CardHeader>
             <CardContent>
                 {answers.length > 0 ? (
-                  <Table>
-                      <TableHeader>
-                          <TableRow>
-                              <TableHead>Слово (Рус)</TableHead>
-                              <TableHead>Ваш ответ</TableHead>
-                              <TableHead>Правильный ответ</TableHead>
-                              <TableHead className="text-center">Результат</TableHead>
-                          </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                          {answers.map((answer, index) => {
-                              const word = wordsInTest.find(w => w.id === answer.wordId);
-                              return (
-                                  <TableRow key={index} className={answer.correct ? '' : 'bg-destructive/10'}>
-                                      <TableCell>{word?.russian || 'Слово не найдено'}</TableCell>
-                                      <TableCell className="font-mono">{answer.userAnswer || '(пусто)'}</TableCell>
-                                      <TableCell className="font-mono text-green-600 dark:text-green-400">{word?.english}</TableCell>
-                                      <TableCell className="text-center">
-                                          {answer.correct 
-                                              ? <CheckCircle className="h-5 w-5 text-green-500 inline-block" /> 
-                                              : <XCircle className="h-5 w-5 text-red-500 inline-block" />
-                                          }
-                                      </TableCell>
-                                  </TableRow>
-                              );
-                          })}
-                      </TableBody>
-                  </Table>
+                  <ScrollArea className="w-full whitespace-nowrap rounded-md border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Слово (Рус)</TableHead>
+                                <TableHead>Ваш ответ</TableHead>
+                                <TableHead>Правильный ответ</TableHead>
+                                <TableHead className="text-center">Результат</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {answers.map((answer, index) => {
+                                const word = wordsInTest.find(w => w.id === answer.wordId);
+                                return (
+                                    <TableRow key={index} className={answer.correct ? '' : 'bg-destructive/10'}>
+                                        <TableCell>{word?.russian || 'Слово не найдено'}</TableCell>
+                                        <TableCell className="font-mono">{answer.userAnswer || '(пусто)'}</TableCell>
+                                        <TableCell className="font-mono text-green-600 dark:text-green-400">{word?.english}</TableCell>
+                                        <TableCell className="text-center">
+                                            {answer.correct 
+                                                ? <CheckCircle className="h-5 w-5 text-green-500 inline-block" /> 
+                                                : <XCircle className="h-5 w-5 text-red-500 inline-block" />
+                                            }
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
                 ) : (
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
