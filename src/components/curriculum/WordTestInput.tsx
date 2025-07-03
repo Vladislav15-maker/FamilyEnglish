@@ -156,7 +156,7 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
             disabled={isSubmitted}
             className={`text-lg p-4 h-14 ${isSubmitted ? (isCorrect ? 'border-green-500 focus:border-green-500 ring-green-500' : 'border-red-500 focus:border-red-500 ring-red-500') : ''}`}
             aria-label="Поле для ввода перевода"
-            // The ultimate combo to disable autofill and suggestions
+            // The ULTIMATE combo to disable autofill and suggestions
             autoComplete="new-password"
             autoCorrect="off"
             autoCapitalize="off"
@@ -166,6 +166,9 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
             onCopy={(e) => e.preventDefault()}
             onCut={(e) => e.preventDefault()}
             onDrop={(e) => e.preventDefault()}
+            // The final trick: prevent autofill by making it readonly until focused.
+            readOnly
+            onFocus={(e) => { e.target.readOnly = false; }}
           />
           {!isSubmitted ? (
             <Button type="submit" className="w-full text-lg py-3" size="lg">
