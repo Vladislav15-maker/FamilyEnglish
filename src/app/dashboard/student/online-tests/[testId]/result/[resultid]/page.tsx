@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import type { OnlineTest, OnlineTestResult, Word } from '@/lib/types';
@@ -67,6 +67,11 @@ export default function StudentTestResultPage() {
   if (!data) {
     return <Alert><AlertCircle className="h-4 w-4" /><AlertTitle>Результат не найден</AlertTitle><AlertDescription>Не удалось найти данные для этого результата теста.</AlertDescription></Alert>;
   }
+  
+  if (!data.testDetails) {
+    return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Ошибка данных</AlertTitle><AlertDescription>Не удалось найти информацию об этом тесте в учебном плане.</AlertDescription></Alert>;
+  }
+
 
   const { result, testDetails } = data;
 
@@ -88,7 +93,7 @@ export default function StudentTestResultPage() {
   }
 
   const correctCount = result.answers.filter(a => a.correct).length;
-  const incorrectCount = result.answers.filter(a => a.correct === false).length;
+  const incorrectCount = result.answers.length - correctCount;
 
   const chartData = [
     { name: 'Правильно', value: correctCount, fill: '#22c55e' },
