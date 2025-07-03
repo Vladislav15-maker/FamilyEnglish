@@ -3,13 +3,12 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import type { OnlineTest, OnlineTestResult, Word } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import type { OnlineTest, OnlineTestResult } from '@/lib/types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, CheckCircle, XCircle, FileText, BookOpen, AlertCircle, Clock } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
@@ -92,6 +91,7 @@ export default function StudentTestResultPage() {
   const answers = Array.isArray(result.answers) ? result.answers : [];
   const correctCount = answers.filter(a => a.correct).length;
   const incorrectCount = answers.length - correctCount;
+  const progressValue = answers.length > 0 ? (correctCount / answers.length) * 100 : 0;
 
   return (
     <div className="space-y-8">
@@ -138,7 +138,7 @@ export default function StudentTestResultPage() {
                             <p className="text-sm text-muted-foreground">Неправильно</p>
                         </div>
                     </div>
-                    {answers.length > 0 && <Progress value={(correctCount / answers.length) * 100} className="h-2" />}
+                    <Progress value={progressValue} className="h-2" />
                 </div>
             </CardContent>
         </Card>

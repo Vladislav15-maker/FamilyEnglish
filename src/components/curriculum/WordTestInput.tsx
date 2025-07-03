@@ -5,7 +5,7 @@ import type { Word } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ChevronRight, Send, CheckCircle, XCircle, RotateCcw, Eye, EyeOff } from 'lucide-react';
+import { ChevronRight, Send, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
 
 interface WordTestInputProps {
   word: Word;
