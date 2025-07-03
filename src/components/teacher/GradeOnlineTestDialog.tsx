@@ -16,6 +16,7 @@ import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const gradingFormSchema = z.object({
   answers: z.array(z.object({
@@ -69,7 +70,7 @@ export default function GradeOnlineTestDialog({ result, isOpen, onClose, onGrade
     // Determine isPassed based on final score
     const isPassed = currentScore >= 50; // Example passing score, can be adjusted
 
-    const payload = { ...data, isPassed, grade: data.grade };
+    const payload = { ...data, isPassed, grade: data.grade, score: currentScore };
 
     try {
       const response = await fetch(`/api/teacher/online-tests/results/${result.id}`, {

@@ -12,6 +12,7 @@ const gradingSchema = z.object({
     correct: z.boolean(), // Teacher must mark each one
   })),
   isPassed: z.boolean(),
+  score: z.coerce.number().min(0).max(100),
   grade: z.coerce.number().min(2).max(5),
   teacherNotes: z.string().optional(),
 });
@@ -36,11 +37,7 @@ export async function PUT(
       return NextResponse.json({ error: validation.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const { answers, isPassed, grade, teacherNotes } = validation.data;
-
-    // Server-side score calculation for security
-    const correctAnswers = answers.filter(a => a.correct).length;
-    const score = answers.length > 0 ? Math.round((correctAnswers / answers.length) * 100) : 0;
+    const { answers, isPassed, grade, teacherNotes, score } = validation.data;
     
     const gradingPayload = {
       score,

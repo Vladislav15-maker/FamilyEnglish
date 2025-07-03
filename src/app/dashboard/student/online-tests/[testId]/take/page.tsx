@@ -39,6 +39,13 @@ export default function OnlineTestTakePage() {
   const [existingResult, setExistingResult] = useState<OnlineTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Ref to hold the latest state to prevent stale closures in event listeners
+  const latestStateRef = useRef({ attempts, timeRemaining, isTestFinished });
+  useEffect(() => {
+    latestStateRef.current = { attempts, timeRemaining, isTestFinished };
+  }, [attempts, timeRemaining, isTestFinished]);
+
+
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -159,21 +166,32 @@ export default function OnlineTestTakePage() {
   // Effect for handling page exit
    useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && test && user && !isTestFinished && !isSubmittingRef.current) {
-          const allWordsAnswers = test.words.map(word => {
-              const attempt = attempts.find(a => a.wordId === word.id);
-              return attempt || { wordId: word.id, userAnswer: '' };
-          });
-          const durationSeconds = test.durationMinutes > 0 ? (test.durationMinutes * 60) - timeRemaining : 0;
-          const payload = {
-            onlineTestId: test.id,
-            answers: allWordsAnswers,
-            durationSeconds,
-          };
-          
-          const blob = new Blob([JSON.stringify(payload)], { type: 'application/json; charset=UTF-8' });
-          navigator.sendBeacon('/api/student/online-tests/submit', blob);
-          isSubmittingRef.current = true;
+      // Use the ref here to get the latest state
+      const { attempts, timeRemaining, isTestFinished } = latestStateRef.current;
+      if (
+        document.visibilityState === 'hidden' &&
+        test &&
+        user &&
+        !isTestFinished &&
+        !isSubmittingRef.current
+      ) {
+        isSubmittingRef.current = true;
+        
+        const allWordsAnswers = test.words.map(word => {
+          const attempt = attempts.find(a => a.wordId === word.id);
+          return { wordId: word.id, userAnswer: attempt?.userAnswer || '' };
+        });
+
+        const durationSeconds = test.durationMinutes > 0 ? (test.durationMinutes * 60) - timeRemaining : 0;
+        
+        const payload = {
+          onlineTestId: test.id,
+          answers: allWordsAnswers,
+          durationSeconds,
+        };
+        
+        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json; charset=UTF-8' });
+        navigator.sendBeacon('/api/student/online-tests/submit', blob);
       }
     };
     
@@ -182,7 +200,7 @@ export default function OnlineTestTakePage() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [test, user, isTestFinished, attempts, timeRemaining]);
+  }, [test, user]); // Simplified dependency array
 
 
   const handleWordSubmit = (userAnswer: string) => {
