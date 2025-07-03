@@ -5,7 +5,7 @@ import type { Word } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CheckCircle, XCircle, ChevronRight, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle, ChevronRight, RotateCcw, Eye, EyeOff } from 'lucide-react';
 
 interface WordTestInputProps {
   word: Word;
@@ -87,6 +87,7 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
   const [userAnswer, setUserAnswer] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const uniqueId = `word-input-${word.id}`;
@@ -94,6 +95,7 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
   useEffect(() => {
     setUserAnswer('');
     setIsSubmitted(false);
+    setShowPassword(false);
     if (inputRef.current) {
       inputRef.current.focus();
     }
@@ -110,6 +112,7 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
     
     setIsCorrect(correct);
     setIsSubmitted(true);
+    setShowPassword(true); // Automatically show text after submission
     onAnswer(correct, userAnswer.trim());
   };
 
@@ -122,6 +125,7 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
   const handleRetryInternal = () => {
     setUserAnswer('');
     setIsSubmitted(false);
+    setShowPassword(false);
     if (inputRef.current) {
       inputRef.current.focus();
     }
@@ -140,20 +144,31 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
         </div>
 
         <form onSubmit={handleFormSubmit} className="space-y-4">
-           <div>
+           <div className="relative">
             <Input
               ref={inputRef}
               id={uniqueId}
               name={uniqueId}
-              type="text"
-              autoComplete="one-time-code"
+              type={showPassword ? 'text' : 'password'}
               value={userAnswer}
               onChange={(e) => setUserAnswer(e.target.value)}
               placeholder="Введите перевод на английском"
               disabled={isSubmitted}
-              className={`text-lg p-4 h-14 ${isSubmitted ? (isCorrect ? 'border-green-500 focus:border-green-500 ring-green-500' : 'border-red-500 focus:border-red-500 ring-red-500') : ''}`}
+              className={`text-lg p-4 h-14 pr-12 ${isSubmitted ? (isCorrect ? 'border-green-500 focus:border-green-500 ring-green-500' : 'border-red-500 focus:border-red-500 ring-red-500') : ''}`}
               aria-label="Поле для ввода перевода"
             />
+            {!isSubmitted && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground"
+                    onClick={() => setShowPassword(prev => !prev)}
+                    aria-label={showPassword ? "Скрыть ответ" : "Показать ответ"}
+                >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </Button>
+            )}
           </div>
           {!isSubmitted ? (
             <Button type="submit" className="w-full text-lg py-3" size="lg">
