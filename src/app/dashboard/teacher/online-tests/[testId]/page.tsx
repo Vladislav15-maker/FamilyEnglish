@@ -86,6 +86,8 @@ export default function TeacherOnlineTestResultsPage() {
       const jsonData: TestDetailsWithResults = await response.json();
       // Sort results: pending ones first, then by date
       jsonData.results.sort((a, b) => {
+          if (a.completedAt === null && b.completedAt !== null) return 1;
+          if (a.completedAt !== null && b.completedAt === null) return -1;
           if (a.isPassed === null && b.isPassed !== null) return -1;
           if (a.isPassed !== null && b.isPassed === null) return 1;
           if (a.completedAt && b.completedAt) {
@@ -187,14 +189,10 @@ export default function TeacherOnlineTestResultsPage() {
                         {!result.completedAt && <Badge variant="outline">Не сдавал</Badge>}
                       </TableCell>
                       <TableCell className="text-right">
-                         {result.completedAt ? (
-                            <Button variant="outline" size="sm" onClick={() => setResultToGrade(result)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                {result.isPassed === null ? 'Проверить' : 'Изменить'}
-                            </Button>
-                         ) : (
-                            <HelpCircle className="h-4 w-4 text-muted-foreground mx-auto" />
-                         )}
+                         <Button variant="outline" size="sm" onClick={() => setResultToGrade(result)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            {result.completedAt ? (result.isPassed === null ? 'Проверить' : 'Изменить') : 'Оценить'}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -208,6 +206,7 @@ export default function TeacherOnlineTestResultsPage() {
       {resultToGrade && (
         <GradeOnlineTestDialog
           result={resultToGrade}
+          testDetails={data.testDetails}
           isOpen={!!resultToGrade}
           onClose={() => setResultToGrade(null)}
           onGraded={() => {
