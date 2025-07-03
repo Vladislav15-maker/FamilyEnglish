@@ -7,9 +7,9 @@ import { getOnlineTestById } from '@/lib/curriculum-data';
 
 export async function GET(
   request: Request,
-  { params }: { params: { resultId: string } }
+  context: { params: { resultId: string } }
 ) {
-  const resultId = params.resultId;
+  const resultId = context.params.resultId;
   const session = await getAppSession();
 
   if (!session?.user) {
@@ -22,8 +22,8 @@ export async function GET(
     if (!result) {
         return NextResponse.json({ error: 'Result not found' }, { status: 404 });
     }
-    // Security check: ensure the user is requesting their own result
-    if (result.studentId !== user.id) {
+    // Security check: ensure the user is requesting their own result or user is a teacher
+    if (user.role !== 'teacher' && result.studentId !== user.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     

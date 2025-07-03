@@ -7,9 +7,9 @@ import type { AuthenticatedUser, OnlineTestResult, User } from '@/lib/types';
 
 export async function GET(
   request: Request,
-  { params }: { params: { testId: string } }
+  context: { params: { testId: string } }
 ) {
-  const testId = params.testId;
+  const testId = context.params.testId;
   const session = await getAppSession();
 
   if (!session?.user || (session.user as AuthenticatedUser).role !== 'teacher') {

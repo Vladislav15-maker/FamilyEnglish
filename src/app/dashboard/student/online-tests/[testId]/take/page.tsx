@@ -137,10 +137,11 @@ export default function OnlineTestTakePage() {
         })
         .finally(() => setIsLoading(false));
 
-    } else if (!user && isLoading) {
+    } else {
+        // If there's no user or no testId, we are not loading.
         setIsLoading(false);
     }
-  }, [testId, user, isLoading]);
+  }, [testId, user]);
 
   // Effect for timer
   useEffect(() => {

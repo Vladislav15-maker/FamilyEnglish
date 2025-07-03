@@ -6,9 +6,9 @@ import type { AuthenticatedUser } from '@/lib/types';
 
 export async function GET(
   request: Request,
-  { params }: { params: { studentId: string } } 
+  context: { params: { studentId: string } } 
 ) {
-  const studentId = params.studentId;
+  const studentId = context.params.studentId;
   console.log(`[API /api/progress/student/:studentId] Received GET request for studentId: ${studentId}`);
   const session = await getAppSession();
 

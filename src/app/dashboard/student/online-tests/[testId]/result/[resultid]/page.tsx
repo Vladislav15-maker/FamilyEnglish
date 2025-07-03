@@ -46,13 +46,13 @@ export default function StudentTestResultPage() {
             setError((err as Error).message);
         })
         .finally(() => {
-            setIsLoading(false)
+            setIsLoading(false);
         });
-    } else if (!user && isLoading) {
-        // If auth is resolved and there's no user, stop loading.
-        setIsLoading(false);
+    } else {
+      // If there's no user or no resultId, we are not loading.
+      setIsLoading(false);
     }
-  }, [user, resultId, isLoading]);
+  }, [user, resultId]);
 
   if (isLoading) {
     return (
