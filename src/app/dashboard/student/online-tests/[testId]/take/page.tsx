@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import WordTestInput from '@/components/curriculum/WordTestInput';
 import { getOnlineTestById } from '@/lib/curriculum-data';
-import type { OnlineTest, Word, OnlineTestResult } from '@/lib/types';
+import type { OnlineTest, Word, OnlineTestResult, AuthenticatedUser } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -36,6 +36,29 @@ export default function OnlineTestTakePage() {
 
   const [existingResult, setExistingResult] = useState<OnlineTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Use a ref to hold the latest state for the unload handler
+  const stateRef = useRef({
+    isTestFinished: false,
+    isSubmitting: false,
+    attempts: [] as Attempt[],
+    timeRemaining: 0,
+    test: null as OnlineTest | null,
+    user: null as AuthenticatedUser | null,
+  });
+
+  // Keep the ref updated with the latest state on every render
+  useEffect(() => {
+    stateRef.current = {
+      isTestFinished,
+      isSubmitting,
+      attempts,
+      timeRemaining,
+      test,
+      user,
+    };
+  });
+
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -102,6 +125,7 @@ export default function OnlineTestTakePage() {
     };
   }, [test, timeRemaining, isTestFinished, existingResult]);
 
+  // Effect for normal submission when test is finished
   useEffect(() => {
     if (isTestFinished && !isSubmitting && user && test) {
       setIsSubmitting(true);
@@ -145,11 +169,51 @@ export default function OnlineTestTakePage() {
       .catch((error) => {
           console.error("[OnlineTest] Failed to save result:", error);
           toast({ title: "Ошибка", description: (error as Error).message, variant: "destructive" });
-          setIsSubmitting(false);
+          setIsSubmitting(false); // Only reset if submission fails, otherwise component unmounts
           setIsTestFinished(false);
       });
     }
   }, [isTestFinished, attempts, user, test, router, toast, isSubmitting, timeRemaining]);
+
+
+  // Effect to handle component unmount (leaving the page)
+  useEffect(() => {
+    return () => {
+      // This cleanup function runs when the component unmounts.
+      // We read the latest state from the ref.
+      const { isTestFinished, isSubmitting, test, user, attempts, timeRemaining } = stateRef.current;
+      
+      // If the test was in progress and not already being submitted, submit it.
+      if (!isTestFinished && !isSubmitting && test && user) {
+        
+        const finalAnswers = test.words.map(word => {
+          const attempt = attempts.find(a => a.wordId === word.id);
+          return attempt || { wordId: word.id, userAnswer: '', correct: false };
+        });
+
+        const correctAnswers = finalAnswers.filter(a => a.correct).length;
+        const score = test.words.length > 0 ? Math.round((correctAnswers / test.words.length) * 100) : 0;
+        const durationSeconds = (test.durationMinutes * 60) - timeRemaining;
+
+        const payload = {
+          onlineTestId: test.id,
+          score,
+          answers: finalAnswers,
+          durationSeconds,
+        };
+        
+        // Use fetch with keepalive to ensure the request is sent even if the page is closed.
+        // This is a "fire-and-forget" request. We won't get a response.
+        fetch('/api/student/online-tests/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            keepalive: true,
+        });
+      }
+    };
+  }, []); // Empty dependency array ensures this effect runs only on mount and unmount
+
 
   const handleAnswerSubmit = (isCorrect: boolean, userAnswer: string) => {
     if (!test || !shuffledWords[currentWordIndex]) return;
@@ -227,6 +291,7 @@ export default function OnlineTestTakePage() {
   }
   
   if (isTestFinished && !isSubmitting) {
+    // This state might be briefly visible if submission fails.
     return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)]">
             <p className="text-xl text-muted-foreground">Неожиданное состояние. Попробуйте обновить страницу.</p>
@@ -256,7 +321,7 @@ export default function OnlineTestTakePage() {
 
       {currentWord ? (
         <WordTestInput 
-          key={currentWord.id}
+          key={currentWord.id + '-' + currentWordIndex}
           word={currentWord} 
           onAnswer={handleAnswerSubmit} 
           showNextButton={true}
