@@ -57,7 +57,7 @@ export default function WordTestInput({
     
     if (isOnlineTestMode) {
       // Online test: just submit the answer and the parent component handles the rest.
-      onSubmitAnswer(userAnswer.trim());
+      onSubmitAnswer?.(userAnswer.trim());
     } else {
       // Regular test with immediate feedback
       if (isSubmitted) { // If feedback is already shown, button acts as "Next"

@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, CheckCircle, XCircle, FileText, Percent, BookOpen, AlertCircle, Clock } from 'lucide-react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { ArrowLeft, CheckCircle, XCircle, FileText, BookOpen, AlertCircle, Clock } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 type ResultData = {
   result: OnlineTestResult;
@@ -64,12 +64,9 @@ export default function StudentTestResultPage() {
   if (!user) {
     return <Alert variant="default"><BookOpen className="h-4 w-4" /><AlertTitle>Доступ запрещен</AlertTitle><AlertDescription>Пожалуйста, войдите в систему.</AlertDescription></Alert>;
   }
-  if (!data) {
-    return <Alert><AlertCircle className="h-4 w-4" /><AlertTitle>Результат не найден</AlertTitle><AlertDescription>Не удалось найти данные для этого результата теста.</AlertDescription></Alert>;
-  }
   
-  if (!data.testDetails) {
-    return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Ошибка данных</AlertTitle><AlertDescription>Не удалось найти информацию об этом тесте в учебном плане.</AlertDescription></Alert>;
+  if (!data || !data.result || !data.testDetails) {
+    return <Alert><AlertCircle className="h-4 w-4" /><AlertTitle>Результат не найден</AlertTitle><AlertDescription>Не удалось найти данные для этого результата теста.</AlertDescription></Alert>;
   }
 
 
@@ -95,11 +92,6 @@ export default function StudentTestResultPage() {
   const answers = Array.isArray(result.answers) ? result.answers : [];
   const correctCount = answers.filter(a => a.correct).length;
   const incorrectCount = answers.length - correctCount;
-
-  const chartData = [
-    { name: 'Правильно', value: correctCount, fill: '#22c55e' },
-    { name: 'Неправильно', value: incorrectCount, fill: '#ef4444' },
-  ];
 
   return (
     <div className="space-y-8">
@@ -134,16 +126,19 @@ export default function StudentTestResultPage() {
                     )}
                     {result.teacherNotes && <p className="text-sm text-center italic p-2 bg-muted rounded-md">"{result.teacherNotes}"</p>}
                 </div>
-                <div>
-                    <ResponsiveContainer width="100%" height={200}>
-                        <PieChart>
-                            <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                                {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
-                            </Pie>
-                            <Tooltip />
-                            <Legend />
-                        </PieChart>
-                    </ResponsiveContainer>
+                
+                <div className="space-y-4 text-center p-4 border rounded-lg">
+                    <div className="flex justify-around">
+                        <div>
+                            <p className="text-2xl font-bold text-green-500">{correctCount}</p>
+                            <p className="text-sm text-muted-foreground">Правильно</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-red-500">{incorrectCount}</p>
+                            <p className="text-sm text-muted-foreground">Неправильно</p>
+                        </div>
+                    </div>
+                    {answers.length > 0 && <Progress value={(correctCount / answers.length) * 100} className="h-2" />}
                 </div>
             </CardContent>
         </Card>
