@@ -5,7 +5,7 @@ import type { Word } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CheckCircle, XCircle, ChevronRight, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle, ChevronRight, RotateCcw, Eye, EyeOff } from 'lucide-react';
 
 interface WordTestInputProps {
   word: Word;
@@ -87,14 +87,15 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
   const [userAnswer, setUserAnswer] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [isAnswerVisible, setIsAnswerVisible] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Generate a unique ID for the input field on each mount to trick autofill
-  const uniqueId = useRef(`word-input-${Math.random().toString(36).substring(2, 9)}`).current;
+  const uniqueId = `word-input-${word.id}`;
 
   useEffect(() => {
     setUserAnswer('');
     setIsSubmitted(false);
+    setIsAnswerVisible(false);
     if (inputRef.current) {
       inputRef.current.focus();
     }
@@ -107,13 +108,11 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
     const normalizedUserAnswer = normalizeAnswer(userAnswer);
     const normalizedCorrectAnswer = normalizeAnswer(word.english);
     
-    const correct = normalizedUserAnswer === normalizedCorrectAnswer ||
-                    normalizedUserAnswer === word.english.trim().toLowerCase() ||
-                    normalizeAnswer(userAnswer) === word.english.trim().toLowerCase();
-
+    const correct = normalizedUserAnswer === normalizedCorrectAnswer;
     
     setIsCorrect(correct);
     setIsSubmitted(true);
+    setIsAnswerVisible(true);
     onAnswer(correct, userAnswer.trim());
   };
 
@@ -126,6 +125,7 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
   const handleRetryInternal = () => {
     setUserAnswer('');
     setIsSubmitted(false);
+    setIsAnswerVisible(false);
     if (inputRef.current) {
       inputRef.current.focus();
     }
@@ -143,28 +143,33 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
           <p className="text-4xl font-bold text-secondary-foreground font-body my-2">{word.russian}</p>
         </div>
 
-        <form onSubmit={handleFormSubmit} className="space-y-4" autoComplete="off">
-          <Input
-            ref={inputRef}
-            id={uniqueId}
-            name={uniqueId}
-            type="text"
-            value={userAnswer}
-            onChange={(e) => setUserAnswer(e.target.value)}
-            placeholder="Введите перевод на английском"
-            disabled={isSubmitted}
-            className={`text-lg p-4 h-14 ${isSubmitted ? (isCorrect ? 'border-green-500 focus:border-green-500 ring-green-500' : 'border-red-500 focus:border-red-500 ring-red-500') : ''}`}
-            aria-label="Поле для ввода перевода"
-            autoComplete="off"
-            role="presentation"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck="false"
-            onPaste={(e) => e.preventDefault()}
-            onCopy={(e) => e.preventDefault()}
-            onCut={(e) => e.preventDefault()}
-            onDrop={(e) => e.preventDefault()}
-          />
+        <form onSubmit={handleFormSubmit} className="space-y-4">
+           <div className="relative">
+            <Input
+              ref={inputRef}
+              id={uniqueId}
+              name={uniqueId}
+              type={isAnswerVisible ? 'text' : 'password'}
+              value={userAnswer}
+              onChange={(e) => setUserAnswer(e.target.value)}
+              placeholder="Введите перевод на английском"
+              disabled={isSubmitted}
+              className={`text-lg p-4 h-14 pr-12 ${isSubmitted ? (isCorrect ? 'border-green-500 focus:border-green-500 ring-green-500' : 'border-red-500 focus:border-red-500 ring-red-500') : ''}`}
+              aria-label="Поле для ввода перевода"
+            />
+            {!isSubmitted && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground"
+                onClick={() => setIsAnswerVisible(prev => !prev)}
+                aria-label={isAnswerVisible ? "Скрыть ответ" : "Показать ответ"}
+              >
+                {isAnswerVisible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </Button>
+            )}
+          </div>
           {!isSubmitted ? (
             <Button type="submit" className="w-full text-lg py-3" size="lg">
               Проверить
