@@ -78,7 +78,7 @@ export default function StudentTestResultPage() {
             <Clock className="h-16 w-16 text-primary animate-pulse" />
             <h1 className="text-3xl font-bold font-headline">Тест на проверке</h1>
             <p className="text-lg text-muted-foreground max-w-md">
-                Ваш тест "{testDetails.name}" был успешно отправлен. Учитель скоро проверит его, и вы сможете увидеть здесь свои результаты.
+                Ваш тест "{testDetails?.name || ''}" был успешно отправлен. Учитель скоро проверит его, и вы сможете увидеть здесь свои результаты.
             </p>
             <Button asChild>
                 <Link href="/dashboard/student/online-tests">
@@ -89,10 +89,10 @@ export default function StudentTestResultPage() {
       )
   }
 
-  const answers = Array.isArray(result.answers) ? result.answers : [];
+  const answers = Array.isArray(result?.answers) ? result.answers : [];
+  const wordsInTest = Array.isArray(testDetails?.words) ? testDetails.words : [];
   const correctCount = answers.filter(a => a.correct === true).length;
   const incorrectCount = answers.length - correctCount;
-  // SAFEGUARD: Ensure we don't divide by zero if there are no answers
   const progressValue = answers.length > 0 ? (correctCount / answers.length) * 100 : 0;
 
   return (
@@ -160,7 +160,7 @@ export default function StudentTestResultPage() {
                       </TableHeader>
                       <TableBody>
                           {answers.map((answer, index) => {
-                              const word = testDetails.words.find(w => w.id === answer.wordId);
+                              const word = wordsInTest.find(w => w.id === answer.wordId);
                               return (
                                   <TableRow key={index} className={answer.correct ? '' : 'bg-destructive/10'}>
                                       <TableCell>{word?.russian || 'Слово не найдено'}</TableCell>
