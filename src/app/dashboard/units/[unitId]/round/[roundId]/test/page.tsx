@@ -58,7 +58,7 @@ export default function TestRoundPage() {
   // This effect now handles the entire test submission logic.
   // It runs when `isTestFinished` is set to true.
   useEffect(() => {
-    if (isTestFinished && user && round) {
+    if (isTestFinished && user && round && !isSubmitting) {
       const finalScoreValue = calculateScore(attempts);
       setScore(finalScoreValue);
       setIsSubmitting(true);
@@ -106,7 +106,7 @@ export default function TestRoundPage() {
         setIsSubmitting(false);
       });
     }
-  }, [isTestFinished, attempts, user, round, unitId, roundId, calculateScore, toast]);
+  }, [isTestFinished, attempts, user, round, unitId, roundId, calculateScore, toast, isSubmitting]);
 
 
   const handleAnswerSubmit = (isCorrect: boolean, userAnswer: string) => {
@@ -237,7 +237,6 @@ export default function TestRoundPage() {
           key={currentWord.id}
           word={currentWord} 
           onAnswer={handleAnswerSubmit} 
-          showNextButton={true}
           onNext={proceedToNextStepOrFinish}
         />
       ) : (

@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getAppSession } from '@/lib/auth';
 import { submitOnlineTestResult } from '@/lib/store';
-import type { AuthenticatedUser, OnlineTestResult } from '@/lib/types';
+import type { AuthenticatedUser } from '@/lib/types';
 import * as z from 'zod';
 
 const resultSchema = z.object({

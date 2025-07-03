@@ -5,127 +5,77 @@ import type { Word } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CheckCircle, XCircle, ChevronRight, RotateCcw, Eye, EyeOff } from 'lucide-react';
+import { ChevronRight, Send, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 
 interface WordTestInputProps {
   word: Word;
-  onAnswer: (isCorrect: boolean, userAnswer: string) => void;
-  showNextButton?: boolean; 
-  onNext?: () => void; 
+  // Callback for regular tests with immediate feedback
+  onAnswer?: (isCorrect: boolean, userAnswer: string) => void;
+  // Callback for moving to the next step (used by both test types)
+  onNext?: () => void;
+  // Callback for online tests (no immediate feedback)
+  onSubmitAnswer?: (userAnswer: string) => void;
+  // UI flags
+  isLastWord?: boolean;
 }
 
+// Function to normalize answers for comparison
 function normalizeAnswer(answer: string): string {
   if (typeof answer !== 'string') return '';
-  let normalized = answer.trim().toLowerCase();
-  
-  // apostrophe normalization to standard apostrophe
-  normalized = normalized.replace(/[`’]/g, "'");
-
-  // Common contractions to full forms
-  normalized = normalized.replace(/\bi'm\b/g, 'i am');
-  normalized = normalized.replace(/\byou're\b/g, 'you are');
-  normalized = normalized.replace(/\bhe's\b/g, 'he is');
-  normalized = normalized.replace(/\bshe's\b/g, 'she is');
-  normalized = normalized.replace(/\bit's\b/g, 'it is'); // Differentiate from possessive "its"
-  normalized = normalized.replace(/\bwe're\b/g, 'we are');
-  normalized = normalized.replace(/\bthey're\b/g, 'they are');
-  
-  normalized = normalized.replace(/\bwhat's\b/g, 'what is');
-  normalized = normalized.replace(/\bwho's\b/g, 'who is'); // Differentiate from possessive "whose"
-  normalized = normalized.replace(/\bwhere's\b/g, 'where is');
-  normalized = normalized.replace(/\bwhen's\b/g, 'when is');
-  normalized = normalized.replace(/\bwhy's\b/g, 'why is');
-  normalized = normalized.replace(/\bhow's\b/g, 'how is');
-  
-  normalized = normalized.replace(/\blet's\b/g, 'let us');
-
-  normalized = normalized.replace(/\bi've\b/g, 'i have');
-  normalized = normalized.replace(/\byou've\b/g, 'you have');
-  normalized = normalized.replace(/\bwe've\b/g, 'we have');
-  normalized = normalized.replace(/\bthey've\b/g, 'they have');
-  
-  normalized = normalized.replace(/\bi'll\b/g, 'i will');
-  normalized = normalized.replace(/\byou'll\b/g, 'you will');
-  normalized = normalized.replace(/\bhe'll\b/g, 'he will');
-  normalized = normalized.replace(/\bshe'll\b/g, 'she will');
-  normalized = normalized.replace(/\bwe'll\b/g, 'we will');
-  normalized = normalized.replace(/\bthey'll\b/g, 'they will');
-
-  normalized = normalized.replace(/\bi'd\b/g, 'i would'); // Could also be "i had" - context dependent, but "i would" is common
-  normalized = normalized.replace(/\byou'd\b/g, 'you would');
-  // ... and so on for he'd, she'd, we'd, they'd
-
-  // Negative contractions
-  normalized = normalized.replace(/\bcan't\b/g, 'cannot'); // "can not" is also possible but "cannot" is more standard for one word
-  normalized = normalized.replace(/\bwon't\b/g, 'will not');
-  normalized = normalized.replace(/\bisn't\b/g, 'is not');
-  normalized = normalized.replace(/\baren't\b/g, 'are not');
-  normalized = normalized.replace(/\bwasn't\b/g, 'was not');
-  normalized = normalized.replace(/\bweren't\b/g, 'were not');
-  normalized = normalized.replace(/\bhasn't\b/g, 'has not');
-  normalized = normalized.replace(/\bhaven't\b/g, 'have not');
-  normalized = normalized.replace(/\bhadn't\b/g, 'had not');
-  normalized = normalized.replace(/\bdoesn't\b/g, 'does not');
-  normalized = normalized.replace(/\bdon't\b/g, 'do not');
-  normalized = normalized.replace(/\bdidn't\b/g, 'did not');
-  normalized = normalized.replace(/\bwouldn't\b/g, 'would not');
-  normalized = normalized.replace(/\bshouldn't\b/g, 'should not');
-  normalized = normalized.replace(/\bcouldn't\b/g, 'could not');
-  normalized = normalized.replace(/\bmightn't\b/g, 'might not');
-  normalized = normalized.replace(/\bmustn't\b/g, 'must not');
-  
-  // Remove punctuation that's typically not part of the core answer (.,!?;:) at the end.
-  // Be careful not to remove punctuation that might be part of the answer itself.
-  normalized = normalized.replace(/[.,!?;:]+$/, '');
-
-  // Normalize multiple spaces to a single space
-  return normalized.replace(/\s+/g, ' ').trim();
+  return answer.trim().toLowerCase().replace(/[`’]/g, "'");
 }
 
-
-export default function WordTestInput({ word, onAnswer, showNextButton = false, onNext }: WordTestInputProps) {
+export default function WordTestInput({ 
+  word, 
+  onAnswer, 
+  onNext,
+  onSubmitAnswer, 
+  isLastWord = false 
+}: WordTestInputProps) {
   const [userAnswer, setUserAnswer] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
+  
+  // Determine the mode based on which callback is provided
+  const isOnlineTestMode = !!onSubmitAnswer;
   const uniqueId = `word-input-${word.id}`;
 
   useEffect(() => {
+    // Reset state for the new word
     setUserAnswer('');
     setIsSubmitted(false);
-    setShowPassword(false);
     if (inputRef.current) {
       inputRef.current.focus();
     }
   }, [word]);
 
-  const handleFormSubmit = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (isSubmitted) return;
-
-    const normalizedUserAnswer = normalizeAnswer(userAnswer);
-    const normalizedCorrectAnswer = normalizeAnswer(word.english);
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     
-    const correct = normalizedUserAnswer === normalizedCorrectAnswer;
-    
-    setIsCorrect(correct);
-    setIsSubmitted(true);
-    setShowPassword(true); // Automatically show text after submission
-    onAnswer(correct, userAnswer.trim());
-  };
+    if (isOnlineTestMode) {
+      // Online test: just submit the answer and the parent component handles the rest.
+      onSubmitAnswer(userAnswer.trim());
+    } else {
+      // Regular test with immediate feedback
+      if (isSubmitted) { // If feedback is already shown, button acts as "Next"
+        onNext?.();
+        return;
+      }
+      
+      const cleanUserAnswer = normalizeAnswer(userAnswer);
+      const cleanCorrectAnswer = normalizeAnswer(word.english);
+      const correct = cleanUserAnswer === cleanCorrectAnswer;
 
-  const handleNextClick = () => {
-    if(onNext) {
-        onNext();
+      setIsCorrect(correct);
+      setIsSubmitted(true);
+      onAnswer?.(correct, userAnswer.trim());
     }
   };
-
+  
   const handleRetryInternal = () => {
     setUserAnswer('');
     setIsSubmitted(false);
-    setShowPassword(false);
     if (inputRef.current) {
       inputRef.current.focus();
     }
@@ -149,39 +99,27 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
               ref={inputRef}
               id={uniqueId}
               name={uniqueId}
-              type={showPassword ? 'text' : 'password'}
+              type="text"
+              autoComplete="one-time-code" // Helps prevent browser autofill
               value={userAnswer}
               onChange={(e) => setUserAnswer(e.target.value)}
               placeholder="Введите перевод на английском"
-              disabled={isSubmitted}
-              className={`text-lg p-4 h-14 pr-12 ${isSubmitted ? (isCorrect ? 'border-green-500 focus:border-green-500 ring-green-500' : 'border-red-500 focus:border-red-500 ring-red-500') : ''}`}
+              disabled={isSubmitted && !isOnlineTestMode} // Disable only for regular tests after submission
+              className={`text-lg p-4 h-14 ${isSubmitted && !isOnlineTestMode ? (isCorrect ? 'border-green-500' : 'border-red-500') : ''}`}
               aria-label="Поле для ввода перевода"
             />
-            {!isSubmitted && (
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground"
-                    onClick={() => setShowPassword(prev => !prev)}
-                    aria-label={showPassword ? "Скрыть ответ" : "Показать ответ"}
-                >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </Button>
-            )}
           </div>
-          {!isSubmitted ? (
             <Button type="submit" className="w-full text-lg py-3" size="lg">
-              Проверить
+              {isOnlineTestMode 
+                ? (isLastWord ? 'Завершить тест' : 'Дальше') 
+                : (isSubmitted ? 'Дальше' : 'Проверить')}
+              {isLastWord && isOnlineTestMode && <Send className="ml-2 h-5 w-5" />}
+              {!isLastWord && isOnlineTestMode && <ChevronRight className="ml-2 h-5 w-5" />}
+              {!isOnlineTestMode && <ChevronRight className="ml-2 h-5 w-5" />}
             </Button>
-          ) : showNextButton && onNext ? (
-            <Button type="button" onClick={handleNextClick} className="w-full text-lg py-3" size="lg">
-              Дальше <ChevronRight className="ml-2 h-5 w-5" />
-            </Button>
-          ) : null }
         </form>
 
-        {isSubmitted && (
+        {!isOnlineTestMode && isSubmitted && (
           <div className={`p-4 rounded-md text-center ${isCorrect ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'}`}>
             {isCorrect ? (
               <div className="flex items-center justify-center text-green-700 dark:text-green-300">
@@ -196,7 +134,7 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
                 </div>
                 <p className="text-md">Ваш ответ: <span className="font-mono">{userAnswer || "(пусто)"}</span></p>
                 <p className="text-md">Правильный ответ: <span className="font-semibold font-mono">{word.english}</span></p>
-                {!showNextButton && (
+                {!onNext && ( // Show retry only if it's a single-word practice (no onNext)
                   <Button onClick={handleRetryInternal} variant="outline" size="sm" className="mt-2">
                     <RotateCcw className="mr-2 h-4 w-4" /> Попробовать еще раз
                   </Button>
@@ -205,6 +143,7 @@ export default function WordTestInput({ word, onAnswer, showNextButton = false, 
             )}
           </div>
         )}
+
       </CardContent>
     </Card>
   );

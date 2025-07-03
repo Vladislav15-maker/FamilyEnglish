@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, BookOpen, ThumbsUp, Repeat, ChevronLeft, Loader2, Timer, Send } from 'lucide-react';
+import { AlertCircle, BookOpen, Loader2, Timer, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
@@ -38,32 +38,70 @@ export default function OnlineTestTakePage() {
   const [existingResult, setExistingResult] = useState<OnlineTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const stateRef = useRef({
-    isTestFinished: false,
-    isSubmitting: false,
-    attempts: [] as Attempt[],
-    timeRemaining: 0,
-    test: null as OnlineTest | null,
-    user: null as AuthenticatedUser | null,
-  });
-
-  useEffect(() => {
-    stateRef.current = {
-      isTestFinished,
-      isSubmitting,
-      attempts,
-      timeRemaining,
-      test,
-      user,
-    };
-  });
-
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const submitTest = useCallback((finalAttempts: Attempt[], finalTimeRemaining: number) => {
+    if (!user || !test || isSubmitting) return;
+
+    setIsSubmitting(true);
+    if (timerRef.current) clearInterval(timerRef.current);
+    
+    // Ensure all words have an attempt, even if empty
+    const allWordsAnswers = test.words.map(word => {
+        const attempt = finalAttempts.find(a => a.wordId === word.id);
+        return attempt || { wordId: word.id, userAnswer: '' };
+    });
+
+    const durationSeconds = (test.durationMinutes * 60) - finalTimeRemaining;
+
+    const payload = {
+        onlineTestId: test.id,
+        answers: allWordsAnswers,
+        durationSeconds,
+    };
+
+    fetch('/api/student/online-tests/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    .then(async (response) => {
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error?.message || errorData.error || 'Не удалось отправить тест на проверку.');
+        }
+        return response.json();
+    })
+    .then((savedResult: OnlineTestResult) => {
+        toast({ title: "Тест отправлен!", description: `Ваши ответы отправлены учителю на проверку.` });
+        router.push(`/dashboard/student/online-tests`);
+    })
+    .catch((error) => {
+        console.error("[OnlineTest] Failed to save result:", error);
+        toast({ title: "Ошибка", description: (error as Error).message, variant: "destructive" });
+        setIsSubmitting(false); // Allow retrying submission if it failed
+    });
+  }, [user, test, router, toast, isSubmitting]);
+
+
+  const handleFinishTest = useCallback(() => {
+    // This state change triggers the useEffect to submit the test
+    setIsTestFinished(true);
+  }, []);
+
+  // Effect to run submission logic when test is marked as finished
+  useEffect(() => {
+    if (isTestFinished && !isSubmitting) {
+      submitTest(attempts, timeRemaining);
+    }
+  }, [isTestFinished, isSubmitting, attempts, timeRemaining, submitTest]);
+
+
+  // Effect for setting up the test and timer
   useEffect(() => {
     if (testId && user) {
       setIsLoading(true);
@@ -94,15 +132,14 @@ export default function OnlineTestTakePage() {
           console.error("Failed to setup test:", err);
           setError((err as Error).message);
         })
-        .finally(() => {
-          setIsLoading(false);
-        });
+        .finally(() => setIsLoading(false));
 
     } else if (!user) {
         setIsLoading(false);
     }
   }, [testId, user]);
 
+  // Effect for timer
   useEffect(() => {
     if (!test || isTestFinished || existingResult) {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -121,95 +158,41 @@ export default function OnlineTestTakePage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [test, timeRemaining, isTestFinished, existingResult]);
+  }, [test, timeRemaining, isTestFinished, existingResult, handleFinishTest]);
 
-  const submitTest = useCallback((finalAttempts: Attempt[], finalTimeRemaining: number) => {
-    if (!user || !test) return;
+  // Effect for handling page exit
+   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // Only submit if test is running and not already finished/submitted
+        if (test && user && !isTestFinished && !isSubmitting) {
+          const allWordsAnswers = test.words.map(word => {
+              const attempt = attempts.find(a => a.wordId === word.id);
+              return attempt || { wordId: word.id, userAnswer: '' };
+          });
+          const durationSeconds = (test.durationMinutes * 60) - timeRemaining;
+          const payload = {
+            onlineTestId: test.id,
+            answers: allWordsAnswers,
+            durationSeconds,
+          };
+          
+          const formData = new FormData();
+          formData.append('json', JSON.stringify(payload));
 
-    setIsSubmitting(true);
-    if (timerRef.current) clearInterval(timerRef.current);
-    
-    // Ensure all words have an attempt, even if empty
-    const allWordsAnswers = test.words.map(word => {
-        const attempt = finalAttempts.find(a => a.wordId === word.id);
-        return attempt || { wordId: word.id, userAnswer: '' };
-    });
-
-    const durationSeconds = (test.durationMinutes * 60) - finalTimeRemaining;
-
-    const payload = {
-        onlineTestId: test.id,
-        answers: allWordsAnswers, // No 'correct' or 'score' field
-        durationSeconds,
-    };
-
-    fetch('/api/student/online-tests/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    .then(async (response) => {
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Не удалось отправить тест на проверку.');
+          navigator.sendBeacon('/api/student/online-tests/submit', JSON.stringify(payload));
         }
-        return response.json();
-    })
-    .then((savedResult: OnlineTestResult) => {
-        toast({ title: "Тест отправлен!", description: `Ваши ответы отправлены учителю на проверку.` });
-        router.push(`/dashboard/student/online-tests`);
-    })
-    .catch((error) => {
-        console.error("[OnlineTest] Failed to save result:", error);
-        toast({ title: "Ошибка", description: (error as Error).message, variant: "destructive" });
-        setIsSubmitting(false); 
-        setIsTestFinished(false);
-    });
-  }, [user, test, router, toast]);
-
-  const handleFinishTest = useCallback(() => {
-    setIsTestFinished(true);
-    // The submission logic is now centralized in the `submitTest` function,
-    // triggered by this `useEffect` when `isTestFinished` becomes true.
-  }, []);
-
-  useEffect(() => {
-    if (isTestFinished && !isSubmitting) {
-      submitTest(attempts, timeRemaining);
-    }
-  }, [isTestFinished, isSubmitting, attempts, timeRemaining, submitTest]);
-
-  useEffect(() => {
-    const handleUnload = () => {
-      const { isTestFinished, isSubmitting, test, user, attempts, timeRemaining } = stateRef.current;
-      
-      if (!isTestFinished && !isSubmitting && test && user) {
-        const allWordsAnswers = test.words.map(word => {
-            const attempt = attempts.find(a => a.wordId === word.id);
-            return attempt || { wordId: word.id, userAnswer: '' };
-        });
-        const durationSeconds = (test.durationMinutes * 60) - timeRemaining;
-        const payload = {
-          onlineTestId: test.id,
-          answers: allWordsAnswers,
-          durationSeconds,
-        };
-        
-        fetch('/api/student/online-tests/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-            keepalive: true,
-        });
       }
     };
-
-    window.addEventListener('beforeunload', handleUnload);
+    
+    // Use `visibilitychange` as it is more reliable than `beforeunload` for `sendBeacon`
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
     return () => {
-        window.removeEventListener('beforeunload', handleUnload);
-        handleUnload(); // Also attempt to save on component unmount (e.g., navigating away)
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [test, user, isTestFinished, isSubmitting, attempts, timeRemaining]);
+
 
   const handleWordSubmit = (userAnswer: string) => {
     if (!test || !shuffledWords[currentWordIndex]) return;
@@ -219,7 +202,6 @@ export default function OnlineTestTakePage() {
       userAnswer,
     };
     
-    // Replace existing attempt for this word, or add a new one.
     setAttempts(prev => {
         const otherAttempts = prev.filter(a => a.wordId !== newAttempt.wordId);
         return [...otherAttempts, newAttempt];
@@ -258,7 +240,7 @@ export default function OnlineTestTakePage() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Тест уже пройден или проверяется</AlertTitle>
                 <AlertDescription>
-                    Вы уже прошли этот тест и не можете пройти его снова. Ожидайте результатов проверки.
+                    Вы уже отправляли этот тест на проверку и не можете пройти его снова. Ожидайте результатов.
                 </AlertDescription>
                 <div className="mt-4 flex gap-4">
                     <Button asChild variant="outline">
