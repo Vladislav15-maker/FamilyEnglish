@@ -8,13 +8,11 @@ import type { OnlineTest, Word, OnlineTestResult, AuthenticatedUser } from '@/li
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, BookOpen, Loader2, Timer, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 
-// This only tracks the user's raw answer. Correctness is determined later by the teacher.
 type Attempt = { wordId: string; userAnswer: string; };
 
 export default function OnlineTestTakePage() {
@@ -24,89 +22,82 @@ export default function OnlineTestTakePage() {
   
   const { user } = useAuth();
   const { toast } = useToast();
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
   
-  const isSubmittingRef = useRef(false);
-
   const [test, setTest] = useState<OnlineTest | null>(null);
   const [shuffledWords, setShuffledWords] = useState<Word[]>([]);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
-  const [isTestFinished, setIsTestFinished] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  
   const [timeRemaining, setTimeRemaining] = useState(0);
 
+  // State flags
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Used to show loader and disable UI
+  const [isFinished, setIsFinished] = useState(false); // Set to true only AFTER a successful submission to prevent re-submission
   const [existingResult, setExistingResult] = useState<OnlineTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // This ref will hold the latest state, preventing stale closures in event listeners.
-  const latestState = useRef({ attempts, timeRemaining, test, user, isTestFinished });
+  // Ref to hold the latest state for the unload handler
+  const stateRef = useRef({ attempts, timeRemaining, test, user, isSubmitting, isFinished, existingResult });
   useEffect(() => {
-    latestState.current = { attempts, timeRemaining, test, user, isTestFinished };
-  }, [attempts, timeRemaining, test, user, isTestFinished]);
+    stateRef.current = { attempts, timeRemaining, test, user, isSubmitting, isFinished, existingResult };
+  }, [attempts, timeRemaining, test, user, isSubmitting, isFinished, existingResult]);
 
 
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const submitTest = useCallback(() => {
-    const { test, user, attempts, timeRemaining, isTestFinished } = latestState.current;
-
-    if (!user || !test || isSubmittingRef.current || isTestFinished) return;
-    isSubmittingRef.current = true;
+  const submitTest = useCallback(async () => {
+    // Prevent multiple submissions
+    if (stateRef.current.isSubmitting || stateRef.current.isFinished) {
+      return;
+    }
     
-    setIsTestFinished(true);
-    if (timerRef.current) clearInterval(timerRef.current);
-    
+    setIsSubmitting(true);
+    toast({ title: "Завершение теста...", description: "Отправляем ваши ответы на проверку." });
+
+    const { test, user, attempts, timeRemaining } = stateRef.current;
+
+    if (!user || !test) {
+      setIsSubmitting(false);
+      toast({ title: "Ошибка", description: "Недостаточно данных для отправки теста.", variant: "destructive" });
+      return;
+    }
+
     const allWordsAnswers = test.words.map(word => {
         const attempt = attempts.find(a => a.wordId === word.id);
         return attempt || { wordId: word.id, userAnswer: '' };
     });
-
     const durationSeconds = test.durationMinutes > 0 ? (test.durationMinutes * 60) - timeRemaining : 0;
-
     const payload = {
         onlineTestId: test.id,
         answers: allWordsAnswers,
         durationSeconds,
     };
 
-    fetch('/api/student/online-tests/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      keepalive: true, // IMPORTANT: Ensure request completes even if page navigates away
-    })
-    .then(async (response) => {
+    try {
+        const response = await fetch('/api/student/online-tests/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            const errorMessage = (errorData.error?.message || typeof errorData.error === 'string' ? errorData.error : null) || 'Не удалось отправить тест на проверку.';
-            throw new Error(errorMessage);
+            throw new Error(errorData.error?.message || 'Не удалось отправить тест.');
         }
-        return response.json();
-    })
-    .then((savedResult: OnlineTestResult) => {
-        toast({ title: "Тест отправлен!", description: `Ваши ответы отправлены учителю на проверку.` });
+        
+        toast({ title: "Тест отправлен!", description: "Ваши ответы отправлены учителю на проверку." });
+        setIsFinished(true); // Mark as finished to prevent unload handler from firing
         router.push(`/dashboard/student/online-tests`);
-    })
-    .catch((error) => {
-        console.error("[OnlineTest] Failed to save result:", error);
-        toast({ title: "Ошибка", description: (error as Error).message, variant: "destructive" });
-        setIsTestFinished(false); // Allow re-submission
-        isSubmittingRef.current = false;
-    });
+
+    } catch (err) {
+        console.error("[OnlineTest] Failed to save result:", err);
+        toast({ title: "Ошибка", description: (err as Error).message, variant: "destructive" });
+        setIsSubmitting(false); // Allow re-submission on error
+    }
   }, [router, toast]);
 
+  // Effect to load initial data
   useEffect(() => {
     if (testId && user) {
       setIsLoading(true);
-      setError(null);
-      setExistingResult(null);
-
       fetch('/api/student/online-tests')
         .then(res => {
           if (!res.ok) throw new Error("Не удалось проверить статус теста.");
@@ -135,42 +126,42 @@ export default function OnlineTestTakePage() {
         })
         .finally(() => setIsLoading(false));
 
-    } else {
+    } else if (!user) {
         setIsLoading(false);
     }
   }, [testId, user]);
 
+
+  // Effect for the timer
   useEffect(() => {
-    if (!test || test.durationMinutes <= 0 || isTestFinished || existingResult) {
-      if (timerRef.current) clearInterval(timerRef.current);
+    if (isFinished || isSubmitting || !test || test.durationMinutes <= 0 || existingResult) {
       return;
     }
+    const timer = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          submitTest();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-    if (timeRemaining > 0) {
-      timerRef.current = setInterval(() => {
-        setTimeRemaining(prev => prev - 1);
-      }, 1000);
-    } else if (timeRemaining <= 0 && !isTestFinished) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      submitTest();
-    }
+    return () => clearInterval(timer);
+  }, [test, isSubmitting, isFinished, existingResult, submitTest]);
 
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [test, timeRemaining, isTestFinished, existingResult, submitTest]);
 
-  // FINAL, ROBUST auto-submit on page leave
+  // Effect for the unload handler (safety net)
   useEffect(() => {
     const handleUnload = () => {
-      // Use the ref to get the absolute latest state, avoiding stale closures.
-      const { test, user, attempts, timeRemaining, isTestFinished } = latestState.current;
+      // Use ref to get the absolute latest state
+      const { test, user, isSubmitting, isFinished, existingResult, attempts, timeRemaining } = stateRef.current;
       
-      // We only bail if the test was *already* marked as finished and submitted.
-      // We do NOT check isSubmittingRef, as this unload handler is a backup
-      // in case the main submission fetch gets cancelled by the browser navigation.
-      // The database's ON CONFLICT clause will gracefully handle any potential race condition.
-      if (!test || !user || isTestFinished) {
+      // Do not run if: there is already a result from a previous session, 
+      // the test is already finished/submitted via normal flow,
+      // a graceful submission is already in progress, or no data.
+      if (existingResult || isFinished || isSubmitting || !test || !user) {
         return;
       }
       
@@ -178,9 +169,7 @@ export default function OnlineTestTakePage() {
         const attempt = attempts.find(a => a.wordId === word.id);
         return { wordId: word.id, userAnswer: attempt?.userAnswer || '' };
       });
-
       const durationSeconds = test.durationMinutes > 0 ? (test.durationMinutes * 60) - timeRemaining : 0;
-      
       const payload = {
         onlineTestId: test.id,
         answers: allWordsAnswers,
@@ -188,7 +177,6 @@ export default function OnlineTestTakePage() {
       };
       
       // Use fetch with keepalive: true. This is the most reliable method for unload events.
-      // It correctly sends credentials (cookies) for authentication.
       fetch('/api/student/online-tests/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -197,15 +185,12 @@ export default function OnlineTestTakePage() {
       });
     };
     
-    // Listen to both events for maximum compatibility.
     window.addEventListener('pagehide', handleUnload);
-    window.addEventListener('beforeunload', handleUnload);
     
     return () => {
       window.removeEventListener('pagehide', handleUnload);
-      window.removeEventListener('beforeunload', handleUnload);
     };
-  }, []); // Empty dependency array is correct, it uses the `latestState` ref.
+  }, []); // Correctly empty, uses ref for state
 
   const handleWordSubmit = (userAnswer: string) => {
     if (!test || !shuffledWords[currentWordIndex]) return;
@@ -225,6 +210,12 @@ export default function OnlineTestTakePage() {
     } else {
       submitTest();
     }
+  };
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (isLoading) {
@@ -276,14 +267,7 @@ export default function OnlineTestTakePage() {
     );
   }
 
-  if (!test) {
-     return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Тест не найден</AlertTitle></Alert>;
-  }
-
-  const currentWord: Word | undefined = shuffledWords[currentWordIndex];
-  const progressPercentage = shuffledWords.length > 0 ? ((currentWordIndex) / shuffledWords.length) * 100 : 0;
-
-  if (isTestFinished) {
+  if (isSubmitting) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)]">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -291,6 +275,13 @@ export default function OnlineTestTakePage() {
         </div>
       )
   }
+
+  if (!test) {
+     return <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Тест не найден</AlertTitle></Alert>;
+  }
+
+  const currentWord: Word | undefined = shuffledWords[currentWordIndex];
+  const progressPercentage = shuffledWords.length > 0 ? ((currentWordIndex) / shuffledWords.length) * 100 : 0;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] space-y-6 p-4">
