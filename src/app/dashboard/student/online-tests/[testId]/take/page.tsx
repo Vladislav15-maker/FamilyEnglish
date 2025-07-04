@@ -26,7 +26,6 @@ export default function OnlineTestTakePage() {
   const { toast } = useToast();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Ref to prevent multiple submissions from different events
   const isSubmittingRef = useRef(false);
 
   const [test, setTest] = useState<OnlineTest | null>(null);
@@ -80,6 +79,7 @@ export default function OnlineTestTakePage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      keepalive: true, // IMPORTANT: Ensure request completes even if page navigates away
     })
     .then(async (response) => {
         if (!response.ok) {
@@ -96,7 +96,7 @@ export default function OnlineTestTakePage() {
     .catch((error) => {
         console.error("[OnlineTest] Failed to save result:", error);
         toast({ title: "Ошибка", description: (error as Error).message, variant: "destructive" });
-        setIsTestFinished(false);
+        setIsTestFinished(false); // Allow re-submission
         isSubmittingRef.current = false;
     });
   }, [router, toast]);
@@ -160,20 +160,20 @@ export default function OnlineTestTakePage() {
     };
   }, [test, timeRemaining, isTestFinished, existingResult, submitTest]);
 
-  // More robust auto-submit on page leave
+  // FINAL, ROBUST auto-submit on page leave
   useEffect(() => {
-    const handlePageHide = () => {
+    const handleUnload = () => {
       // Use the ref to get the absolute latest state, avoiding stale closures.
       const { test, user, attempts, timeRemaining, isTestFinished } = latestState.current;
       
-      // Do not submit if test is already finished, being submitted, or no test/user data.
-      if (isSubmittingRef.current || !test || !user || isTestFinished) {
+      // We only bail if the test was *already* marked as finished and submitted.
+      // We do NOT check isSubmittingRef, as this unload handler is a backup
+      // in case the main submission fetch gets cancelled by the browser navigation.
+      // The database's ON CONFLICT clause will gracefully handle any potential race condition.
+      if (!test || !user || isTestFinished) {
         return;
       }
       
-      // Mark as submitting immediately to prevent duplicate calls.
-      isSubmittingRef.current = true;
-
       const allWordsAnswers = test.words.map(word => {
         const attempt = attempts.find(a => a.wordId === word.id);
         return { wordId: word.id, userAnswer: attempt?.userAnswer || '' };
@@ -187,22 +187,23 @@ export default function OnlineTestTakePage() {
         durationSeconds,
       };
       
-      // Use fetch with keepalive: true. This is more reliable than sendBeacon
-      // as it sends credentials (cookies) by default, ensuring the API request is authenticated.
+      // Use fetch with keepalive: true. This is the most reliable method for unload events.
+      // It correctly sends credentials (cookies) for authentication.
       fetch('/api/student/online-tests/submit', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
         keepalive: true,
       });
     };
     
-    window.addEventListener('pagehide', handlePageHide);
+    // Listen to both events for maximum compatibility.
+    window.addEventListener('pagehide', handleUnload);
+    window.addEventListener('beforeunload', handleUnload);
     
     return () => {
-      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('pagehide', handleUnload);
+      window.removeEventListener('beforeunload', handleUnload);
     };
   }, []); // Empty dependency array is correct, it uses the `latestState` ref.
 
@@ -326,5 +327,3 @@ export default function OnlineTestTakePage() {
     </div>
   );
 }
-
-    
