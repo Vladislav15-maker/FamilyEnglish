@@ -160,14 +160,20 @@ export default function OnlineTestTakePage() {
     };
   }, [test, timeRemaining, isTestFinished, existingResult, submitTest]);
 
+  // More robust auto-submit on page leave
   useEffect(() => {
     const handlePageHide = () => {
+      // Use the ref to get the absolute latest state, avoiding stale closures.
       const { test, user, attempts, timeRemaining, isTestFinished } = latestState.current;
       
-      if (!test || !user || isTestFinished || isSubmittingRef.current) {
+      // Do not submit if test is already finished, being submitted, or no test/user data.
+      if (isSubmittingRef.current || !test || !user || isTestFinished) {
         return;
       }
       
+      // Mark as submitting immediately to prevent duplicate calls.
+      isSubmittingRef.current = true;
+
       const allWordsAnswers = test.words.map(word => {
         const attempt = attempts.find(a => a.wordId === word.id);
         return { wordId: word.id, userAnswer: attempt?.userAnswer || '' };
@@ -181,8 +187,16 @@ export default function OnlineTestTakePage() {
         durationSeconds,
       };
       
-      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json; charset=UTF-8' });
-      navigator.sendBeacon('/api/student/online-tests/submit', blob);
+      // Use fetch with keepalive: true. This is more reliable than sendBeacon
+      // as it sends credentials (cookies) by default, ensuring the API request is authenticated.
+      fetch('/api/student/online-tests/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      });
     };
     
     window.addEventListener('pagehide', handlePageHide);
@@ -190,7 +204,7 @@ export default function OnlineTestTakePage() {
     return () => {
       window.removeEventListener('pagehide', handlePageHide);
     };
-  }, []); // Empty dependency array is correct here, it uses the `latestState` ref.
+  }, []); // Empty dependency array is correct, it uses the `latestState` ref.
 
   const handleWordSubmit = (userAnswer: string) => {
     if (!test || !shuffledWords[currentWordIndex]) return;
@@ -312,3 +326,5 @@ export default function OnlineTestTakePage() {
     </div>
   );
 }
+
+    
