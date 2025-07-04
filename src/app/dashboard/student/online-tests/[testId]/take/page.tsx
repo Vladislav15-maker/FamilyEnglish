@@ -8,7 +8,7 @@ import type { OnlineTest, Word, OnlineTestResult, AuthenticatedUser } from '@/li
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, BookOpen, Loader2, Timer, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -25,7 +25,9 @@ export default function OnlineTestTakePage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const isSubmittingRef = useRef(false); // Use ref to avoid stale state in closures
+  
+  // Ref to prevent multiple submissions from different events
+  const isSubmittingRef = useRef(false);
 
   const [test, setTest] = useState<OnlineTest | null>(null);
   const [shuffledWords, setShuffledWords] = useState<Word[]>([]);
@@ -39,11 +41,11 @@ export default function OnlineTestTakePage() {
   const [existingResult, setExistingResult] = useState<OnlineTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Ref to hold the latest state to prevent stale closures in event listeners
-  const latestStateRef = useRef({ attempts, timeRemaining, isTestFinished });
+  // This ref will hold the latest state, preventing stale closures in event listeners.
+  const latestState = useRef({ attempts, timeRemaining, test, user, isTestFinished });
   useEffect(() => {
-    latestStateRef.current = { attempts, timeRemaining, isTestFinished };
-  }, [attempts, timeRemaining, isTestFinished]);
+    latestState.current = { attempts, timeRemaining, test, user, isTestFinished };
+  }, [attempts, timeRemaining, test, user, isTestFinished]);
 
 
   const formatTime = (seconds: number) => {
@@ -52,20 +54,21 @@ export default function OnlineTestTakePage() {
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const submitTest = useCallback((finalAttempts: Attempt[], finalTimeRemaining: number) => {
-    if (!user || !test || isSubmittingRef.current) return;
+  const submitTest = useCallback(() => {
+    const { test, user, attempts, timeRemaining, isTestFinished } = latestState.current;
+
+    if (!user || !test || isSubmittingRef.current || isTestFinished) return;
     isSubmittingRef.current = true;
     
-    setIsTestFinished(true); // This will trigger the loading overlay
+    setIsTestFinished(true);
     if (timerRef.current) clearInterval(timerRef.current);
     
-    // Ensure all words have an attempt, even if empty
     const allWordsAnswers = test.words.map(word => {
-        const attempt = finalAttempts.find(a => a.wordId === word.id);
+        const attempt = attempts.find(a => a.wordId === word.id);
         return attempt || { wordId: word.id, userAnswer: '' };
     });
 
-    const durationSeconds = test.durationMinutes > 0 ? (test.durationMinutes * 60) - finalTimeRemaining : 0;
+    const durationSeconds = test.durationMinutes > 0 ? (test.durationMinutes * 60) - timeRemaining : 0;
 
     const payload = {
         onlineTestId: test.id,
@@ -93,16 +96,11 @@ export default function OnlineTestTakePage() {
     .catch((error) => {
         console.error("[OnlineTest] Failed to save result:", error);
         toast({ title: "Ошибка", description: (error as Error).message, variant: "destructive" });
-        setIsTestFinished(false); // Allow resubmission
+        setIsTestFinished(false);
         isSubmittingRef.current = false;
     });
-  }, [user, test, router, toast]);
+  }, [router, toast]);
 
-  const handleFinishTest = useCallback(() => {
-    submitTest(attempts, timeRemaining);
-  }, [attempts, timeRemaining, submitTest]);
-
-  // Effect for setting up the test and timer
   useEffect(() => {
     if (testId && user) {
       setIsLoading(true);
@@ -138,12 +136,10 @@ export default function OnlineTestTakePage() {
         .finally(() => setIsLoading(false));
 
     } else {
-        // If there's no user or no testId, we are not loading.
         setIsLoading(false);
     }
   }, [testId, user]);
 
-  // Effect for timer
   useEffect(() => {
     if (!test || test.durationMinutes <= 0 || isTestFinished || existingResult) {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -156,53 +152,45 @@ export default function OnlineTestTakePage() {
       }, 1000);
     } else if (timeRemaining <= 0 && !isTestFinished) {
       if (timerRef.current) clearInterval(timerRef.current);
-      handleFinishTest();
+      submitTest();
     }
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [test, timeRemaining, isTestFinished, existingResult, handleFinishTest]);
+  }, [test, timeRemaining, isTestFinished, existingResult, submitTest]);
 
-  // Effect for handling page exit (auto-submit)
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      // Use the ref here to get the latest state
-      const { attempts, timeRemaining, isTestFinished } = latestStateRef.current;
-      if (
-        document.visibilityState === 'hidden' &&
-        test &&
-        user &&
-        !isTestFinished &&
-        !isSubmittingRef.current
-      ) {
-        isSubmittingRef.current = true;
-        
-        const allWordsAnswers = test.words.map(word => {
-          const attempt = attempts.find(a => a.wordId === word.id);
-          return { wordId: word.id, userAnswer: attempt?.userAnswer || '' };
-        });
-
-        const durationSeconds = test.durationMinutes > 0 ? (test.durationMinutes * 60) - timeRemaining : 0;
-        
-        const payload = {
-          onlineTestId: test.id,
-          answers: allWordsAnswers,
-          durationSeconds,
-        };
-        
-        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json; charset=UTF-8' });
-        navigator.sendBeacon('/api/student/online-tests/submit', blob);
+    const handlePageHide = () => {
+      const { test, user, attempts, timeRemaining, isTestFinished } = latestState.current;
+      
+      if (!test || !user || isTestFinished || isSubmittingRef.current) {
+        return;
       }
+      
+      const allWordsAnswers = test.words.map(word => {
+        const attempt = attempts.find(a => a.wordId === word.id);
+        return { wordId: word.id, userAnswer: attempt?.userAnswer || '' };
+      });
+
+      const durationSeconds = test.durationMinutes > 0 ? (test.durationMinutes * 60) - timeRemaining : 0;
+      
+      const payload = {
+        onlineTestId: test.id,
+        answers: allWordsAnswers,
+        durationSeconds,
+      };
+      
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json; charset=UTF-8' });
+      navigator.sendBeacon('/api/student/online-tests/submit', blob);
     };
     
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
     
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
     };
-  }, [test, user]);
-
+  }, []); // Empty dependency array is correct here, it uses the `latestState` ref.
 
   const handleWordSubmit = (userAnswer: string) => {
     if (!test || !shuffledWords[currentWordIndex]) return;
@@ -220,7 +208,7 @@ export default function OnlineTestTakePage() {
     if (currentWordIndex < shuffledWords.length - 1) {
       setCurrentWordIndex(prev => prev + 1);
     } else {
-      handleFinishTest();
+      submitTest();
     }
   };
 
@@ -233,7 +221,7 @@ export default function OnlineTestTakePage() {
   }
 
   if (!user) {
-     return <Alert variant="destructive"><BookOpen className="h-4 w-4" /><AlertTitle>Доступ запрещен</AlertTitle><AlertDescription>Пожалуйста, войдите в систему.</AlertDescription></Alert>;
+     return <Alert variant="default"><BookOpen className="h-4 w-4" /><AlertTitle>Доступ запрещен</AlertTitle><AlertDescription>Пожалуйста, войдите в систему.</AlertDescription></Alert>;
   }
 
   if (existingResult) {
