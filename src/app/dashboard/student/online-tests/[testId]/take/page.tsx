@@ -31,45 +31,64 @@ export default function OnlineTestTakePage() {
 
   // State flags
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Used to show loader and disable UI
-  const [isFinished, setIsFinished] = useState(false); // Set to true only AFTER a successful submission to prevent re-submission
+  const [isSubmitting, setIsSubmitting] = useState(false); // Used ONLY for graceful submission UI
+  const [isFinished, setIsFinished] = useState(false); // A flag to prevent any further submissions
   const [existingResult, setExistingResult] = useState<OnlineTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Ref to hold the latest state for the unload handler
-  const stateRef = useRef({ attempts, timeRemaining, test, user, isSubmitting, isFinished, existingResult });
+  // Use a ref to hold the latest state for the unload handler, preventing stale closures.
+  const submissionDataRef = useRef({ test, user, attempts, timeRemaining, isFinished, isSubmitting });
   useEffect(() => {
-    stateRef.current = { attempts, timeRemaining, test, user, isSubmitting, isFinished, existingResult };
-  }, [attempts, timeRemaining, test, user, isSubmitting, isFinished, existingResult]);
+    submissionDataRef.current = { test, user, attempts, timeRemaining, isFinished, isSubmitting };
+  }, [test, user, attempts, timeRemaining, isFinished, isSubmitting]);
 
-
-  const submitTest = useCallback(async () => {
-    // Prevent multiple submissions
-    if (stateRef.current.isSubmitting || stateRef.current.isFinished) {
+  const submitTest = useCallback(async (isUnload = false) => {
+    // This is the core submission logic.
+    // It can be called gracefully (awaitable) or on unload (fire-and-forget).
+    const { 
+      test: currentTest, 
+      user: currentUser, 
+      attempts: currentAttempts, 
+      timeRemaining: currentTime
+    } = submissionDataRef.current;
+    
+    if (!currentUser || !currentTest) {
+      if (!isUnload) {
+        toast({ title: "Ошибка", description: "Недостаточно данных для отправки теста.", variant: "destructive" });
+      }
       return;
     }
     
-    setIsSubmitting(true);
-    toast({ title: "Завершение теста...", description: "Отправляем ваши ответы на проверку." });
+    // Set a flag immediately to prevent duplicate submissions
+    setIsFinished(true);
 
-    const { test, user, attempts, timeRemaining } = stateRef.current;
-
-    if (!user || !test) {
-      setIsSubmitting(false);
-      toast({ title: "Ошибка", description: "Недостаточно данных для отправки теста.", variant: "destructive" });
-      return;
-    }
-
-    const allWordsAnswers = test.words.map(word => {
-        const attempt = attempts.find(a => a.wordId === word.id);
+    const allWordsAnswers = currentTest.words.map(word => {
+        const attempt = currentAttempts.find(a => a.wordId === word.id);
         return attempt || { wordId: word.id, userAnswer: '' };
     });
-    const durationSeconds = test.durationMinutes > 0 ? (test.durationMinutes * 60) - timeRemaining : 0;
+
+    const durationSeconds = currentTest.durationMinutes > 0 ? (currentTest.durationMinutes * 60) - currentTime : 0;
+    
     const payload = {
-        onlineTestId: test.id,
+        onlineTestId: currentTest.id,
         answers: allWordsAnswers,
         durationSeconds,
     };
+
+    // For unload, we use keepalive and don't care about the response.
+    if (isUnload) {
+        fetch('/api/student/online-tests/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            keepalive: true,
+        });
+        return;
+    }
+
+    // For graceful submission, we show UI and handle the response.
+    setIsSubmitting(true);
+    toast({ title: "Завершение теста...", description: "Отправляем ваши ответы на проверку." });
 
     try {
         const response = await fetch('/api/student/online-tests/submit', {
@@ -84,15 +103,16 @@ export default function OnlineTestTakePage() {
         }
         
         toast({ title: "Тест отправлен!", description: "Ваши ответы отправлены учителю на проверку." });
-        setIsFinished(true); // Mark as finished to prevent unload handler from firing
         router.push(`/dashboard/student/online-tests`);
 
     } catch (err) {
         console.error("[OnlineTest] Failed to save result:", err);
         toast({ title: "Ошибка", description: (err as Error).message, variant: "destructive" });
         setIsSubmitting(false); // Allow re-submission on error
+        setIsFinished(false); // Reset finish flag on error
     }
   }, [router, toast]);
+
 
   // Effect to load initial data
   useEffect(() => {
@@ -107,6 +127,7 @@ export default function OnlineTestTakePage() {
           const currentTestStatus = testsWithStatus.find(t => t.id === testId);
           if (currentTestStatus?.lastResult) {
             setExistingResult(currentTestStatus.lastResult);
+            setIsFinished(true); // Mark as finished if there's already a result
           } else {
             const testData = getOnlineTestById(testId);
             if (testData) {
@@ -125,7 +146,6 @@ export default function OnlineTestTakePage() {
           setError((err as Error).message);
         })
         .finally(() => setIsLoading(false));
-
     } else if (!user) {
         setIsLoading(false);
     }
@@ -141,7 +161,9 @@ export default function OnlineTestTakePage() {
       setTimeRemaining(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          submitTest();
+          if (!submissionDataRef.current.isFinished) {
+            submitTest(false);
+          }
           return 0;
         }
         return prev - 1;
@@ -155,34 +177,9 @@ export default function OnlineTestTakePage() {
   // Effect for the unload handler (safety net)
   useEffect(() => {
     const handleUnload = () => {
-      // Use ref to get the absolute latest state
-      const { test, user, isSubmitting, isFinished, existingResult, attempts, timeRemaining } = stateRef.current;
-      
-      // Do not run if: there is already a result from a previous session, 
-      // the test is already finished/submitted via normal flow,
-      // a graceful submission is already in progress, or no data.
-      if (existingResult || isFinished || isSubmitting || !test || !user) {
-        return;
+      if (!submissionDataRef.current.isFinished) {
+        submitTest(true);
       }
-      
-      const allWordsAnswers = test.words.map(word => {
-        const attempt = attempts.find(a => a.wordId === word.id);
-        return { wordId: word.id, userAnswer: attempt?.userAnswer || '' };
-      });
-      const durationSeconds = test.durationMinutes > 0 ? (test.durationMinutes * 60) - timeRemaining : 0;
-      const payload = {
-        onlineTestId: test.id,
-        answers: allWordsAnswers,
-        durationSeconds,
-      };
-      
-      // Use fetch with keepalive: true. This is the most reliable method for unload events.
-      fetch('/api/student/online-tests/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        keepalive: true,
-      });
     };
     
     window.addEventListener('pagehide', handleUnload);
@@ -190,25 +187,23 @@ export default function OnlineTestTakePage() {
     return () => {
       window.removeEventListener('pagehide', handleUnload);
     };
-  }, []); // Correctly empty, uses ref for state
+  }, [submitTest]); // Dependency on the memoized submitTest
 
   const handleWordSubmit = (userAnswer: string) => {
-    if (!test || !shuffledWords[currentWordIndex]) return;
+    if (!test || !shuffledWords[currentWordIndex] || isFinished) return;
 
     const newAttempt: Attempt = {
       wordId: shuffledWords[currentWordIndex].id,
       userAnswer,
     };
     
-    setAttempts(prev => {
-        const otherAttempts = prev.filter(a => a.wordId !== newAttempt.wordId);
-        return [...otherAttempts, newAttempt];
-    });
+    setAttempts(prev => [...prev.filter(a => a.wordId !== newAttempt.wordId), newAttempt]);
 
     if (currentWordIndex < shuffledWords.length - 1) {
       setCurrentWordIndex(prev => prev + 1);
     } else {
-      submitTest();
+      // It's the last word, gracefully submit.
+      submitTest(false);
     }
   };
 
@@ -266,7 +261,8 @@ export default function OnlineTestTakePage() {
         </div>
     );
   }
-
+  
+  // This UI is shown ONLY during a graceful submission (last word, or timer runs out)
   if (isSubmitting) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)]">
