@@ -38,8 +38,6 @@ export default function WordTestInput({
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // This is the definitive way to determine the mode.
-  // If onSubmitAnswer is provided, it's an online test. No feedback is shown.
   const isOnlineTestMode = !!onSubmitAnswer;
 
   useEffect(() => {
@@ -47,12 +45,11 @@ export default function WordTestInput({
     setUserAnswer('');
     setIsSubmitted(false);
     setIsCorrect(false);
-    // For online tests, always keep the input hidden by default.
     setIsPasswordVisible(isOnlineTestMode ? false : isPasswordVisible);
     if (inputRef.current) {
       inputRef.current.focus();
     }
-  }, [word, isOnlineTestMode]); // Re-run effect if mode changes, though it shouldn't mid-test
+  }, [word, isOnlineTestMode]);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +77,8 @@ export default function WordTestInput({
   const buttonText = isOnlineTestMode 
     ? (isLastWord ? 'Завершить тест' : 'Дальше') 
     : (isSubmitted ? 'Дальше' : 'Проверить');
+  
+  const showNextButtonForPractice = isSubmitted && onNext;
 
   return (
     <Card className="w-full max-w-lg mx-auto shadow-xl">
@@ -118,9 +117,9 @@ export default function WordTestInput({
                 {isPasswordVisible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </Button>
           </div>
-            <Button type="submit" className="w-full text-lg py-3" size="lg">
+            <Button type="submit" className="w-full text-lg py-3" size="lg" disabled={showNextButtonForPractice}>
               {buttonText}
-              {isOnlineTestMode ? (isLastWord ? <Send className="ml-2 h-5 w-5" /> : <ChevronRight className="ml-2 h-5 w-5" />) : <ChevronRight className="ml-2 h-5 w-5" />}
+              {isOnlineTestMode ? (isLastWord ? <Send className="ml-2 h-5 w-5" /> : <ChevronRight className="ml-2 h-5 w-5" />) : isSubmitted ? <ChevronRight className="ml-2 h-5 w-5" /> : null}
             </Button>
         </form>
 

@@ -1,17 +1,17 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import WordTestInput from '@/components/curriculum/WordTestInput';
 import { getRoundById } from '@/lib/curriculum-data';
-import type { Round, Word, StudentRoundProgress } from '@/lib/types';
+import type { Round, Word } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 // DO NOT import saveStudentRoundProgress from '@/lib/store' directly
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, BookOpen, ThumbsUp, Repeat, ChevronLeft, Loader2 } from 'lucide-react';
+import { AlertCircle, BookOpen, ThumbsUp, Repeat, ChevronLeft, Loader2, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
@@ -36,6 +36,9 @@ export default function TestRoundPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Guard to prevent multiple submissions
+  const hasSubmitted = useRef(false);
+
   useEffect(() => {
     if (unitId && roundId) {
       const currentRoundData = getRoundById(unitId, roundId);
@@ -56,12 +59,15 @@ export default function TestRoundPage() {
   }, [totalWords]);
 
   // This effect now handles the entire test submission logic.
-  // It runs when `isTestFinished` is set to true.
   useEffect(() => {
-    if (isTestFinished && user && round && !isSubmitting) {
+    // We only want to run this logic when the test is marked as finished
+    // and hasn't been submitted yet.
+    if (isTestFinished && user && round && !hasSubmitted.current) {
+      hasSubmitted.current = true; // Set guard immediately
+      setIsSubmitting(true); // Signal that submission is in progress.
+      
       const finalScoreValue = calculateScore(attempts);
       setScore(finalScoreValue);
-      setIsSubmitting(true);
 
       const progressPayload = {
         unitId,
@@ -101,13 +107,13 @@ export default function TestRoundPage() {
           description: (error as Error).message || "Не удалось сохранить ваш прогресс. Попробуйте снова.",
           variant: "destructive"
         });
+        hasSubmitted.current = false; // Allow retry on submission error
       })
       .finally(() => {
         setIsSubmitting(false);
       });
     }
-  }, [isTestFinished, attempts, user, round, unitId, roundId, calculateScore, toast, isSubmitting]);
-
+  }, [isTestFinished, user, round, attempts, calculateScore, roundId, unitId, toast]);
 
   const handleAnswerSubmit = (isCorrect: boolean, userAnswer: string) => {
     if (!round || !shuffledWords[currentWordIndex]) return;
@@ -117,7 +123,7 @@ export default function TestRoundPage() {
       userAnswer,
       correct: isCorrect,
     };
-    // Add the new attempt to the state. This will be processed before the 'Next' click handler.
+    // Add the new attempt to the state.
     setAttempts(prevAttempts => [...prevAttempts, newAttempt]);
   };
 
@@ -136,6 +142,7 @@ export default function TestRoundPage() {
     setAttempts([]);
     setIsTestFinished(false);
     setScore(0);
+    hasSubmitted.current = false; // Reset submission guard
     if (round) {
       setShuffledWords([...round.words].sort(() => Math.random() - 0.5));
     }
@@ -186,10 +193,16 @@ export default function TestRoundPage() {
             <CardDescription>Отличная работа!</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-5xl font-bold text-primary">{score}%</p>
-            <p className="text-muted-foreground">
-              Вы правильно ответили на {attempts.filter(a => a.correct).length} из {totalWords} слов.
-            </p>
+            {isSubmitting ? (
+              <div className="flex items-center justify-center text-sm text-muted-foreground mt-2"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Сохранение результатов...</div>
+            ) : (
+              <>
+                <p className="text-5xl font-bold text-primary">{score}%</p>
+                <p className="text-muted-foreground">
+                  Вы правильно ответили на {attempts.filter(a => a.correct).length} из {totalWords} слов.
+                </p>
+              </>
+            )}
             <div className="flex gap-4 justify-center mt-6">
               <Button onClick={handleRetryTest} variant="outline" size="lg" disabled={isSubmitting}>
                 <Repeat className="mr-2 h-5 w-5" />
@@ -197,10 +210,9 @@ export default function TestRoundPage() {
               </Button>
               <Button onClick={() => router.push(`/dashboard/units/${unitId}`)} size="lg" disabled={isSubmitting}>
                 К юниту
-                <ChevronLeft className="ml-2 h-5 w-5 transform rotate-180" />
+                <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </div>
-             {isSubmitting && <div className="flex items-center justify-center text-sm text-muted-foreground mt-2"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Сохранение результатов...</div>}
           </CardContent>
         </Card>
       </div>
@@ -216,7 +228,7 @@ export default function TestRoundPage() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink asChild><Link href={`/dashboard/units/${unitId}`}>{round.name || unitId}</Link></BreadcrumbLink>
+            <BreadcrumbLink asChild><Link href={`/dashboard/units/${unitId}`}>{round?.name || unitId}</Link></BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
