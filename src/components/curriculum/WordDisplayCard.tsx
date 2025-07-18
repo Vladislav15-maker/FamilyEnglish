@@ -1,3 +1,4 @@
+'use client';
 import type { Word } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,14 +13,9 @@ export default function WordDisplayCard({ word }: WordDisplayCardProps) {
   const { toast } = useToast();
 
   const handlePlayAudio = () => {
-    // Placeholder for actual audio playback
-    // In a real app, you would use Tone.js or similar if generating/playing complex audio,
-    // or HTMLAudioElement for simple playback.
-    
-    // For browsers that support SpeechSynthesisUtterance:
     if ('speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance(word.english);
-      utterance.lang = 'en-US'; // Ensure correct language for pronunciation
+      utterance.lang = 'en-US'; 
       speechSynthesis.speak(utterance);
     } else {
       toast({
@@ -29,7 +25,6 @@ export default function WordDisplayCard({ word }: WordDisplayCardProps) {
       });
     }
   };
-
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-xl">
@@ -56,7 +51,7 @@ export default function WordDisplayCard({ word }: WordDisplayCardProps) {
           onClick={handlePlayAudio} 
           variant="outline" 
           className="w-full text-lg py-3 group hover:bg-accent hover:text-accent-foreground transition-colors"
-          aria-label={Прослушать слово ${word.english}}
+          aria-label={`Прослушать слово ${word.english}`}
         >
           <Volume2 className="mr-2 h-6 w-6 group-hover:animate-pulse" />
           Прослушать
