@@ -62,8 +62,8 @@ export interface AuthenticatedUser {
 // A single attempt for a single word, which now can have two parts.
 export interface WordAttempt {
   wordId: string;
-  writtenAnswer: string; // The user's typed English translation
-  writtenCorrect: boolean; // Was the typed answer correct?
+  writtenAnswer?: string; // The user's typed English translation
+  writtenCorrect?: boolean; // Was the typed answer correct?
   choiceAnswer?: string; // The user's chosen Russian translation
   choiceCorrect?: boolean; // Was the chosen answer correct?
 }

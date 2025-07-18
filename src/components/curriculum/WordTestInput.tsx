@@ -38,8 +38,6 @@ export default function WordTestInput({
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // This is the definitive way to determine the mode.
-  // If onSubmitAnswer is provided, it's an online test. No feedback is shown.
   const isOnlineTestMode = !!onSubmitAnswer;
 
   useEffect(() => {
@@ -47,12 +45,11 @@ export default function WordTestInput({
     setUserAnswer('');
     setIsSubmitted(false);
     setIsCorrect(false);
-    // For online tests, always keep the input hidden by default.
     setIsPasswordVisible(isOnlineTestMode ? false : isPasswordVisible);
     if (inputRef.current) {
       inputRef.current.focus();
     }
-  }, [word, isOnlineTestMode]); // Re-run effect if mode changes, though it shouldn't mid-test
+  }, [word, isOnlineTestMode]);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +77,8 @@ export default function WordTestInput({
   const buttonText = isOnlineTestMode 
     ? (isLastWord ? 'Завершить тест' : 'Дальше') 
     : (isSubmitted ? 'Дальше' : 'Проверить');
+  
+  const showNextButtonForPractice = isSubmitted && onNext;
 
   return (
     <Card className="w-full max-w-lg mx-auto shadow-xl">
@@ -102,7 +101,7 @@ export default function WordTestInput({
               value={userAnswer}
               onChange={(e) => setUserAnswer(e.target.value)}
               placeholder="Введите перевод на английском"
-              disabled={isSubmitted && !isOnlineTestMode} // Only disable in practice mode after submit
+              disabled={isSubmitted && !isOnlineTestMode && !showNextButtonForPractice} // Disable only when showing feedback but not ready for next
               className={`text-lg p-4 h-14 pr-12 ${isSubmitted && !isOnlineTestMode ? (isCorrect ? 'border-green-500' : 'border-red-500') : ''}`}
               aria-label="Поле для ввода перевода"
             />
@@ -120,7 +119,7 @@ export default function WordTestInput({
           </div>
             <Button type="submit" className="w-full text-lg py-3" size="lg">
               {buttonText}
-              {isOnlineTestMode ? (isLastWord ? <Send className="ml-2 h-5 w-5" /> : <ChevronRight className="ml-2 h-5 w-5" />) : <ChevronRight className="ml-2 h-5 w-5" />}
+              <ChevronRight className="ml-2 h-5 w-5" />
             </Button>
         </form>
 

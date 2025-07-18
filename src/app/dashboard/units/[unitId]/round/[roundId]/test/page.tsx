@@ -116,20 +116,28 @@ export default function TestRoundPage() {
       writtenCorrect: isCorrect,
     };
     setAttempts(prev => [...prev, newAttempt]);
-    setStage('choice');
+    
+    if (currentWordIndex < totalWords - 1) {
+      setCurrentWordIndex(prev => prev + 1);
+    } else {
+      // Last written answer submitted, move to choice stage
+      setCurrentWordIndex(0);
+      setStage('choice');
+    }
   };
 
   const handleChoiceAnswerSubmit = (isCorrect: boolean, chosenAnswer: string) => {
-    setAttempts(prev => prev.map((attempt, index) => 
-        index === currentWordIndex 
+    const wordIdToUpdate = shuffledWords[currentWordIndex].id;
+    setAttempts(prev => prev.map(attempt => 
+        attempt.wordId === wordIdToUpdate
             ? { ...attempt, choiceAnswer: chosenAnswer, choiceCorrect: isCorrect }
             : attempt
     ));
 
     if (currentWordIndex < totalWords - 1) {
       setCurrentWordIndex(prev => prev + 1);
-      setStage('input');
     } else {
+      // Last choice submitted, finish the test
       setIsTestFinished(true);
     }
   };
@@ -148,10 +156,13 @@ export default function TestRoundPage() {
   const multipleChoiceOptions = useMemo(() => {
     if (!round || shuffledWords.length === 0) return [];
     const currentWord = shuffledWords[currentWordIndex];
-    const otherWords = shuffledWords.filter(w => w.id !== currentWord.id);
+    // Use original, non-shuffled word list for distractors to ensure variety
+    const otherWords = round.words.filter(w => w.id !== currentWord.id);
     const shuffledOtherWords = otherWords.sort(() => 0.5 - Math.random());
-    return [currentWord, ...shuffledOtherWords.slice(0, 2)];
+    const finalOptions = [currentWord, ...shuffledOtherWords.slice(0, 2)];
+    return finalOptions.sort(() => 0.5 - Math.random());
   }, [round, shuffledWords, currentWordIndex]);
+
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
@@ -167,6 +178,9 @@ export default function TestRoundPage() {
 
   const currentWord: Word | undefined = shuffledWords[currentWordIndex];
   const progressPercentage = totalWords > 0 ? ((currentWordIndex) / totalWords) * 100 : 0;
+  
+  const stageName = stage === 'input' ? "Этап 1: Перевод" : "Этап 2: Выбор";
+  const stageDescription = stage === 'input' ? "Напишите английский перевод" : "Выберите правильный перевод";
 
   if (isTestFinished) {
     return (
@@ -211,7 +225,7 @@ export default function TestRoundPage() {
       </Breadcrumb>
       <div className="w-full max-w-lg">
         <div className="flex justify-between items-center mb-2">
-          <h2 className="text-xl font-semibold text-primary">{round.name} - Тест</h2>
+          <h2 className="text-xl font-semibold text-primary">{round.name} - {stageName}</h2>
           <span className="text-sm text-muted-foreground">Слово {currentWordIndex + 1} из {totalWords}</span>
         </div>
         <Progress value={progressPercentage} className="w-full h-2 mb-6" aria-label={`Прогресс теста: ${Math.round(progressPercentage)}%`} />
@@ -221,8 +235,7 @@ export default function TestRoundPage() {
         <WordTestInput 
           key={`${currentWord.id}-input`}
           word={currentWord} 
-          onAnswer={handleWrittenAnswerSubmit} 
-          onNext={() => {}} // `onNext` is handled internally by onAnswer setting the stage
+          onAnswer={handleWrittenAnswerSubmit}
         />
       )}
       {currentWord && stage === 'choice' && (
