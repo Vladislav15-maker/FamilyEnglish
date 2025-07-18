@@ -116,15 +116,18 @@ export default function TestRoundPage() {
       writtenCorrect: isCorrect,
     };
     setAttempts(prev => [...prev, newAttempt]);
-    
-    if (currentWordIndex < totalWords - 1) {
+    // The `onNext` in WordTestInput will handle moving to the next word.
+  };
+
+  const proceedToNextWritten = () => {
+     if (currentWordIndex < totalWords - 1) {
       setCurrentWordIndex(prev => prev + 1);
     } else {
       // Last written answer submitted, move to choice stage
       setCurrentWordIndex(0);
       setStage('choice');
     }
-  };
+  }
 
   const handleChoiceAnswerSubmit = (isCorrect: boolean, chosenAnswer: string) => {
     const wordIdToUpdate = shuffledWords[currentWordIndex].id;
@@ -236,6 +239,7 @@ export default function TestRoundPage() {
           key={`${currentWord.id}-input`}
           word={currentWord} 
           onAnswer={handleWrittenAnswerSubmit}
+          onNext={proceedToNextWritten}
         />
       )}
       {currentWord && stage === 'choice' && (
