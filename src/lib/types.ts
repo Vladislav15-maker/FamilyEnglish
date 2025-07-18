@@ -59,6 +59,15 @@ export interface AuthenticatedUser {
   role: 'teacher' | 'student';
 }
 
+// A single attempt for a single word, which now can have two parts.
+export interface WordAttempt {
+  wordId: string;
+  writtenAnswer: string; // The user's typed English translation
+  writtenCorrect: boolean; // Was the typed answer correct?
+  choiceAnswer?: string; // The user's chosen Russian translation
+  choiceCorrect?: boolean; // Was the chosen answer correct?
+}
+
 
 // Progress and Score Types
 export interface StudentRoundProgress {
@@ -66,7 +75,7 @@ export interface StudentRoundProgress {
   unitId: string;
   roundId: string;
   score: number; // Percentage score, e.g., 80 for 80%
-  attempts: { wordId: string; userAnswer: string; correct: boolean }[] | any; // 'any' for JSONB from DB, parse as needed
+  attempts: WordAttempt[] | any; // 'any' for JSONB from DB, parse as needed
   completed: boolean;
   timestamp: number; // Unix timestamp (milliseconds) or string date representation
   attemptCount: number;
@@ -78,7 +87,7 @@ export interface StudentAttemptHistory {
   unitId: string;
   roundId: string;
   score: number;
-  attempts: { wordId: string; userAnswer: string; correct: boolean }[];
+  attempts: WordAttempt[];
   attemptNumber: number;
   timestamp: string; // ISO string date
 }

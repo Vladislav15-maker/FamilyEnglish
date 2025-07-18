@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import WordTestInput from '@/components/curriculum/WordTestInput';
+import WordMultipleChoice from '@/components/curriculum/WordMultipleChoice';
 import { getRoundById } from '@/lib/curriculum-data';
-import type { Round, Word } from '@/lib/types';
+import type { Round, Word, WordAttempt } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
-// DO NOT import saveStudentRoundProgress from '@/lib/store' directly
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 
-type Attempt = { wordId: string; userAnswer: string; correct: boolean };
+type TestStage = 'input' | 'choice';
 
 export default function TestRoundPage() {
   const params = useParams();
@@ -30,14 +30,14 @@ export default function TestRoundPage() {
   const [round, setRound] = useState<Round | null>(null);
   const [shuffledWords, setShuffledWords] = useState<Word[]>([]);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
-  const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [stage, setStage] = useState<TestStage>('input');
+
+  const [attempts, setAttempts] = useState<WordAttempt[]>([]);
+  
   const [isTestFinished, setIsTestFinished] = useState(false);
   const [score, setScore] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Guard to prevent multiple submissions
-  const hasSubmitted = useRef(false);
 
   useEffect(() => {
     if (unitId && roundId) {
@@ -52,19 +52,18 @@ export default function TestRoundPage() {
 
   const totalWords = shuffledWords.length;
 
-  const calculateScore = useCallback((finalAttempts: Attempt[]) => {
+  const calculateScore = useCallback((finalAttempts: WordAttempt[]) => {
     if (totalWords === 0) return 0;
-    const correctAnswers = finalAttempts.filter(a => a.correct).length;
-    return Math.round((correctAnswers / totalWords) * 100);
+    const correctAnswers = finalAttempts.reduce((count, attempt) => {
+        return count + (attempt.writtenCorrect ? 1 : 0) + (attempt.choiceCorrect ? 1 : 0);
+    }, 0);
+    const totalPossibleCorrect = totalWords * 2; // Each word has two questions
+    return Math.round((correctAnswers / totalPossibleCorrect) * 100);
   }, [totalWords]);
 
-  // This effect now handles the entire test submission logic.
   useEffect(() => {
-    // We only want to run this logic when the test is marked as finished
-    // and hasn't been submitted yet.
-    if (isTestFinished && user && round && !hasSubmitted.current) {
-      hasSubmitted.current = true; // Set guard immediately
-      setIsSubmitting(true); // Signal that submission is in progress.
+    if (isTestFinished && user && round) {
+      setIsSubmitting(true);
       
       const finalScoreValue = calculateScore(attempts);
       setScore(finalScoreValue);
@@ -73,12 +72,10 @@ export default function TestRoundPage() {
         unitId,
         roundId,
         score: finalScoreValue,
-        attempts: attempts,
+        attempts,
         completed: true,
         timestamp: Date.now(),
       };
-
-      console.log('[TestRoundPage] Finishing test. Submitting payload:', JSON.stringify(progressPayload, null, 2));
 
       fetch('/api/progress/round', {
         method: 'POST',
@@ -88,7 +85,6 @@ export default function TestRoundPage() {
       .then(async (response) => {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: "Unknown server error." }));
-          console.error('[TestRoundPage] API error response:', errorData);
           throw new Error(errorData.error || `Server responded with status: ${response.status}`);
         }
         return response.json();
@@ -97,17 +93,15 @@ export default function TestRoundPage() {
         toast({
           title: "Тест завершен!",
           description: `Ваш результат: ${finalScoreValue}%. Прогресс сохранен.`,
-          variant: "default"
         });
       })
       .catch((error) => {
         console.error("[TestRoundPage] Failed to save progress via API:", error);
         toast({
           title: "Ошибка сохранения",
-          description: (error as Error).message || "Не удалось сохранить ваш прогресс. Попробуйте снова.",
+          description: (error as Error).message || "Не удалось сохранить ваш прогресс.",
           variant: "destructive"
         });
-        hasSubmitted.current = false; // Allow retry on submission error
       })
       .finally(() => {
         setIsSubmitting(false);
@@ -115,24 +109,27 @@ export default function TestRoundPage() {
     }
   }, [isTestFinished, user, round, attempts, calculateScore, roundId, unitId, toast]);
 
-  const handleAnswerSubmit = (isCorrect: boolean, userAnswer: string) => {
-    if (!round || !shuffledWords[currentWordIndex]) return;
-
-    const newAttempt: Attempt = {
+  const handleWrittenAnswerSubmit = (isCorrect: boolean, userAnswer: string) => {
+    const newAttempt: WordAttempt = {
       wordId: shuffledWords[currentWordIndex].id,
-      userAnswer,
-      correct: isCorrect,
+      writtenAnswer: userAnswer,
+      writtenCorrect: isCorrect,
     };
-    // Add the new attempt to the state.
-    setAttempts(prevAttempts => [...prevAttempts, newAttempt]);
+    setAttempts(prev => [...prev, newAttempt]);
+    setStage('choice');
   };
 
-  const proceedToNextStepOrFinish = () => {
+  const handleChoiceAnswerSubmit = (isCorrect: boolean, chosenAnswer: string) => {
+    setAttempts(prev => prev.map((attempt, index) => 
+        index === currentWordIndex 
+            ? { ...attempt, choiceAnswer: chosenAnswer, choiceCorrect: isCorrect }
+            : attempt
+    ));
+
     if (currentWordIndex < totalWords - 1) {
       setCurrentWordIndex(prev => prev + 1);
+      setStage('input');
     } else {
-      // This is the last word. We just set the flag to true.
-      // The useEffect hook will now trigger and handle the submission.
       setIsTestFinished(true);
     }
   };
@@ -142,41 +139,31 @@ export default function TestRoundPage() {
     setAttempts([]);
     setIsTestFinished(false);
     setScore(0);
-    hasSubmitted.current = false; // Reset submission guard
+    setStage('input');
     if (round) {
       setShuffledWords([...round.words].sort(() => Math.random() - 0.5));
     }
   };
 
+  const multipleChoiceOptions = useMemo(() => {
+    if (!round || shuffledWords.length === 0) return [];
+    const currentWord = shuffledWords[currentWordIndex];
+    const otherWords = shuffledWords.filter(w => w.id !== currentWord.id);
+    const shuffledOtherWords = otherWords.sort(() => 0.5 - Math.random());
+    return [currentWord, ...shuffledOtherWords.slice(0, 2)];
+  }, [round, shuffledWords, currentWordIndex]);
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
   }
 
   if (!round) {
-     return (
-       <Alert variant="destructive" className="max-w-xl mx-auto">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Раунд не найден</AlertTitle>
-          <AlertDescription>
-            Запрашиваемый раунд не существует. <Link href={`/dashboard/units/${unitId}`} className="underline">Вернуться к юниту.</Link>
-          </AlertDescription>
-        </Alert>
-     );
+     return <Alert variant="destructive" className="max-w-xl mx-auto"><AlertCircle className="h-4 w-4" /><AlertTitle>Раунд не найден</AlertTitle><AlertDescription>Запрашиваемый раунд не существует. <Link href={`/dashboard/units/${unitId}`} className="underline">Вернуться к юниту.</Link></AlertDescription></Alert>;
   }
 
   if (!user || user.role !== 'student') {
-     return (
-        <Alert variant="destructive" className="max-w-xl mx-auto">
-          <BookOpen className="h-4 w-4" />
-          <AlertTitle>Доступ запрещен</AlertTitle>
-          <AlertDescription>
-            Эта страница доступна только для учеников.
-          </AlertDescription>
-        </Alert>
-      );
+     return <Alert variant="destructive" className="max-w-xl mx-auto"><BookOpen className="h-4 w-4" /><AlertTitle>Доступ запрещен</AlertTitle><AlertDescription>Эта страница доступна только для учеников.</AlertDescription></Alert>;
   }
-
 
   const currentWord: Word | undefined = shuffledWords[currentWordIndex];
   const progressPercentage = totalWords > 0 ? ((currentWordIndex) / totalWords) * 100 : 0;
@@ -198,20 +185,12 @@ export default function TestRoundPage() {
             ) : (
               <>
                 <p className="text-5xl font-bold text-primary">{score}%</p>
-                <p className="text-muted-foreground">
-                  Вы правильно ответили на {attempts.filter(a => a.correct).length} из {totalWords} слов.
-                </p>
+                <p className="text-muted-foreground">Вы набрали {attempts.reduce((acc, a) => acc + (a.writtenCorrect ? 1:0) + (a.choiceCorrect ? 1:0), 0)} из {totalWords * 2} очков.</p>
               </>
             )}
             <div className="flex gap-4 justify-center mt-6">
-              <Button onClick={handleRetryTest} variant="outline" size="lg" disabled={isSubmitting}>
-                <Repeat className="mr-2 h-5 w-5" />
-                Повторить
-              </Button>
-              <Button onClick={() => router.push(`/dashboard/units/${unitId}`)} size="lg" disabled={isSubmitting}>
-                К юниту
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
+              <Button onClick={handleRetryTest} variant="outline" size="lg" disabled={isSubmitting}><Repeat className="mr-2 h-5 w-5" />Повторить</Button>
+              <Button onClick={() => router.push(`/dashboard/units/${unitId}`)} size="lg" disabled={isSubmitting}>К юниту<ArrowRight className="ml-2 h-5 w-5" /></Button>
             </div>
           </CardContent>
         </Card>
@@ -223,17 +202,11 @@ export default function TestRoundPage() {
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-12rem)] space-y-6 p-4">
        <Breadcrumb className="w-full max-w-2xl">
         <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild><Link href="/dashboard/units">Юниты</Link></BreadcrumbLink>
-          </BreadcrumbItem>
+          <BreadcrumbItem><BreadcrumbLink asChild><Link href="/dashboard/units">Юниты</Link></BreadcrumbLink></BreadcrumbItem>
           <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild><Link href={`/dashboard/units/${unitId}`}>{round?.name || unitId}</Link></BreadcrumbLink>
-          </BreadcrumbItem>
+          <BreadcrumbItem><BreadcrumbLink asChild><Link href={`/dashboard/units/${unitId}`}>{round?.name || unitId}</Link></BreadcrumbLink></BreadcrumbItem>
           <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Тест: {round.name}</BreadcrumbPage>
-          </BreadcrumbItem>
+          <BreadcrumbItem><BreadcrumbPage>Тест: {round.name}</BreadcrumbPage></BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
       <div className="w-full max-w-lg">
@@ -244,19 +217,25 @@ export default function TestRoundPage() {
         <Progress value={progressPercentage} className="w-full h-2 mb-6" aria-label={`Прогресс теста: ${Math.round(progressPercentage)}%`} />
       </div>
 
-      {currentWord ? (
+      {currentWord && stage === 'input' && (
         <WordTestInput 
-          key={currentWord.id}
+          key={`${currentWord.id}-input`}
           word={currentWord} 
-          onAnswer={handleAnswerSubmit} 
-          onNext={proceedToNextStepOrFinish}
+          onAnswer={handleWrittenAnswerSubmit} 
+          onNext={() => {}} // `onNext` is handled internally by onAnswer setting the stage
         />
-      ) : (
-        <p>Загрузка слова...</p>
       )}
-      <Button variant="link" onClick={() => router.push(`/dashboard/units/${unitId}`)} className="mt-4 text-primary">
-          <ChevronLeft className="mr-1 h-4 w-4" /> Вернуться к раундам юнита
-        </Button>
+      {currentWord && stage === 'choice' && (
+        <WordMultipleChoice
+            key={`${currentWord.id}-choice`}
+            word={currentWord}
+            options={multipleChoiceOptions}
+            onAnswer={handleChoiceAnswerSubmit}
+        />
+      )}
+      {!currentWord && <p>Загрузка слова...</p>}
+
+      <Button variant="link" onClick={() => router.push(`/dashboard/units/${unitId}`)} className="mt-4 text-primary"><ChevronLeft className="mr-1 h-4 w-4" /> Вернуться к раундам юнита</Button>
     </div>
   );
 }

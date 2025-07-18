@@ -4,14 +4,14 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { curriculum, OFFLINE_TESTS, REMEDIATION_UNITS } from '@/lib/curriculum-data';
-import type { User, StudentRoundProgress, Unit, Round, OfflineTestScore, StudentAttemptHistory, OnlineTestResult } from '@/lib/types';
+import type { User, StudentRoundProgress, Unit, Round, OfflineTestScore, StudentAttemptHistory, OnlineTestResult, WordAttempt, Word } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award, TrendingUp, ListChecks, ClipboardCheck, Sigma, Repeat, History, Loader2, Check, X, GraduationCap, Trash2 } from 'lucide-react';
+import { ArrowLeft, UserCircle, BookOpen, AlertCircle, CheckCircle, XCircle, Award, TrendingUp, ListChecks, ClipboardCheck, Sigma, Repeat, History, Loader2, Check, X, GraduationCap, Trash2, Edit, CaseSensitive, MousePointerClick } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -536,27 +536,33 @@ export default function TeacherStudentDetailPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Слово (Рус)</TableHead>
-                          <TableHead>Ответ ученика</TableHead>
                           <TableHead>Правильный ответ</TableHead>
-                          <TableHead className="text-right">Результат</TableHead>
+                          <TableHead className="text-center">Ответы ученика</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {selectedAttempt.attempts.map((attempt, index) => {
-                          const wordDetail = curriculum
-                            .concat(Object.values(REMEDIATION_UNITS))
+                        {selectedAttempt.attempts.map((attempt: WordAttempt, index) => {
+                          const allUnits = [...curriculum, ...Object.values(REMEDIATION_UNITS)];
+                          const wordDetail = allUnits
                             .find(u => u.id === selectedAttempt.unitId)?.rounds
                             .find(r => r.id === selectedAttempt.roundId)?.words
                             .find(w => w.id === attempt.wordId);
                           return (
                             <TableRow key={`${attempt.wordId}-${index}`}>
                               <TableCell>{wordDetail?.russian}</TableCell>
-                              <TableCell className="font-mono">{attempt.userAnswer || "-"}</TableCell>
                               <TableCell className="font-mono">{wordDetail?.english}</TableCell>
-                              <TableCell className="text-right">
-                                {attempt.correct ? 
-                                  <CheckCircle className="h-5 w-5 text-green-500 inline" /> : 
-                                  <XCircle className="h-5 w-5 text-red-500 inline" />}
+                              <TableCell>
+                                <div className="flex items-center justify-center gap-1">
+                                    <CaseSensitive className="h-4 w-4 text-muted-foreground" />
+                                    <span className={cn("font-mono", !attempt.writtenCorrect && "text-destructive line-through")}>{attempt.writtenAnswer || "-"}</span>
+                                    {attempt.writtenCorrect ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
+                                </div>
+                                <div className="flex items-center justify-center gap-1">
+                                    <MousePointerClick className="h-4 w-4 text-muted-foreground" />
+                                    <span className={cn("font-mono", attempt.choiceCorrect === false && "text-destructive line-through")}>{attempt.choiceAnswer || "-"}</span>
+                                    {attempt.choiceCorrect === true && <CheckCircle className="h-4 w-4 text-green-500" />}
+                                    {attempt.choiceCorrect === false && <XCircle className="h-4 w-4 text-red-500" />}
+                                </div>
                               </TableCell>
                             </TableRow>
                           );
