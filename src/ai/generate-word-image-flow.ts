@@ -7,12 +7,6 @@
 import { ai } from '@/ai/genkit';
 import { cache } from 'react';
 
-export const generateWordImage = cache(
-  async (word: string): Promise<string> => {
-    return generateWordImageFlow(word);
-  }
-);
-
 const generateWordImageFlow = ai.defineFlow(
   {
     name: 'generateWordImageFlow',
@@ -31,5 +25,12 @@ const generateWordImageFlow = ai.defineFlow(
     }
     
     return media.url;
+  }
+);
+
+// We wrap the flow in React's cache function for performance optimization.
+export const generateWordImage = cache(
+  async (word: string): Promise<string> => {
+    return generateWordImageFlow(word);
   }
 );

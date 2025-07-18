@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Volume2, BookCopy, ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
-import { generateWordImage } from '@/ai/flows/generate-word-image-flow';
+import { generateWordImage } from '@/ai/generate-word-image-flow';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface WordDisplayCardProps {
@@ -116,4 +116,3 @@ export default function WordDisplayCard({ word }: WordDisplayCardProps) {
     </Card>
   );
 }
-
