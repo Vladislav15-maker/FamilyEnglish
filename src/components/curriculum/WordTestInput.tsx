@@ -101,7 +101,7 @@ export default function WordTestInput({
               value={userAnswer}
               onChange={(e) => setUserAnswer(e.target.value)}
               placeholder="Введите перевод на английском"
-              disabled={isSubmitted && !isOnlineTestMode && !showNextButtonForPractice} // Disable only when showing feedback but not ready for next
+              disabled={isSubmitted && !isOnlineTestMode} // Disable only when showing feedback in practice mode
               className={`text-lg p-4 h-14 pr-12 ${isSubmitted && !isOnlineTestMode ? (isCorrect ? 'border-green-500' : 'border-red-500') : ''}`}
               aria-label="Поле для ввода перевода"
             />
