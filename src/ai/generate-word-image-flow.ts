@@ -19,8 +19,9 @@ const generateWordImageFlow = ai.defineFlow(
         responseModalities: ['TEXT', 'IMAGE'],
       },
     });
-
-    if (!media.url) {
+    
+    // Ensure media and media.url exist before returning
+    if (!media?.url) {
         throw new Error('Image generation failed to return a data URL.');
     }
     
@@ -28,7 +29,8 @@ const generateWordImageFlow = ai.defineFlow(
   }
 );
 
-// We wrap the flow in React's cache function for performance optimization.
+// We wrap the flow in React's cache function for performance optimization on the client side.
+// This prevents re-generating the image for the same word during the same session/render.
 export const generateWordImage = cache(
   async (word: string): Promise<string> => {
     return generateWordImageFlow(word);
