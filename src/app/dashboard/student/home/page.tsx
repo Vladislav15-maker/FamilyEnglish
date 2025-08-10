@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowRight, BookOpen, Award, TrendingUp, CheckCircle, Sparkles } from 'lucide-react';
+import { ArrowRight, BookOpen, Award, TrendingUp, CheckCircle, Sparkles, TestTube2, Sigma, Users2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 interface StudentStats {
@@ -137,9 +137,6 @@ export default function StudentHomePage() {
   }
 
   if (!user || user.role !== 'student' || !stats) {
-    // This state implies that auth is done, page is not loading, but we don't have a valid student/stats
-    // This could be due to an error already displayed, or user is not a student
-    // Or if stats is null for some other reason after loading.
     return (
       <Alert>
         <AlertTitle>Нет данных</AlertTitle>
@@ -202,19 +199,32 @@ export default function StudentHomePage() {
           <CardTitle>Быстрый доступ</CardTitle>
           <CardDescription>Продолжите обучение или просмотрите свои достижения.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Button asChild size="lg" className="w-full">
+        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Button asChild size="lg" className="w-full justify-between">
             <Link href="/dashboard/units">
-              <BookOpen className="mr-2 h-5 w-5" />
-              Перейти к Юнитам
-              <ArrowRight className="ml-auto h-5 w-5" />
+              <div className="flex items-center">
+                <BookOpen className="mr-2 h-5 w-5" />
+                <span>Перейти к Юнитам</span>
+              </div>
+              <ArrowRight className="h-5 w-5" />
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg" className="w-full">
-            <Link href="/dashboard/student/offline-tests">
-              <Award className="mr-2 h-5 w-5" />
-              Мои Оффлайн Оценки
-              <ArrowRight className="ml-auto h-5 w-5" />
+          <Button asChild variant="secondary" size="lg" className="w-full justify-between">
+            <Link href="/dashboard/student/online-tests">
+               <div className="flex items-center">
+                <TestTube2 className="mr-2 h-5 w-5" />
+                <span>Онлайн Тесты</span>
+              </div>
+              <ArrowRight className="h-5 w-5" />
+            </Link>
+          </Button>
+           <Button asChild variant="secondary" size="lg" className="w-full justify-between">
+            <Link href="/dashboard/student/class-overview">
+              <div className="flex items-center">
+                <Users2 className="mr-2 h-5 w-5" />
+                <span>Обзор Класса</span>
+              </div>
+              <ArrowRight className="h-5 w-5" />
             </Link>
           </Button>
         </CardContent>

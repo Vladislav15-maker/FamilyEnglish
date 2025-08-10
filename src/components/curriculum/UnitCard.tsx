@@ -54,7 +54,7 @@ export default function UnitCard({ unit, progress = [], isRemediation = false, u
     '';
 
   return (
-    <Card className={cn("hover:shadow-lg transition-shadow duration-300 flex flex-col relative overflow-hidden", isRemediation && "border-accent ring-2 ring-accent/50")}>
+    <Card className={cn("hover:shadow-xl transition-shadow duration-300 flex flex-col relative overflow-hidden bg-card/80 backdrop-blur-sm", isRemediation && "border-accent ring-2 ring-accent/50")}>
       {unitGrade && (
         <div className="absolute top-4 right-4 text-center z-10">
           <p className={cn("text-6xl font-bold font-headline drop-shadow-lg", gradeColorClass)}>
@@ -79,29 +79,31 @@ export default function UnitCard({ unit, progress = [], isRemediation = false, u
       <CardHeader>
         <div className="flex items-start justify-between">
             <div className="flex items-center space-x-3 mb-2">
-                {isRemediation ? 
-                  <GraduationCap className="h-8 w-8 text-accent shrink-0" /> :
-                  <BookMarked className="h-8 w-8 text-primary shrink-0" />
+                <div className={cn("flex items-center justify-center h-12 w-12 rounded-full", isRemediation ? "bg-accent/10" : "bg-primary/10")}>
+                 {isRemediation ? 
+                  <GraduationCap className="h-6 w-6 text-accent" /> :
+                  <BookMarked className="h-6 w-6 text-primary" />
                 }
-                <CardTitle className="text-2xl font-headline pr-12">{unit.name}</CardTitle>
+                </div>
             </div>
         </div>
+        <CardTitle className="text-xl font-headline pr-12">{unit.name}</CardTitle>
         <CardDescription>{totalRoundsInUnit} {roundsCountText}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow">
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Прогресс (средний балл по завершенным)</span>
+            <span>Средний балл (заверш.)</span>
             <span>{progressLabelText}</span>
           </div>
-          <Progress value={displayProgressPercentage} aria-label={`Средний балл по юниту ${unit.name}: ${displayProgressPercentage}%`} className={cn(isRemediation && "[&>div]:bg-accent")} />
+          <Progress value={displayProgressPercentage} aria-label={`Средний балл по юниту ${unit.name}: ${displayProgressPercentage}%`} className={cn("h-2", isRemediation && "[&>div]:bg-accent")} />
           <p className="text-xs text-muted-foreground text-center mt-1">Статус: {unitStatusText}</p>
         </div>
       </CardContent>
       <CardFooter>
         <Button asChild className={cn("w-full", isRemediation ? "bg-accent hover:bg-accent/90 text-accent-foreground" : "bg-primary hover:bg-primary/90 text-primary-foreground")}>
           <Link href={`/dashboard/units/${unit.id}`}>
-            Перейти к юниту
+            Начать
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>

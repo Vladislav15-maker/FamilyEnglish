@@ -281,6 +281,286 @@ export const curriculum: Unit[] = [
       },
     ],
   },
+  {
+    id: 'unit-11',
+    name: 'Unit 11: At the Airport',
+    rounds: [
+      {
+        id: 'round-11-1',
+        name: 'Round 1',
+        words: [
+          { id: 'u11r1w1', english: 'airport', russian: 'аэропорт', transcription: 'э́эрпорт' },
+          { id: 'u11r1w2', english: 'plane', russian: 'самолёт', transcription: 'плэ́йн' },
+          { id: 'u11r1w3', english: 'ticket', russian: 'билет', transcription: 'ти́кит' },
+          { id: 'u11r1w4', english: 'passport', russian: 'паспорт', transcription: 'па́споорт' },
+          { id: 'u11r1w5', english: 'luggage', russian: 'багаж', transcription: 'ла́гидж' },
+        ],
+      },
+      {
+        id: 'round-11-2',
+        name: 'Round 2',
+        words: [
+          { id: 'u11r2w1', english: 'boarding', russian: 'посадка', transcription: 'бо́рдинг' },
+          { id: 'u11r2w2', english: 'check-in', russian: 'регистрация на рейс', transcription: 'че́к-ин' },
+          { id: 'u11r2w3', english: 'flight', russian: 'рейс', transcription: 'флайт' },
+          { id: 'u11r2w4', english: 'seat', russian: 'место', transcription: 'сит' },
+          { id: 'u11r2w5', english: 'security', russian: 'безопасность', transcription: 'сикью́рити' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'unit-12',
+    name: 'Unit 12: At the Hotel',
+    rounds: [
+      {
+        id: 'round-12-1',
+        name: 'Round 1',
+        words: [
+          { id: 'u12r1w1', english: 'hotel', russian: 'отель', transcription: 'хоутэ́л' },
+          { id: 'u12r1w2', english: 'reception', russian: 'стойка регистрации', transcription: 'рисэ́пшн' },
+          { id: 'u12r1w3', english: 'room key', russian: 'ключ от комнаты', transcription: 'рум ки' },
+          { id: 'u12r1w4', english: 'bed', russian: 'кровать', transcription: 'бэд' },
+          { id: 'u12r1w5', english: 'shower', russian: 'душ', transcription: 'ша́уэр' },
+        ],
+      },
+      {
+        id: 'round-12-2',
+        name: 'Round 2',
+        words: [
+          { id: 'u12r2w1', english: 'breakfast', russian: 'завтрак', transcription: 'бре́кфэст' },
+          { id: 'u12r2w2', english: 'dinner', russian: 'ужин', transcription: 'ди́нэр' },
+          { id: 'u12r2w3', english: 'waiter', russian: 'официант', transcription: 'уэ́йтэр' },
+          { id: 'u12r2w4', english: 'menu', russian: 'меню', transcription: 'ме́нью' },
+          { id: 'u12r2w5', english: 'bill', russian: 'счёт', transcription: 'бил' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'unit-13',
+    name: 'Unit 13: In the City',
+    rounds: [
+      {
+        id: 'round-13-1',
+        name: 'Round 1',
+        words: [
+          { id: 'u13r1w1', english: 'street', russian: 'улица', transcription: 'стрит' },
+          { id: 'u13r1w2', english: 'shop', russian: 'магазин', transcription: 'шоп' },
+          { id: 'u13r1w3', english: 'park', russian: 'парк', transcription: 'парк' },
+          { id: 'u13r1w4', english: 'bridge', russian: 'мост', transcription: 'бридж' },
+          { id: 'u13r1w5', english: 'bus', russian: 'автобус', transcription: 'бас' },
+        ],
+      },
+      {
+        id: 'round-13-2',
+        name: 'Round 2',
+        words: [
+          { id: 'u13r2w1', english: 'train', russian: 'поезд', transcription: 'трэйн' },
+          { id: 'u13r2w2', english: 'taxi', russian: 'такси', transcription: 'тэ́кси' },
+          { id: 'u13r2w3', english: 'car', russian: 'машина', transcription: 'кар' },
+          { id: 'u13r2w4', english: 'road', russian: 'дорога', transcription: 'роуд' },
+          { id: 'u13r2w5', english: 'station', russian: 'станция', transcription: 'сте́йшн' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'unit-14',
+    name: 'Unit 14: At the Restaurant',
+    rounds: [
+      {
+        id: 'round-14-1',
+        name: 'Round 1',
+        words: [
+          { id: 'u14r1w1', english: 'fork', russian: 'вилка', transcription: 'форк' },
+          { id: 'u14r1w2', english: 'spoon', russian: 'ложка', transcription: 'спун' },
+          { id: 'u14r1w3', english: 'knife', russian: 'нож', transcription: 'найф' },
+          { id: 'u14r1w4', english: 'plate', russian: 'тарелка', transcription: 'плэйт' },
+          { id: 'u14r1w5', english: 'glass', russian: 'стакан', transcription: 'глас' },
+        ],
+      },
+      {
+        id: 'round-14-2',
+        name: 'Round 2',
+        words: [
+          { id: 'u14r2w1', english: 'soup', russian: 'суп', transcription: 'суп' },
+          { id: 'u14r2w2', english: 'meat', russian: 'мясо', transcription: 'мит' },
+          { id: 'u14r2w3', english: 'fish', russian: 'рыба', transcription: 'фиш' },
+          { id: 'u14r2w4', english: 'rice', russian: 'рис', transcription: 'райс' },
+          { id: 'u14r2w5', english: 'vegetables', russian: 'овощи', transcription: 'ве́джитэблз' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'unit-15',
+    name: 'Unit 15: Clothes',
+    rounds: [
+      {
+        id: 'round-15-1',
+        name: 'Round 1',
+        words: [
+          { id: 'u15r1w1', english: 'shirt', russian: 'рубашка', transcription: 'шёрт' },
+          { id: 'u15r1w2', english: 'trousers', russian: 'брюки', transcription: 'тра́узэрз' },
+          { id: 'u15r1w3', english: 'dress', russian: 'платье', transcription: 'дресс' },
+          { id: 'u15r1w4', english: 'skirt', russian: 'юбка', transcription: 'скёрт' },
+          { id: 'u15r1w5', english: 'jacket', russian: 'куртка', transcription: 'дже́кит' },
+        ],
+      },
+      {
+        id: 'round-15-2',
+        name: 'Round 2',
+        words: [
+          { id: 'u15r2w1', english: 'shoes', russian: 'обувь', transcription: 'шуз' },
+          { id: 'u15r2w2', english: 'socks', russian: 'носки', transcription: 'сокс' },
+          { id: 'u15r2w3', english: 'hat', russian: 'шляпа', transcription: 'хэт' },
+          { id: 'u15r2w4', english: 'coat', russian: 'пальто', transcription: 'коут' },
+          { id: 'u15r2w5', english: 'sweater', russian: 'свитер', transcription: 'све́тэр' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'unit-16',
+    name: 'Unit 16: Body Parts',
+    rounds: [
+      {
+        id: 'round-16-1',
+        name: 'Round 1',
+        words: [
+          { id: 'u16r1w1', english: 'head', russian: 'голова', transcription: 'хэд' },
+          { id: 'u16r1w2', english: 'hand', russian: 'кисть руки', transcription: 'хэнд' },
+          { id: 'u16r1w3', english: 'leg', russian: 'нога', transcription: 'лег' },
+          { id: 'u16r1w4', english: 'arm', russian: 'рука', transcription: 'арм' },
+          { id: 'u16r1w5', english: 'foot', russian: 'стопа', transcription: 'фут' },
+        ],
+      },
+      {
+        id: 'round-16-2',
+        name: 'Round 2',
+        words: [
+          { id: 'u16r2w1', english: 'eye', russian: 'глаз', transcription: 'ай' },
+          { id: 'u16r2w2', english: 'ear', russian: 'ухо', transcription: 'ир' },
+          { id: 'u16r2w3', english: 'nose', russian: 'нос', transcription: 'ноуз' },
+          { id: 'u16r2w4', english: 'mouth', russian: 'рот', transcription: 'ма́ус' },
+          { id: 'u16r2w5', english: 'hair', russian: 'волосы', transcription: 'хэ́эр' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'unit-17',
+    name: 'Unit 17: Transport',
+    rounds: [
+      {
+        id: 'round-17-1',
+        name: 'Round 1',
+        words: [
+          { id: 'u17r1w1', english: 'bus stop', russian: 'автобусная остановка', transcription: 'бас стоп' },
+          { id: 'u17r1w2', english: 'train station', russian: 'железнодорожная станция', transcription: 'трэйн сте́йшн' },
+          { id: 'u17r1w3', english: 'motorbike', russian: 'мотоцикл', transcription: 'мо́утэбайк' },
+          { id: 'u17r1w4', english: 'ticket office', russian: 'билетная касса', transcription: 'ти́кит о́фис' },
+          { id: 'u17r1w5', english: 'platform', russian: 'платформа', transcription: 'плэ́тформ' },
+        ],
+      },
+      {
+        id: 'round-17-2',
+        name: 'Round 2',
+        words: [
+          { id: 'u17r2w1', english: 'driver', russian: 'водитель', transcription: 'дра́йвер' },
+          { id: 'u17r2w2', english: 'passenger', russian: 'пассажир', transcription: 'па́сэнджэр' },
+          { id: 'u17r2w3', english: 'travel', russian: 'путешествовать', transcription: 'трэ́вэл' },
+          { id: 'u17r2w4', english: 'map', russian: 'карта', transcription: 'мэп' },
+          { id: 'u17r2w5', english: 'journey', russian: 'поездка', transcription: 'джё́рни' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'unit-18',
+    name: 'Unit 18: Time & Calendar',
+    rounds: [
+      {
+        id: 'round-18-1',
+        name: 'Round 1',
+        words: [
+          { id: 'u18r1w1', english: 'morning', russian: 'утро', transcription: 'мо́рнинг' },
+          { id: 'u18r1w2', english: 'afternoon', russian: 'день', transcription: 'афтэрну́н' },
+          { id: 'u18r1w3', english: 'evening', russian: 'вечер', transcription: 'и́внинг' },
+          { id: 'u18r1w4', english: 'night', russian: 'ночь', transcription: 'найт' },
+          { id: 'u18r1w5', english: 'midnight', russian: 'полночь', transcription: 'ми́днайт' },
+        ],
+      },
+      {
+        id: 'round-18-2',
+        name: 'Round 2',
+        words: [
+          { id: 'u18r2w1', english: 'January', russian: 'январь', transcription: 'джа́ньюэри' },
+          { id: 'u18r2w2', english: 'February', russian: 'февраль', transcription: 'фе́бруэри' },
+          { id: 'u18r2w3', english: 'March', russian: 'март', transcription: 'марч' },
+          { id: 'u18r2w4', english: 'April', russian: 'апрель', transcription: 'э́йприл' },
+          { id: 'u18r2w5', english: 'May', russian: 'май', transcription: 'мэй' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'unit-19',
+    name: 'Unit 19: At the Beach',
+    rounds: [
+      {
+        id: 'round-19-1',
+        name: 'Round 1',
+        words: [
+          { id: 'u19r1w1', english: 'beach', russian: 'пляж', transcription: 'бич' },
+          { id: 'u19r1w2', english: 'sand', russian: 'песок', transcription: 'сэнд' },
+          { id: 'u19r1w3', english: 'sea', russian: 'море', transcription: 'си' },
+          { id: 'u19r1w4', english: 'sun', russian: 'солнце', transcription: 'сан' },
+          { id: 'u19r1w5', english: 'wave', russian: 'волна', transcription: 'уэйв' },
+        ],
+      },
+      {
+        id: 'round-19-2',
+        name: 'Round 2',
+        words: [
+          { id: 'u19r2w1', english: 'swim', russian: 'плавать', transcription: 'свим' },
+          { id: 'u19r2w2', english: 'shell', russian: 'ракушка', transcription: 'шел' },
+          { id: 'u19r2w3', english: 'boat', russian: 'лодка', transcription: 'боут' },
+          { id: 'u19r2w4', english: 'towel', russian: 'полотенце', transcription: 'та́уэл' },
+          { id: 'u19r2w5', english: 'umbrella', russian: 'зонт', transcription: 'амбрэ́лла' },
+        ],
+      },
+    ],
+  },
+   {
+    id: 'unit-20',
+    name: 'Unit 20: Everyday Activities',
+    rounds: [
+      {
+        id: 'round-20-1',
+        name: 'Round 1',
+        words: [
+          { id: 'u20r1w1', english: 'wake up', russian: 'просыпаться', transcription: 'уэйк ап' },
+          { id: 'u20r1w2', english: 'wash', russian: 'мыться', transcription: 'вош' },
+          { id: 'u20r1w3', english: 'eat', russian: 'есть', transcription: 'ит' },
+          { id: 'u20r1w4', english: 'drink', russian: 'пить', transcription: 'дринк' },
+          { id: 'u20r1w5', english: 'sleep', russian: 'спать', transcription: 'слип' },
+        ],
+      },
+      {
+        id: 'round-20-2',
+        name: 'Round 2',
+        words: [
+          { id: 'u20r2w1', english: 'walk', russian: 'ходить пешком', transcription: 'вок' },
+          { id: 'u20r2w2', english: 'run', russian: 'бегать', transcription: 'ран' },
+          { id: 'u20r2w3', english: 'read', russian: 'читать', transcription: 'рид' },
+          { id: 'u20r2w4', english: 'write', russian: 'писать', transcription: 'райт' },
+          { id: 'u20r2w5', english: 'listen', russian: 'слушать', transcription: 'ли́сэн' },
+        ],
+      },
+    ],
+  },
 ];
 
 export const OFFLINE_TESTS = [

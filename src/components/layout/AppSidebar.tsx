@@ -20,17 +20,17 @@ export const navItems: NavItem[] = [
   // Student items
   { href: '/dashboard/student/home', label: 'Главная', icon: Home, roles: ['student'], exactMatch: true },
   { href: '/dashboard/units', label: 'Юниты', icon: BookOpen, roles: ['student'] },
-  { href: '/dashboard/student/offline-tests', label: 'Оффлайн Тесты', icon: Award, roles: ['student'] },
   { href: '/dashboard/student/online-tests', label: 'Онлайн Тесты', icon: TestTube2, roles: ['student'] },
+  { href: '/dashboard/student/offline-tests', label: 'Оффлайн Оценки', icon: Award, roles: ['student'] },
   { href: '/dashboard/student/unit-grades', label: 'Оценки за Юниты', icon: Sigma, roles: ['student'] },
-  { href: '/dashboard/student/class-overview', label: 'Класс', icon: Users2, roles: ['student'] }, 
+  { href: '/dashboard/student/class-overview', label: 'Обзор Класса', icon: Users2, roles: ['student'] }, 
   
   // Teacher items
   { href: '/dashboard/teacher/students', label: 'Ученики', icon: Users, roles: ['teacher'], exactMatch: true }, 
-  { href: '/dashboard/teacher/progress-overview', label: 'Обзор Успеваемости Класса', icon: BarChart3, roles: ['teacher'] },
-  { href: '/dashboard/teacher/offline-tests', label: 'Оффлайн Тесты (Управление)', icon: CheckSquare, roles: ['teacher'] },
-  { href: '/dashboard/teacher/online-tests', label: 'Онлайн Тесты (Управление)', icon: TestTube2, roles: ['teacher'] },
-  { href: '/dashboard/teacher/unit-grading', label: 'Оценки за Юниты (Управление)', icon: Sigma, roles: ['teacher'] },
+  { href: '/dashboard/teacher/progress-overview', label: 'Обзор Класса', icon: BarChart3, roles: ['teacher'] },
+  { href: '/dashboard/teacher/online-tests', label: 'Онлайн Тесты', icon: TestTube2, roles: ['teacher'] },
+  { href: '/dashboard/teacher/offline-tests', label: 'Оффлайн Оценки', icon: CheckSquare, roles: ['teacher'] },
+  { href: '/dashboard/teacher/unit-grading', label: 'Оценки за Юниты', icon: Sigma, roles: ['teacher'] },
   { href: '/dashboard/teacher/curriculum', label: 'Учебный План', icon: LibraryBig, roles: ['teacher'] },
 ];
 
@@ -53,10 +53,10 @@ export default function AppSidebar() {
                 key={item.href}
                 asChild
                 variant={isActive ? 'secondary' : 'ghost'}
-                className="w-full justify-start text-sm py-2.5" 
+                className="w-full justify-start text-sm py-2.5 h-10" 
               >
                 <Link href={item.href}>
-                  <item.icon className="mr-2 h-4 w-4" />
+                  <item.icon className="mr-3 h-4 w-4" />
                   {item.label}
                 </Link>
               </Button>
@@ -67,4 +67,3 @@ export default function AppSidebar() {
     </aside>
   );
 }
-

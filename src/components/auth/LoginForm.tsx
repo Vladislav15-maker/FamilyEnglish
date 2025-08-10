@@ -1,8 +1,6 @@
-
 'use client';
 
 import { useState } from 'react';
-// import Link from 'next/link'; // Ссылка на регистрацию больше не нужна
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -58,14 +56,14 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary to-accent p-4">
-      <Card className="w-full max-w-md shadow-2xl">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4">
-            <LogIn className="w-16 h-16 text-primary" />
-          </div>
-          <CardTitle className="text-3xl font-headline">EnglishCourse</CardTitle>
-          <CardDescription>Войдите в свой аккаунт для продолжения</CardDescription>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
+      <Card className="w-full max-w-md shadow-2xl border-2 border-primary/10">
+        <CardHeader className="text-center space-y-2">
+           <div className="mx-auto bg-primary/10 p-3 rounded-full inline-block">
+             <LogIn className="w-10 h-10 text-primary" />
+           </div>
+          <CardTitle className="text-3xl font-bold">Вход в EnglishCourse</CardTitle>
+          <CardDescription>Введите свои данные для доступа к курсам</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -77,8 +75,8 @@ export default function LoginForm() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                placeholder="Vladislav"
-                className="text-base"
+                placeholder="например, vladislav_teacher"
+                className="text-base h-12"
                 autoComplete="username"
               />
             </div>
@@ -92,32 +90,26 @@ export default function LoginForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   placeholder="********"
-                  className="text-base"
+                  className="text-base h-12"
                   autoComplete="current-password"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </Button>
               </div>
             </div>
-            <Button type="submit" className="w-full text-lg py-3" disabled={isLoading}>
+            <Button type="submit" className="w-full text-lg h-12" size="lg" disabled={isLoading}>
               {isLoading ? 'Вход...' : 'Войти'}
             </Button>
           </form>
         </CardContent>
-        {/* <CardFooter className="flex flex-col items-center space-y-2 pt-4">
-          <p className="text-sm text-muted-foreground">Нет аккаунта?</p>
-          <Button variant="outline" className="w-full" asChild>
-            <Link href="/register"> <UserPlus className="mr-2 h-4 w-4" /> Зарегистрироваться </Link>
-          </Button>
-        </CardFooter> */}
       </Card>
     </div>
   );
