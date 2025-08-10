@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className={`${inter.variable} ${lexend.variable}`}>
+    <html lang="ru" className={`${inter.variable} ${lexend.variable} dark`}>
       <body className="font-body antialiased bg-background text-foreground">
         <AuthProvider>
           {children}
