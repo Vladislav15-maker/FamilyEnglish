@@ -6,7 +6,6 @@ import RoundCard from '@/components/curriculum/RoundCard';
 import { getUnitById } from '@/lib/curriculum-data';
 import type { Unit, Round, StudentRoundProgress } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
-// DO NOT import getStudentRoundProgress or any store functions directly for client-side use
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, BookOpen, AlertCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -58,10 +57,13 @@ export default function UnitPage() {
       } else {
         setIsLoading(false); // Unit data not found
       }
-    } else if (!user || user.role !== 'student') {
-        setIsLoading(false); // Not a student or no user
+    } else if (user && user.role !== 'student') {
+        setIsLoading(false);
+        setError("Эта страница доступна только для учеников.");
+    } else {
+        setIsLoading(false);
     }
-  }, [unitId, user]); // user dependency ensures re-fetch if user logs in/out
+  }, [unitId, user]);
 
   if (isLoading) {
     return (
@@ -72,7 +74,8 @@ export default function UnitPage() {
         </div>
         <Skeleton className="h-6 w-1/4 mb-4" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[1, 2].map(i => <RoundCardSkeleton key={i} />)}
+          <Skeleton className="h-56 w-full rounded-lg" />
+           <Skeleton className="h-56 w-full rounded-lg" />
         </div>
       </div>
     );
@@ -82,9 +85,9 @@ export default function UnitPage() {
     return (
        <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Ошибка загрузки прогресса</AlertTitle>
+          <AlertTitle>Ошибка</AlertTitle>
           <AlertDescription>
-            {error} <Link href="/dashboard/units" className="underline">Вернуться к списку юнитов.</Link>
+            {error} <Link href="/dashboard/student/home" className="underline">Вернуться на главную.</Link>
           </AlertDescription>
         </Alert>
     );
@@ -96,7 +99,7 @@ export default function UnitPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Юнит не найден</AlertTitle>
           <AlertDescription>
-            Запрашиваемый юнит не существует. <Link href="/dashboard/units" className="underline">Вернуться к списку юнитов.</Link>
+            Запрашиваемый юнит не существует. <Link href="/dashboard/student/home" className="underline">Вернуться на главную.</Link>
           </AlertDescription>
         </Alert>
     );
@@ -120,7 +123,13 @@ export default function UnitPage() {
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/dashboard/units">Юниты</Link>
+              <Link href="/dashboard/student/home">Home</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+           <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/dashboard/student/homework">Homework</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -135,9 +144,9 @@ export default function UnitPage() {
           <BookOpen className="mr-3 h-8 w-8 md:h-10 md:w-10" />
           {unit.name}
         </h1>
-        <Button variant="outline" onClick={() => router.push('/dashboard/units')}>
+        <Button variant="outline" onClick={() => router.push('/dashboard/student/homework')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Назад к юнитам
+          Назад к домашней работе
         </Button>
       </div>
 
@@ -159,30 +168,6 @@ export default function UnitPage() {
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-
-function RoundCardSkeleton() {
-  return (
-    <div className="p-6 border rounded-lg shadow space-y-4 bg-card">
-       <div className="flex items-center space-x-3 mb-2">
-          <Skeleton className="h-8 w-8 rounded-full" />
-          <Skeleton className="h-6 w-3/4" />
-      </div>
-      <Skeleton className="h-4 w-1/3" />
-      <div className="space-y-2 pt-4">
-        <div className="flex justify-between">
-          <Skeleton className="h-4 w-1/4" />
-          <Skeleton className="h-4 w-1/6" />
-        </div>
-        <Skeleton className="h-3 w-full" />
-      </div>
-      <div className="grid grid-cols-2 gap-2 mt-4">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-      </div>
     </div>
   );
 }
