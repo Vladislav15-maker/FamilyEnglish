@@ -2,78 +2,102 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { curriculum } from '@/lib/curriculum-data';
-import type { User, StudentRoundProgress } from '@/lib/types';
+import type { User, StudentRoundProgress, StudentAttemptHistory } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, BookOpen, BarChart3, Users } from 'lucide-react';
+import { BarChart3, AlertCircle, BookOpen, CheckCircle, Circle, MinusCircle, XCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Progress } from '@/components/ui/progress';
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
-interface StudentOverviewItem {
-  student: User;
-  progress: StudentRoundProgress[];
-  overallProgressPercentage: number;
-  averageOnlineScore: number;
-  completedCoreRounds: number;
+interface RoundProgressDisplayInfo {
+  roundName: string;
+  score?: number;
+  completed: boolean;
+  attempts?: StudentAttemptHistory[];
+}
+
+interface UnitOverallProgressDisplay {
+  unitAverageScore?: number;
+  unitCompleted: boolean;
+  roundsDetail: RoundProgressDisplayInfo[];
 }
 
 export default function TeacherProgressOverviewPage() {
   const { user } = useAuth();
-  const [overview, setOverview] = useState<StudentOverviewItem[]>([]);
+  const [students, setStudents] = useState<User[]>([]);
+  const [allProgressData, setAllProgressData] = useState<Record<string, Record<string, UnitOverallProgressDisplay>>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const totalRoundsInCurriculum = curriculum.reduce((acc, unit) => acc + unit.rounds.length, 0);
 
   useEffect(() => {
     if (user && user.role === 'teacher') {
       setIsLoading(true);
       setError(null);
-      fetch('/api/teacher/students-overview')
-        .then(res => {
-          if (!res.ok) {
-            throw new Error('Не удалось загрузить обзор успеваемости учеников');
-          }
-          return res.json();
-        })
-        .then((overviewData: { student: User; progress: StudentRoundProgress[] }[]) => {
-          const processedOverview = overviewData.map(item => {
-            const coreProgress = item.progress.filter(p => !p.unitId.startsWith('rem-unit-'));
-            const completedCoreProgress = coreProgress.filter(p => p.completed);
-            
-            const completedCoreRounds = completedCoreProgress.length;
-            const overallProgressPercentage = totalRoundsInCurriculum > 0 
-              ? Math.round((completedCoreRounds / totalRoundsInCurriculum) * 100)
-              : 0;
+      Promise.all([
+        fetch('/api/teacher/students'),
+        fetch('/api/progress/student/'), // Fetch all progress for all students
+      ]).then(async ([studentsRes, rawProgressRes]) => {
+        if (!studentsRes.ok) throw new Error('Не удалось загрузить учеников');
+        if (!rawProgressRes.ok) throw new Error('Не удалось загрузить прогресс');
+        
+        const studentsData: User[] = await studentsRes.json();
+        const rawProgressData: StudentRoundProgress[] = await rawProgressRes.json();
 
-            const sumScores = completedCoreProgress.reduce((acc, p) => acc + p.score, 0);
-            const averageOnlineScore = completedCoreRounds > 0 ? Math.round(sumScores / completedCoreRounds) : 0;
+        setStudents(studentsData);
+        
+        const progressMap: Record<string, Record<string, UnitOverallProgressDisplay>> = {};
+        
+        studentsData.forEach(student => {
+          progressMap[student.id] = {};
+          const studentAllProgressItems = rawProgressData.filter(p => p.studentId === student.id);
+          
+          curriculum.forEach(unit => {
+            const roundsDetail: RoundProgressDisplayInfo[] = unit.rounds.map(round => {
+              const roundProgress = studentAllProgressItems.find(p => p.unitId === unit.id && p.roundId === round.id);
+              return {
+                roundName: round.name,
+                score: roundProgress?.score,
+                completed: roundProgress?.completed ?? false,
+                attempts: roundProgress?.attempts,
+              };
+            });
+
+            let unitAverageScore: number | undefined = undefined;
+            let unitCompleted = false;
+
+            if (unit.rounds.length > 0) {
+              const completedRoundsInUnit = roundsDetail.filter(r => r.completed);
+              if (completedRoundsInUnit.length > 0) {
+                 const sumOfScores = completedRoundsInUnit.reduce((sum, r) => sum + (r.score ?? 0), 0);
+                 unitAverageScore = Math.round(sumOfScores / completedRoundsInUnit.length);
+              }
+              unitCompleted = completedRoundsInUnit.length === unit.rounds.length;
+            }
             
-            return { ...item, overallProgressPercentage, averageOnlineScore, completedCoreRounds };
-          }).sort((a, b) => b.overallProgressPercentage - a.overallProgressPercentage || b.averageOnlineScore - a.averageOnlineScore);
-          setOverview(processedOverview);
-        })
-        .catch(err => {
-          console.error("Failed to load class overview:", err);
-          setError((err as Error).message);
-        })
-        .finally(() => setIsLoading(false));
+            progressMap[student.id][unit.id] = {
+              unitAverageScore,
+              unitCompleted,
+              roundsDetail,
+            };
+          });
+        });
+        setAllProgressData(progressMap);
+      }).catch(err => {
+        console.error("Failed to load progress overview data:", err);
+        setError((err as Error).message);
+      }).finally(() => setIsLoading(false));
     } else {
-      setIsLoading(false);
+        setIsLoading(false);
     }
-  }, [user, totalRoundsInCurriculum]);
-
-  const getInitials = (name: string) => {
-    const names = name.split(' ');
-    return names.length > 1 ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase() : name.substring(0, 2).toUpperCase();
-  };
+  }, [user]);
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center space-x-3"><Skeleton className="h-10 w-10 rounded-full" /><Skeleton className="h-10 w-1/3" /></div>
-        <Card><CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader><CardContent className="space-y-4"><Skeleton className="h-24 w-full" /></CardContent></Card>
+        <div className="flex items-center space-x-3"><Skeleton className="h-10 w-10" /><Skeleton className="h-10 w-1/3" /></div>
+        <Card><CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader><CardContent><Skeleton className="h-10 w-full mb-2" /><Skeleton className="h-12 w-full mb-1" /><Skeleton className="h-12 w-full mb-1" /></CardContent></Card>
       </div>
     );
   }
@@ -83,7 +107,7 @@ export default function TeacherProgressOverviewPage() {
   }
 
   if (!user || user.role !== 'teacher') {
-    return (<Alert variant="destructive"><BookOpen className="h-4 w-4" /><AlertTitle>Доступ запрещен</AlertTitle><AlertDescription>Эта страница доступна только для учителей.</AlertDescription></Alert>);
+     return (<Alert variant="destructive"><BookOpen className="h-4 w-4" /><AlertTitle>Доступ запрещен</AlertTitle><AlertDescription>Эта страница доступна только для учителей.</AlertDescription></Alert>);
   }
 
   return (
@@ -93,38 +117,84 @@ export default function TeacherProgressOverviewPage() {
         <h1 className="text-4xl font-bold font-headline">Обзор Успеваемости Класса</h1>
       </div>
 
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center"><Users className="mr-2 h-6 w-6"/>Рейтинг успеваемости</CardTitle>
-          <CardDescription>Обзор онлайн-прогресса всех учеников, отсортированный по общему прогрессу.</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {overview.length === 0 ? (
-            <Alert className="m-4"><AlertCircle className="h-4 w-4" /><AlertTitle>Нет учеников</AlertTitle><AlertDescription>В системе пока нет учеников для отображения прогресса.</AlertDescription></Alert>
-          ) : (
-            <div className="divide-y divide-border">
-              {overview.map((item) => (
-                <div key={item.student.id} className="flex items-center space-x-4 p-4 hover:bg-muted/30 transition-colors">
-                  <Avatar className="h-12 w-12"><AvatarImage src={`https://placehold.co/100x100.png?text=${getInitials(item.student.name)}`} alt={item.student.name} data-ai-hint="profile person" /><AvatarFallback>{getInitials(item.student.name)}</AvatarFallback></Avatar>
-                  <div className="flex-1 space-y-1 min-w-0">
-                    <p className="text-lg font-semibold text-primary truncate">{item.student.name}</p>
-                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                      <span className="whitespace-nowrap">Общий прогресс:</span>
-                      <Progress value={item.overallProgressPercentage} className="w-24 sm:w-32 md:w-40 h-2" />
-                      <span>{item.overallProgressPercentage}%</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground truncate">Средний балл: {item.averageOnlineScore > 0 ? `${item.averageOnlineScore}%` : 'N/A'}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm text-muted-foreground whitespace-nowrap">Пройдено раундов</p>
-                    <p className="text-lg font-semibold">{item.completedCoreRounds} / {totalRoundsInCurriculum}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {students.length === 0 ? (
+        <Alert><AlertCircle className="h-4 w-4" /><AlertTitle>Нет учеников</AlertTitle><AlertDescription>В системе пока нет зарегистрированных учеников для отображения прогресса.</AlertDescription></Alert>
+      ) : (
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle>Сводная таблица успеваемости</CardTitle>
+            <CardDescription>Прогресс учеников по всем юнитам. Наведите на ячейку для просмотра деталей по раундам.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="w-full whitespace-nowrap rounded-md border">
+              <Table className="min-w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="sticky left-0 bg-card z-10 w-[200px] min-w-[200px] border-r font-semibold">Ученик</TableHead>
+                    {curriculum.map(unit => (
+                      <TableHead key={unit.id} className="text-center min-w-[150px] px-2">{unit.name}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {students.map(student => (
+                    <TableRow key={student.id}>
+                      <TableCell className="font-medium sticky left-0 bg-card z-10 border-r">{student.name}</TableCell>
+                      {curriculum.map(unit => {
+                        const progress = allProgressData[student.id]?.[unit.id];
+                        let cellContent;
+                        let tooltipTitle = `${student.name} - ${unit.name}`;
+                        let tooltipRoundDetails: React.ReactNode[] = [];
+
+                        if (progress) {
+                            if (progress.unitCompleted) {
+                                cellContent = <div className="flex items-center justify-center gap-2"><CheckCircle className="h-5 w-5 text-green-500" /><span>{progress.unitAverageScore}%</span></div>;
+                                tooltipTitle += `: Завершен`;
+                            } else if (progress.unitAverageScore !== undefined) {
+                                cellContent = <div className="flex items-center justify-center gap-2"><Circle className="h-5 w-5 text-yellow-500" /><span>{progress.unitAverageScore}%</span></div>;
+                                tooltipTitle += `: В процессе`;
+                            } else if (unit.rounds.length === 0) {
+                                cellContent = <MinusCircle className="h-4 w-4 text-muted-foreground mx-auto" />;
+                                tooltipTitle = `${unit.name}: Нет раундов`;
+                            } else {
+                                cellContent = <XCircle className="h-5 w-5 text-muted-foreground mx-auto" />;
+                                tooltipTitle += `: Не начат`;
+                            }
+
+                            if (unit.rounds.length > 0 && progress.roundsDetail?.length > 0) {
+                                tooltipRoundDetails = progress.roundsDetail.map(rd => {
+                                    const statusText = rd.completed ? `${rd.score}%` : 'Не пройден';
+                                    return <li key={rd.roundName} className="text-xs">{rd.roundName}: {statusText}</li>;
+                                });
+                            }
+                        } else {
+                            cellContent = <XCircle className="h-5 w-5 text-muted-foreground mx-auto" />;
+                            tooltipTitle += `: Нет данных`;
+                        }
+                        
+                        return (
+                          <TableCell key={unit.id} className="text-center min-w-[150px] px-2">
+                            <TooltipProvider delayDuration={100}>
+                              <Tooltip>
+                                <TooltipTrigger asChild><div className="cursor-pointer p-2 min-h-[40px] flex items-center justify-center">{cellContent}</div></TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="font-bold mb-1">{tooltipTitle}</p>
+                                  {tooltipRoundDetails.length > 0 && <ul className="list-disc pl-4 mt-1 space-y-1">{tooltipRoundDetails}</ul>}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

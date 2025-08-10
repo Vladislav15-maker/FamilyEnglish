@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-// DO NOT import store functions directly for client-side use
 import type { User, StudentRoundProgress } from '@/lib/types';
 import StudentProgressRow from '@/components/teacher/StudentProgressRow';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -125,13 +124,15 @@ export default function TeacherStudentsPage() {
             <CardDescription>Обзор успеваемости всех учеников.</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            {studentsOverview.map(overview => (
-              <StudentProgressRow 
-                key={overview.student.id} 
-                student={overview.student} 
-                progress={overview.progress || []} 
-              />
-            ))}
+            <div className="divide-y divide-border">
+              {studentsOverview.map(overview => (
+                <StudentProgressRow 
+                  key={overview.student.id} 
+                  student={overview.student} 
+                  progress={overview.progress || []} 
+                />
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}

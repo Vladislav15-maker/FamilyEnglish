@@ -37,23 +37,27 @@ export default function StudentProgressRow({ student, progress }: StudentProgres
   };
   
   return (
-    <div className="flex items-center space-x-4 p-4 border-b hover:bg-muted/50 transition-colors">
+    <div className="flex items-center space-x-4 p-4 hover:bg-muted/30 transition-colors">
       <Avatar className="h-12 w-12">
         <AvatarImage src={`https://placehold.co/100x100.png?text=${getInitials(student.name)}`} alt={student.name} data-ai-hint="profile person" />
         <AvatarFallback>{getInitials(student.name)}</AvatarFallback>
       </Avatar>
-      <div className="flex-1 space-y-1">
-        <p className="text-lg font-semibold text-primary">{student.name}</p>
+      <div className="flex-1 space-y-1 min-w-0">
+        <p className="text-lg font-semibold text-primary truncate">{student.name}</p>
         <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-          <span>Общий прогресс:</span>
-          <Progress value={overallProgressPercentage} className="w-48 h-2" />
+          <span className="whitespace-nowrap">Общий прогресс:</span>
+          <Progress value={overallProgressPercentage} className="w-24 sm:w-32 md:w-40 h-2" />
           <span>{Math.round(overallProgressPercentage)}%</span>
         </div>
-         <p className="text-sm text-muted-foreground">
-          Средний балл по выполненным раундам: {completedRounds > 0 ? `${Math.round(averageScore)}%` : 'N/A'}
+         <p className="text-sm text-muted-foreground truncate">
+          Средний балл: {completedRounds > 0 ? `${Math.round(averageScore)}%` : 'N/A'}
         </p>
       </div>
-      <Button asChild variant="outline" size="sm">
+       <div className="text-right shrink-0">
+            <p className="text-sm text-muted-foreground whitespace-nowrap">Пройдено раундов</p>
+            <p className="text-lg font-semibold">{completedRounds} / {totalRoundsInCurriculum}</p>
+        </div>
+      <Button asChild variant="outline" size="sm" className="shrink-0">
         <Link href={`/dashboard/teacher/students/${student.id}`}>
           <Eye className="mr-2 h-4 w-4" />
           Подробнее
