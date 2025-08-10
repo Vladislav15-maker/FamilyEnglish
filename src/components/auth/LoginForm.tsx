@@ -34,8 +34,8 @@ export default function LoginForm() {
           description: `Добро пожаловать!`,
           variant: 'default',
         });
-        router.push('/dashboard'); // Перенаправляем на дашборд
-        router.refresh(); // Обновляем страницу, чтобы AuthContext подхватил сессию
+        router.push('/dashboard');
+        router.refresh();
       } else {
         toast({
           title: 'Ошибка входа',
@@ -56,18 +56,18 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
-      <Card className="w-full max-w-md shadow-2xl border-2 border-primary/10">
-        <CardHeader className="text-center space-y-2">
-           <div className="mx-auto bg-primary/10 p-3 rounded-full inline-block">
-             <LogIn className="w-10 h-10 text-primary" />
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-[#4A55A2] via-[#789DCE] to-[#E3B48D] p-4">
+      <Card className="w-full max-w-md shadow-lg border-none rounded-2xl">
+        <CardHeader className="items-center text-center space-y-3 pt-8 pb-4">
+           <div className="flex">
+            <LogIn className="w-10 h-10 text-primary" />
            </div>
-          <CardTitle className="text-3xl font-bold">Вход в EnglishCourse</CardTitle>
-          <CardDescription>Введите свои данные для доступа к курсам</CardDescription>
+          <CardTitle className="text-3xl font-bold">EnglishCourse</CardTitle>
+          <CardDescription>Войдите в свой аккаунт для продолжения</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-8 pb-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
+            <div className="space-y-2 text-left">
               <Label htmlFor="username">Имя пользователя</Label>
               <Input
                 id="username"
@@ -76,11 +76,11 @@ export default function LoginForm() {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 placeholder="например, vladislav_teacher"
-                className="text-base h-12"
+                className="text-base h-11 bg-input border-0 focus-visible:ring-2 focus-visible:ring-ring"
                 autoComplete="username"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 text-left">
               <Label htmlFor="password">Пароль</Label>
               <div className="relative">
                 <Input
@@ -90,7 +90,7 @@ export default function LoginForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   placeholder="********"
-                  className="text-base h-12"
+                  className="text-base h-11 bg-input border-0 focus-visible:ring-2 focus-visible:ring-ring"
                   autoComplete="current-password"
                 />
                 <Button
