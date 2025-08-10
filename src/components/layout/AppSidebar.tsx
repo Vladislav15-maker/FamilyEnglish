@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Home, Users, BookOpen, CheckSquare, Award, BarChart3, LibraryBig, Sigma, Book, Repeat } from 'lucide-react';
+import { Home, Users, BookOpen, CheckSquare, Award, BarChart3, LibraryBig, Sigma, Users2, TestTube2 } from 'lucide-react';
 
 export interface NavItem {
   href: string;
@@ -18,16 +18,19 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   // Student items
-  { href: '/dashboard/student/home', label: 'Home', icon: Home, roles: ['student'], exactMatch: true },
-  { href: '/dashboard/student/homework', label: 'My homework', icon: Book, roles: ['student'] },
-  { href: '/dashboard/student/learned-words', label: 'Learned words', icon: Repeat, roles: ['student'] },
+  { href: '/dashboard/student/home', label: 'Главная', icon: Home, roles: ['student'], exactMatch: true },
+  { href: '/dashboard/units', label: 'Юниты', icon: BookOpen, roles: ['student'] },
+  { href: '/dashboard/student/offline-tests', label: 'Оффлайн Тесты', icon: Award, roles: ['student'] },
+  { href: '/dashboard/student/online-tests', label: 'Онлайн Тесты', icon: TestTube2, roles: ['student'] },
+  { href: '/dashboard/student/unit-grades', label: 'Оценки за Юниты', icon: Sigma, roles: ['student'] },
+  { href: '/dashboard/student/class-overview', label: 'Класс', icon: Users2, roles: ['student'] }, 
   
   // Teacher items
   { href: '/dashboard/teacher/students', label: 'Ученики', icon: Users, roles: ['teacher'], exactMatch: true }, 
-  { href: '/dashboard/teacher/progress-overview', label: 'Обзор Класса', icon: BarChart3, roles: ['teacher'] },
-  { href: '/dashboard/teacher/online-tests', label: 'Онлайн Тесты', icon: Award, roles: ['teacher'] },
-  { href: '/dashboard/teacher/offline-tests', label: 'Оффлайн Оценки', icon: CheckSquare, roles: ['teacher'] },
-  { href: '/dashboard/teacher/unit-grading', label: 'Оценки за Юниты', icon: Sigma, roles: ['teacher'] },
+  { href: '/dashboard/teacher/progress-overview', label: 'Обзор Успеваемости Класса', icon: BarChart3, roles: ['teacher'] },
+  { href: '/dashboard/teacher/offline-tests', label: 'Оффлайн Тесты (Управление)', icon: CheckSquare, roles: ['teacher'] },
+  { href: '/dashboard/teacher/online-tests', label: 'Онлайн Тесты (Управление)', icon: TestTube2, roles: ['teacher'] },
+  { href: '/dashboard/teacher/unit-grading', label: 'Оценки за Юниты (Управление)', icon: Sigma, roles: ['teacher'] },
   { href: '/dashboard/teacher/curriculum', label: 'Учебный План', icon: LibraryBig, roles: ['teacher'] },
 ];
 
