@@ -1,3 +1,4 @@
+
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -536,21 +537,20 @@ export default function TeacherStudentDetailPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Слово (Рус)</TableHead>
-                          <TableHead>Правильный ответ</TableHead>
                           <TableHead className="text-center">Ответы ученика</TableHead>
+                          <TableHead>Правильный ответ</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {selectedAttempt.attempts.map((attempt: WordAttempt, index) => {
-                          const allUnits = [...curriculum, ...Object.values(REMEDIATION_UNITS)];
-                          const wordDetail = allUnits
-                            .find(u => u.id === selectedAttempt.unitId)?.rounds
-                            .find(r => r.id === selectedAttempt.roundId)?.words
-                            .find(w => w.id === attempt.wordId);
+                        {roundWordsForAttempt(selectedAttempt).map((wordDetail, index) => {
+                          const attempt = selectedAttempt.attempts.find((a: WordAttempt) => a.wordId === wordDetail.id);
+                          
+                          if (!attempt) return null;
+
                           return (
                             <TableRow key={`${attempt.wordId}-${index}`}>
                               <TableCell>{wordDetail?.russian}</TableCell>
-                              <TableCell className="font-mono">{wordDetail?.english}</TableCell>
+                              
                               <TableCell>
                                 <div className="flex items-center justify-center gap-1">
                                     <CaseSensitive className="h-4 w-4 text-muted-foreground" />
@@ -564,6 +564,7 @@ export default function TeacherStudentDetailPage() {
                                     {attempt.choiceCorrect === false && <XCircle className="h-4 w-4 text-red-500" />}
                                 </div>
                               </TableCell>
+                              <TableCell className="font-mono text-green-600">{wordDetail?.english}</TableCell>
                             </TableRow>
                           );
                         })}
@@ -598,4 +599,14 @@ export default function TeacherStudentDetailPage() {
       </AlertDialog>
     </Dialog>
   );
+}
+
+function roundWordsForAttempt(attempt: StudentAttemptHistory): Word[] {
+    const allUnits = [...curriculum, ...Object.values(REMEDIATION_UNITS)];
+    const unit = allUnits.find(u => u.id === attempt.unitId);
+    if (!unit) return [];
+    const round = unit.rounds.find(r => r.id === attempt.roundId);
+    if (!round) return [];
+    // Return words in the order they appear in the attempt for consistency
+    return attempt.attempts.map(a => round.words.find(w => w.id === a.wordId)).filter((w): w is Word => !!w);
 }
