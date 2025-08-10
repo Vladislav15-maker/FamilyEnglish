@@ -4,48 +4,26 @@
 
 @layer base {
   :root {
-    --background: hsl(233 60% 94%); /* Very light indigo */
-    --foreground: hsl(231 48% 18%); /* Darker shade for text on light indigo */
-    --card: hsl(233 60% 98%); /* Slightly lighter than background for cards */
-    --card-foreground: hsl(231 48% 18%);
-    --popover: hsl(233 60% 98%);
-    --popover-foreground: hsl(231 48% 18%);
-    --primary: hsl(231 48% 48%); /* Deep indigo */
+    --background: hsl(228 89% 98%); /* #f7f8fd */
+    --foreground: hsl(232 47% 18%); /* #181e44 */
+    --card: hsl(0 0% 100%);
+    --card-foreground: hsl(232 47% 18%);
+    --popover: hsl(0 0% 100%);
+    --popover-foreground: hsl(232 47% 18%);
+    --primary: hsl(232 52% 48%); /* #4051b5 */
     --primary-foreground: hsl(0 0% 100%);
-    --secondary: hsl(233 30% 85%); /* Lighter indigo for secondary elements */
-    --secondary-foreground: hsl(231 48% 28%);
-    --muted: hsl(233 30% 80%);
-    --muted-foreground: hsl(231 30% 45%);
-    --accent: hsl(36 100% 50%); /* Saturated orange */
+    --secondary: hsl(228 67% 97%); /* #e6e8f8 */
+    --secondary-foreground: hsl(232 47% 18%);
+    --muted: hsl(228 44% 88%); /* #cdd0e4 */
+    --muted-foreground: hsl(258 25% 49%); /* #5f5d97 */
+    --accent: hsl(232 52% 48%);
     --accent-foreground: hsl(0 0% 100%);
     --destructive: hsl(0 84.2% 60.2%);
     --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(233 30% 80%);
-    --input: hsl(233 30% 88%);
-    --ring: hsl(231 48% 48%); /* Deep indigo for rings */
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: hsl(231 20% 10%); 
-    --foreground: hsl(0 0% 98%);
-    --card: hsl(231 20% 15%);
-    --card-foreground: hsl(0 0% 98%);
-    --popover: hsl(231 20% 15%);
-    --popover-foreground: hsl(0 0% 98%);
-    --primary: hsl(231 48% 58%); /* Lighter Deep indigo for dark mode */
-    --primary-foreground: hsl(0 0% 10%);
-    --secondary: hsl(231 20% 25%);
-    --secondary-foreground: hsl(0 0% 98%);
-    --muted: hsl(231 20% 20%);
-    --muted-foreground: hsl(0 0% 63.9%);
-    --accent: hsl(36 100% 60%); /* Lighter Saturated orange */
-    --accent-foreground: hsl(0 0% 10%);
-    --destructive: hsl(0 62.8% 30.6%);
-    --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(231 20% 30%);
-    --input: hsl(231 20% 25%);
-    --ring: hsl(36 100% 60%); 
+    --border: hsl(228 44% 88%); /* #cdd0e4 */
+    --input: hsl(228 67% 94%); /* #e7e9f9 */
+    --ring: hsl(232 52% 48%);
+    --radius: 0.75rem;
   }
 }
 
