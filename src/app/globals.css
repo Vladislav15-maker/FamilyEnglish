@@ -4,60 +4,60 @@
 
 @layer base {
   :root {
-    --background: 222 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 224 71% 4%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 34 92% 62%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --background: 233 60% 94%; /* Very light indigo */
+    --foreground: 231 48% 18%; /* Darker shade for text on light indigo */
+    --card: 233 60% 98%; /* Slightly lighter than background for cards */
+    --card-foreground: 231 48% 18%;
+    --popover: 233 60% 98%;
+    --popover-foreground: 231 48% 18%;
+    --primary: 231 48% 48%; /* Deep indigo */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 233 30% 85%; /* Lighter indigo for secondary elements */
+    --secondary-foreground: 231 48% 28%;
+    --muted: 233 30% 80%;
+    --muted-foreground: 231 30% 45%;
+    --accent: 36 100% 50%; /* Saturated orange */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 233 30% 80%;
+    --input: 233 30% 88%;
+    --ring: 231 48% 48%; /* Deep indigo for rings */
     --radius: 0.5rem;
 
-    --chart-1: 210 40% 98%;
-    --chart-2: 25 95% 58%;
-    --chart-3: 160 84% 45%;
-    --chart-4: 210 89% 70%;
-    --chart-5: 340 82% 58%;
+    --chart-1: 231 48% 48%;
+    --chart-2: 36 100% 50%;
+    --chart-3: 120 40% 50%; /* A contrasting green */
+    --chart-4: 200 50% 50%; /* A contrasting blue */
+    --chart-5: 300 50% 50%; /* A contrasting purple */
   }
 
   .dark {
-    --background: 222 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 224 71% 4%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 34 92% 62%;
-    --accent-foreground: 210 40% 98%;
+    --background: 231 20% 10%; 
+    --foreground: 0 0% 98%;
+    --card: 231 20% 15%;
+    --card-foreground: 0 0% 98%;
+    --popover: 231 20% 15%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 231 48% 58%; /* Lighter Deep indigo for dark mode */
+    --primary-foreground: 0 0% 10%;
+    --secondary: 231 20% 25%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 231 20% 20%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 36 100% 60%; /* Lighter Saturated orange */
+    --accent-foreground: 0 0% 10%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-
-    --chart-1: 210 40% 98%;
-    --chart-2: 25 95% 58%;
-    --chart-3: 160 84% 45%;
-    --chart-4: 210 89% 70%;
-    --chart-5: 340 82% 58%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 231 20% 30%;
+    --input: 231 20% 25%;
+    --ring: 36 100% 60%; 
+    
+    --chart-1: 231 48% 58%;
+    --chart-2: 36 100% 60%;
+    --chart-3: 120 40% 60%;
+    --chart-4: 200 50% 60%;
+    --chart-5: 300 50% 60%;
   }
 }
 
