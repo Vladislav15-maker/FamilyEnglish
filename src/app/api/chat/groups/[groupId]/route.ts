@@ -1,61 +1,53 @@
-// src/app/api/chat/groups/[groupId]/route.ts
 import { NextResponse } from 'next/server';
 import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser } from '@/lib/types';
 import { sql } from '@vercel/postgres';
 
-// GET a single group's details, including members and messages
-export async function GET(
-  request: Request,
-  context: { params: { groupId: string } }
-) {
-  const { groupId } = context.params;
+async function resolveParam(paramsOrPromise: any, key: string) {
+  const params = typeof paramsOrPromise?.then === 'function' ? await paramsOrPromise : paramsOrPromise;
+  return params?.[key];
+}
+
+export async function GET(request: Request, { params }: { params: any }) {
+  const groupId = await resolveParam(params, 'groupId');
   const session = await getAppSession();
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const user = session.user as AuthenticatedUser;
 
   try {
-    // Security check: user must be a member of the group
-    const memberCheck = await sql`SELECT 1 FROM chat_group_members WHERE group_id = ${groupId}::uuid AND user_id = ${user.id}::uuid;`;
-    if (memberCheck.rowCount === 0) {
+    // Проверка членства
+    const memberCheck = await sql`SELECT 1 FROM chat_group_members WHERE group_id = ${groupId} AND user_id = ${user.id} LIMIT 1;`;
+    if (!memberCheck || (memberCheck.rowCount !== undefined && memberCheck.rowCount === 0)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const [groupRes, membersRes] = await Promise.all([
-      sql`SELECT id, name, created_at FROM chat_groups WHERE id = ${groupId}::uuid;`,
-      sql`SELECT u.id, u.name, u.role FROM users u JOIN chat_group_members m ON u.id = m.user_id WHERE m.group_id = ${groupId}::uuid;`,
+      sql`SELECT id, name, created_at, creator_id FROM chat_groups WHERE id = ${groupId} LIMIT 1;`,
+      sql`SELECT u.id, u.name, u.role FROM users u JOIN chat_group_members m ON u.id = m.user_id WHERE m.group_id = ${groupId};`,
     ]);
 
-    if (groupRes.rowCount === 0) {
+    if (!groupRes || (groupRes.rowCount !== undefined && groupRes.rowCount === 0)) {
       return NextResponse.json({ error: 'Group not found' }, { status: 404 });
     }
 
     let messagesRes;
     try {
-        messagesRes = await sql`
-            SELECT m.id, m.content, m.created_at, m.is_deleted, m.sender_id, u.name as sender_name, u.role as sender_role
-            FROM messages m
-            JOIN users u ON m.sender_id = u.id
-            WHERE m.group_id = ${groupId}::uuid
-            ORDER BY m.created_at ASC;
-        `;
+      messagesRes = await sql`
+        SELECT m.id, m.content, m.created_at, m.updated_at, m.is_deleted, m.sender_id, u.name as sender_name, u.role as sender_role
+        FROM messages m
+        LEFT JOIN users u ON m.sender_id = u.id
+        WHERE m.group_id = ${groupId}
+        ORDER BY m.created_at ASC;
+      `;
     } catch (e: any) {
-        // If the messages table doesn't exist, we don't fail the whole request.
-        if (e.code === '42P01') { // undefined_table
-            console.warn('[API Chat Group] `messages` table not found, returning empty messages array.');
-            messagesRes = { rows: [] }; // Mock the result
-        } else {
-            throw e; // Re-throw other errors
-        }
+      console.warn('[API Chat Group] messages read failed, returning empty array. Error:', e?.message ?? e);
+      messagesRes = { rows: [] };
     }
 
-
     return NextResponse.json({
-      group: groupRes.rows[0],
-      members: membersRes.rows,
-      messages: messagesRes.rows,
+      group: groupRes.rows ? groupRes.rows[0] : groupRes[0],
+      members: membersRes.rows ?? membersRes,
+      messages: messagesRes.rows ?? messagesRes,
     });
   } catch (error) {
     console.error(`[API Chat Group GET ${groupId}] Error:`, error);
@@ -63,30 +55,42 @@ export async function GET(
   }
 }
 
-// DELETE handler to delete a group (teacher only)
-export async function DELETE(
-  request: Request,
-  context: { params: { groupId: string } }
-) {
-  const { groupId } = context.params;
+export async function DELETE(request: Request, { params }: { params: any }) {
+  const groupId = await resolveParam(params, 'groupId');
   const session = await getAppSession();
-  if (!session?.user || (session.user as AuthenticatedUser).role !== 'teacher') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = session.user as AuthenticatedUser;
 
   try {
-    const result = await sql`
-      DELETE FROM chat_groups WHERE id = ${groupId}::uuid
-      RETURNING id, name;
-    `;
+    const groupRes = await sql`SELECT id, creator_id FROM chat_groups WHERE id = ${groupId} LIMIT 1;`;
+    if (!groupRes || (groupRes.rowCount !== undefined && groupRes.rowCount === 0)) {
+      return NextResponse.json({ error: 'Group not found' }, { status: 404 });
+    }
+    const group = groupRes.rows ? groupRes.rows[0] : groupRes[0];
 
-    if (result.rowCount === 0) {
-      return NextResponse.json({ error: 'Group not found or you do not have permission to delete it.' }, { status: 404 });
+    if (user.role !== 'teacher' && String(group.creator_id) !== String(user.id)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    return NextResponse.json({ message: 'Group deleted successfully', group: result.rows[0] });
+    try {
+      await sql`BEGIN;`;
+      await sql`DELETE FROM messages WHERE group_id = ${groupId};`;
+      await sql`DELETE FROM chat_group_members WHERE group_id = ${groupId};`;
+      const deleted = await sql`DELETE FROM chat_groups WHERE id = ${groupId} RETURNING id;`;
+      await sql`COMMIT;`;
+
+      if (!deleted || (deleted.rowCount !== undefined && deleted.rowCount === 0)) {
+        return NextResponse.json({ error: 'Failed to delete group' }, { status: 500 });
+      }
+
+      return NextResponse.json({ message: 'Group deleted successfully', id: groupId });
+    } catch (txErr) {
+      console.error('[API Chat Group DELETE] Transaction error:', txErr);
+      try { await sql`ROLLBACK;`; } catch (_) { /* ignore */ }
+      return NextResponse.json({ error: 'Failed to delete group (transaction failed)' }, { status: 500 });
+    }
   } catch (error) {
-    console.error(`[API Chat Group DELETE ${groupId}] Error deleting group:`, error);
+    console.error(`[API Chat Group DELETE ${groupId}] Error:`, error);
     return NextResponse.json({ error: 'Failed to delete group', details: (error as Error).message }, { status: 500 });
   }
 }
