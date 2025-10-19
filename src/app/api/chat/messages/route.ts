@@ -1,3 +1,4 @@
+
 // src/app/api/chat/messages/route.ts
 import { NextResponse } from 'next/server';
 import { getAppSession } from '@/lib/auth';
@@ -22,10 +23,17 @@ export async function GET(request: Request) {
       );
     `;
     
+    // Corrected JOIN query
     const result = await sql`
-      SELECT m.id, m.sender_id, m.content, m.created_at, u.name as sender_name, u.role as sender_role
+      SELECT 
+        m.id, 
+        m.sender_id, 
+        m.content, 
+        m.created_at, 
+        u.name as sender_name, 
+        u.role as sender_role
       FROM messages m
-      JOIN users u ON m.sender_id = u.id
+      LEFT JOIN users u ON m.sender_id = u.id
       ORDER BY m.created_at ASC;
     `;
     
