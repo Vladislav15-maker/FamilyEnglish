@@ -178,7 +178,7 @@ export default function StudentHomePage() {
           <AlertTitle className="font-bold text-lg">Внимание: Объявлен тест!</AlertTitle>
           <AlertDescription className="text-base">
             Приготовьтесь к тесту по юнитам, который состоится{' '}
-            <strong className="text-destructive-foreground">{format(new Date(announcement.testDate), 'dd MMMM yyyy \'в\' HH:mm', { locale: ru })}</strong>.
+            <strong className="text-green-500">{format(new Date(announcement.testDate), 'dd MMMM yyyy \'в\' HH:mm', { locale: ru })}</strong>.
           </AlertDescription>
         </Alert>
       )}
