@@ -61,12 +61,13 @@ export async function GET(
     let messagesRes;
     try {
       messagesRes = await sql`
-        SELECT m.id, m.content, m.created_at, m.updated_at, m.is_deleted, m.sender_id, u.name as sender_name, u.role as sender_role
-        FROM messages m
-        LEFT JOIN users u ON m.sender_id = u.id
-        WHERE m.group_id = ${groupId}
-        ORDER BY m.created_at ASC;
-      `;
+  SELECT m.id, m.content, m.created_at, m.updated_at, m.is_deleted, m.sender_id, u.name as sender_name, u.role as sender_role
+  FROM messages m
+  LEFT JOIN users u ON m.sender_id::text = u.id::text
+  WHERE m.group_id::text = ${groupId}
+  ORDER BY m.created_at ASC;
+`;
+
     } catch (e: any) {
       console.warn('[API Chat Group] messages read failed, returning empty array. Error:', e?.message ?? e);
       messagesRes = { rows: [] };
