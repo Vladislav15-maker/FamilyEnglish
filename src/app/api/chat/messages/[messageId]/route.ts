@@ -1,5 +1,3 @@
-
-// src/app/api/chat/messages/[messageId]/route.ts
 import { NextResponse } from 'next/server';
 import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser } from '@/lib/types';
@@ -35,22 +33,21 @@ export async function PUT(
       SET 
         content = ${content},
         updated_at = NOW()
-      WHERE id = ${messageId}::uuid AND sender_id = ${user.id}::uuid
+      WHERE id = ${messageId} AND sender_id = ${user.id}
       RETURNING id, sender_id, content, group_id, created_at, updated_at;
     `;
 
-    if (result.rowCount === 0) {
+    if (!result || (result.rowCount !== undefined && result.rowCount === 0)) {
       return NextResponse.json({ error: 'Message not found or you do not have permission to edit it.' }, { status: 404 });
     }
 
-    return NextResponse.json(result.rows[0]);
+    return NextResponse.json(result.rows ? result.rows[0] : result[0]);
 
   } catch (error) {
     console.error(`[API Chat PUT ${messageId}] Error editing message:`, error);
     return NextResponse.json({ error: 'Failed to edit message', details: (error as Error).message }, { status: 500 });
   }
 }
-
 
 // DELETE handler to delete a message
 export async function DELETE(
@@ -66,16 +63,14 @@ export async function DELETE(
 
   try {
     // A teacher can delete any message. A student can only delete their own.
-    let query;
+    let result;
     if (user.role === 'teacher') {
-        query = sql`DELETE FROM messages WHERE id = ${messageId}::uuid RETURNING id;`;
+        result = await sql`DELETE FROM messages WHERE id = ${messageId} RETURNING id;`;
     } else {
-        query = sql`DELETE FROM messages WHERE id = ${messageId}::uuid AND sender_id = ${user.id}::uuid RETURNING id;`;
+        result = await sql`DELETE FROM messages WHERE id = ${messageId} AND sender_id = ${user.id} RETURNING id;`;
     }
-
-    const result = await query;
     
-    if (result.rowCount === 0) {
+    if (!result || (result.rowCount !== undefined && result.rowCount === 0)) {
       return NextResponse.json({ error: 'Message not found or you do not have permission to delete it.' }, { status: 404 });
     }
 
