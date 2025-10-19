@@ -42,7 +42,6 @@ export async function POST(request: Request) {
         group_id UUID REFERENCES chat_groups(id) ON DELETE CASCADE,
         content TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ,
         is_deleted BOOLEAN DEFAULT FALSE
       );
     `;
@@ -50,7 +49,7 @@ export async function POST(request: Request) {
     const result = await sql`
       INSERT INTO messages (sender_id, content, group_id)
       VALUES (${user.id}::uuid, ${content.trim()}, ${groupId}::uuid)
-      RETURNING id, sender_id, content, group_id, created_at, updated_at, is_deleted;
+      RETURNING id, sender_id, content, group_id, created_at, is_deleted;
     `;
 
     const newMessage = result.rows[0];

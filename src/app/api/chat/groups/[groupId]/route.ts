@@ -7,9 +7,9 @@ import { sql } from '@vercel/postgres';
 // GET a single group's details, including members and messages
 export async function GET(
   request: Request,
-  { params }: { params: { groupId: string } }
+  context: { params: { groupId: string } }
 ) {
-  const { groupId } = params;
+  const { groupId } = context.params;
   const session = await getAppSession();
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -35,7 +35,7 @@ export async function GET(
     let messagesRes;
     try {
         messagesRes = await sql`
-            SELECT m.id, m.content, m.created_at, m.updated_at, m.is_deleted, m.sender_id, u.name as sender_name, u.role as sender_role
+            SELECT m.id, m.content, m.created_at, m.is_deleted, m.sender_id, u.name as sender_name, u.role as sender_role
             FROM messages m
             JOIN users u ON m.sender_id = u.id
             WHERE m.group_id = ${groupId}::uuid
@@ -66,9 +66,9 @@ export async function GET(
 // DELETE handler to delete a group (teacher only)
 export async function DELETE(
   request: Request,
-  { params }: { params: { groupId: string } }
+  context: { params: { groupId: string } }
 ) {
-  const { groupId } = params;
+  const { groupId } = context.params;
   const session = await getAppSession();
   if (!session?.user || (session.user as AuthenticatedUser).role !== 'teacher') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
