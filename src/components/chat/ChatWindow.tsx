@@ -20,9 +20,10 @@ import type { ChatGroup, Message, User } from '@/lib/types';
 
 interface ChatWindowProps {
   selectedGroup: ChatGroup | null;
+  onNewMessage: (groupId: string) => void;
 }
 
-export default function ChatWindow({ selectedGroup }: ChatWindowProps) {
+export default function ChatWindow({ selectedGroup, onNewMessage }: ChatWindowProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -55,6 +56,24 @@ export default function ChatWindow({ selectedGroup }: ChatWindowProps) {
   useEffect(() => {
     fetchGroupDetails();
   }, [fetchGroupDetails]);
+  
+    useEffect(() => {
+    if (!selectedGroup) return;
+
+    const interval = setInterval(() => {
+      fetch(`/api/chat/groups/${selectedGroup.id}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.messages.length > messages.length) {
+                setMessages(data.messages);
+                onNewMessage(selectedGroup.id);
+            }
+        });
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [selectedGroup, messages.length, onNewMessage]);
+
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
