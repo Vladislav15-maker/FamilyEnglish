@@ -69,14 +69,10 @@ export async function POST(request: Request) {
     const newGroup = groupResult.rows[0];
     const newGroupId = newGroup.id;
 
-    // Step 2: Insert members
-    // Build a single query to insert all members at once for efficiency
-    const memberInsertions = finalMemberIds.map(userId => 
-      sql`INSERT INTO chat_group_members (group_id, user_id) VALUES (${newGroupId}, ${userId});`
-    );
-    
-    // Execute all insertion promises
-    await Promise.all(memberInsertions);
+    // Step 2: Insert members one by one
+    for (const userId of finalMemberIds) {
+      await sql`INSERT INTO chat_group_members (group_id, user_id) VALUES (${newGroupId}, ${userId});`;
+    }
 
     return NextResponse.json(newGroup, { status: 201 });
 
