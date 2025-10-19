@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Home, Users, BookOpen, CheckSquare, Award, BarChart3, LibraryBig, Sigma, Users2, TestTube2, MessageSquare } from 'lucide-react';
+import { Home, Users, BookOpen, CheckSquare, Award, BarChart3, LibraryBig, Sigma, Users2, TestTube2, MessageSquare, PlusCircle } from 'lucide-react';
 
 export interface NavItem {
   href: string;
@@ -32,6 +32,8 @@ export const navItems: NavItem[] = [
   { href: '/dashboard/teacher/online-tests', label: 'Онлайн Тесты (Управление)', icon: TestTube2, roles: ['teacher'] },
   { href: '/dashboard/teacher/unit-grading', label: 'Оценки за Юниты (Управление)', icon: Sigma, roles: ['teacher'] },
   { href: '/dashboard/teacher/curriculum', label: 'Учебный План', icon: LibraryBig, roles: ['teacher'] },
+  { href: '/dashboard/teacher/groups', label: 'Управление группами', icon: PlusCircle, roles: ['teacher'] },
+
 
   // Common items
   { href: '/dashboard/chat', label: 'Чат', icon: MessageSquare, roles: ['teacher', 'student'] },

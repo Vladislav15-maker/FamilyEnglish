@@ -2,8 +2,6 @@ import { sql } from '@vercel/postgres';
 import type { User, StudentRoundProgress, OfflineTestScore, UserForAuth, StudentUnitGrade, StudentAttemptHistory, OnlineTestResult, OnlineTestResultAnswer } from './types';
 
 // This log runs when the module is first loaded.
-// If POSTGRES_URL is not set here when running on the server, then .env.local is not loaded correctly server-side.
-// If this log appears in the BROWSER console saying "NOT SET", it means this module was bundled for the client.
 console.log('[Store Module] Initializing. process.env.POSTGRES_URL status during module load:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
 if (!process.env.POSTGRES_URL && typeof window === 'undefined') { // Log server-side only missing env
   console.error('[Store Module] CRITICAL SERVER-SIDE: POSTGRES_URL is not defined in the environment when store.ts module is loaded!');
@@ -11,8 +9,6 @@ if (!process.env.POSTGRES_URL && typeof window === 'undefined') { // Log server-
 
 
 export async function getUserByUsernameForAuth(username: string): Promise<UserForAuth | null> {
-  // console.log('[Store] getUserByUsernameForAuth called for username:', username);
-  // console.log('[Store] Inside getUserByUsernameForAuth - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
     console.error('[Store] CRITICAL in getUserByUsernameForAuth (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
@@ -21,12 +17,10 @@ export async function getUserByUsernameForAuth(username: string): Promise<UserFo
       SELECT id, username, password_hash, role, name, email, created_at FROM users WHERE username = ${username};
     `;
     if (result.rows.length === 0) {
-      // console.log('[Store] User not found in DB for username:', username);
       return null;
     }
     const user = result.rows[0];
     const userIdAsString = typeof user.id === 'string' ? user.id : String(user.id);
-    // console.log('[Store] User found in DB:', user.username, 'Password hash from DB (first 10 chars):', user.password_hash ? user.password_hash.substring(0,10) + "..." : "N/A", 'Role:', user.role, 'ID:', userIdAsString);
     return {
       id: userIdAsString,
       username: user.username,
@@ -47,15 +41,12 @@ export async function getUserByUsernameForAuth(username: string): Promise<UserFo
 }
 
 export async function findUserById(userId: string): Promise<User | undefined> {
-   // console.log('[Store] findUserById called for ID:', userId);
-   // console.log('[Store] Inside findUserById - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
    if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
     console.error('[Store] CRITICAL in findUserById (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
    try {
     const result = await sql`SELECT id, username, role, name, email FROM users WHERE id = ${userId};`;
     if (result.rows.length === 0) {
-      // console.log('[Store] User not found in DB for ID:', userId);
       return undefined;
     }
     const user = result.rows[0];
@@ -78,8 +69,6 @@ export async function findUserById(userId: string): Promise<User | undefined> {
 }
 
 export async function getAllStudents(): Promise<User[]> {
-  // console.log('[Store] getAllStudents called');
-  // console.log('[Store] Inside getAllStudents - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
     console.error('[Store] CRITICAL in getAllStudents (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
@@ -103,8 +92,6 @@ export async function getAllStudents(): Promise<User[]> {
 }
 
 export async function getStudentRoundProgress(studentId: string, unitId: string, roundId: string): Promise<StudentRoundProgress | undefined> {
-  // console.log(`[Store] getStudentRoundProgress for student ${studentId}, unit ${unitId}, round ${roundId}`);
-  // console.log('[Store] Inside getStudentRoundProgress - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
    if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
     console.error('[Store] CRITICAL in getStudentRoundProgress (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }
@@ -137,8 +124,6 @@ export async function getStudentRoundProgress(studentId: string, unitId: string,
 }
 
 export async function getAllStudentProgress(studentIdFilter: string): Promise<StudentRoundProgress[]> {
-  // console.log(`[Store] getAllStudentProgress called for studentIdFilter: '${studentIdFilter}' (empty means all)`);
-  // console.log('[Store] Inside getAllStudentProgress - POSTGRES_URL check:', process.env.POSTGRES_URL ? 'SET' : 'NOT SET');
   if (!process.env.POSTGRES_URL && typeof window === 'undefined') {
     console.error('[Store] CRITICAL in getAllStudentProgress (SERVER-SIDE): POSTGRES_URL is NOT SET.');
   }

@@ -29,55 +29,40 @@ export interface OnlineTest {
 
 
 // User and Auth Types
-// User type as stored in the database (excluding sensitive info like password_hash for general use)
 export interface User {
   id:string;
   username: string;
   role: 'teacher' | 'student';
   name: string;
-  email?: string | null; // Email can be optional
-  // created_at?: string | Date; // Optional, if you track creation time
+  email?: string | null;
 }
 
-// User type specifically for NextAuth.js authorize function and DB interaction, includes password_hash
-export interface UserForAuth {
-  id: string;
-  username: string;
-  password_hash: string; // Essential for password comparison during login
-  role: 'teacher' | 'student';
-  name: string;
-  email?: string | null;
-  created_at?: string | Date; // Optional
+export interface UserForAuth extends User {
+  password_hash: string;
+  created_at?: string | Date;
 }
 
-// User type for the application's AuthContext (what the client-side app sees)
-export interface AuthenticatedUser {
-  id: string;
-  username: string;
-  name: string;
-  email?: string | null;
-  role: 'teacher' | 'student';
-}
+export type AuthenticatedUser = Omit<UserForAuth, 'password_hash'>;
 
 // A single attempt for a single word, which now can have two parts.
 export interface WordAttempt {
   wordId: string;
-  writtenAnswer?: string; // The user's typed English translation
-  writtenCorrect?: boolean; // Was the typed answer correct?
-  choiceAnswer?: string; // The user's chosen Russian translation
-  choiceCorrect?: boolean; // Was the chosen answer correct?
+  writtenAnswer?: string;
+  writtenCorrect?: boolean;
+  choiceAnswer?: string;
+  choiceCorrect?: boolean;
 }
 
 
 // Progress and Score Types
 export interface StudentRoundProgress {
-  studentId: string; // Corresponds to User.id
+  studentId: string;
   unitId: string;
   roundId: string;
-  score: number; // Percentage score, e.g., 80 for 80%
+  score: number;
   attempts: WordAttempt[] | any; // 'any' for JSONB from DB, parse as needed
   completed: boolean;
-  timestamp: number; // Unix timestamp (milliseconds) or string date representation
+  timestamp: number;
   attemptCount: number;
 }
 
@@ -93,16 +78,16 @@ export interface StudentAttemptHistory {
 }
 
 export interface OfflineTestScore {
-  id: string; // Unique ID for the score entry
-  studentId: string; // Corresponds to User.id
-  teacherId: string; // Corresponds to User.id of the teacher who graded
-  testId?: string | null; // Identifier for the specific test, e.g., 'test-1'
-  testName?: string; // For display purposes, added programmatically
-  studentName?: string; // For display purposes, can be joined from users table
-  score: 2 | 3 | 4 | 5; // Fixed score values
-  notes?: string | null; // Optional notes from the teacher
-  date: string; // Date of the test/grading, stored as ISO string or similar
-  passed: boolean | null; // Teacher determines if the student passed
+  id: string;
+  studentId: string;
+  teacherId: string;
+  testId?: string | null;
+  testName?: string;
+  studentName?: string;
+  score: 2 | 3 | 4 | 5;
+  notes?: string | null;
+  date: string;
+  passed: boolean | null;
 }
 
 export interface StudentUnitGrade {
@@ -110,29 +95,49 @@ export interface StudentUnitGrade {
   studentId: string;
   teacherId: string;
   unitId: string;
-  unitName?: string; // For display purposes, can be joined or added programmatically
-  studentName?: string; // For display purposes on teacher's or public student's side
+  unitName?: string;
+  studentName?: string;
   grade: 2 | 3 | 4 | 5;
   notes?: string | null;
-  date: string; // ISO string date
+  date: string;
 }
 
 export interface OnlineTestResultAnswer {
   wordId: string;
   userAnswer: string;
-  correct: boolean | null; // null until graded by teacher, then boolean
+  correct: boolean | null;
 }
 
 export interface OnlineTestResult {
   id: string;
   studentId: string;
-  studentName?: string; // For display
+  studentName?: string;
   onlineTestId: string;
-  score: number; // 0 for ungraded, then calculated score.
+  score: number;
   answers: OnlineTestResultAnswer[];
-  completedAt: string; // ISO string
-  isPassed: boolean | null; // null until graded
-  grade: (2 | 3 | 4 | 5) | null; // null until graded
+  completedAt: string | null;
+  isPassed: boolean | null;
+  grade: (2 | 3 | 4 | 5) | null;
   teacherNotes: string | null;
   durationSeconds: number | null;
+}
+
+// Chat Types
+export interface ChatGroup {
+    id: string;
+    name: string;
+    created_by: string;
+    created_at: string;
+}
+
+export interface Message {
+    id: number;
+    sender_id: string;
+    sender_name: string;
+    sender_role: 'teacher' | 'student';
+    content: string;
+    group_id: string;
+    created_at: string;
+    updated_at: string | null;
+    is_deleted: boolean;
 }
