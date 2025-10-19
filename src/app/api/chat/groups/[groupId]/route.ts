@@ -46,6 +46,21 @@ export async function GET(
     });
   } catch (error) {
     console.error(`[API Chat Group GET ${groupId}] Error:`, error);
+    // Handle case where messages table doesn't exist yet
+    if ((error as any).code === '42P01' && (error as any).message.includes('messages')) {
+        const [groupRes, membersRes] = await Promise.all([
+             sql`SELECT id, name, created_at FROM chat_groups WHERE id = ${groupId}::uuid;`,
+             sql`SELECT u.id, u.name, u.role FROM users u JOIN chat_group_members m ON u.id = m.user_id WHERE m.group_id = ${groupId}::uuid;`,
+        ]);
+         if (groupRes.rowCount === 0) {
+            return NextResponse.json({ error: 'Group not found' }, { status: 404 });
+        }
+        return NextResponse.json({
+            group: groupRes.rows[0],
+            members: membersRes.rows,
+            messages: [], // Return empty messages array
+        });
+    }
     return NextResponse.json({ error: 'Failed to fetch group details', details: (error as Error).message }, { status: 500 });
   }
 }
