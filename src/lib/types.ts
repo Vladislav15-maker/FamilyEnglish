@@ -35,6 +35,7 @@ export interface User {
   role: 'teacher' | 'student';
   name: string;
   email?: string | null;
+  avatarUrl?: string;
 }
 
 export interface UserForAuth extends User {
@@ -42,7 +43,9 @@ export interface UserForAuth extends User {
   created_at?: string | Date;
 }
 
-export type AuthenticatedUser = Omit<UserForAuth, 'password_hash'>;
+export type AuthenticatedUser = Omit<UserForAuth, 'password_hash'> & {
+    avatarUrl?: string;
+};
 
 // A single attempt for a single word, which now can have two parts.
 export interface WordAttempt {
