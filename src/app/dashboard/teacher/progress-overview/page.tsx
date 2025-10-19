@@ -5,7 +5,7 @@ import { curriculum } from '@/lib/curriculum-data';
 import type { User, StudentRoundProgress, OfflineTestScore, StudentUnitGrade } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, BookOpen, BarChart3, Users, ClipboardList, Sigma } from 'lucide-react';
+import { AlertCircle, BookOpen, BarChart3, Users, ClipboardList, Sigma, Annoyed } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import AnnounceTestForm from '@/components/teacher/AnnounceTestForm';
+
 
 interface StudentOnlineOverviewItem {
   student: User;
@@ -159,6 +161,8 @@ export default function TeacherConsolidatedProgressOverviewPage() {
     <div className="space-y-8">
       <div className="flex items-center space-x-3"> <BarChart3 className="h-10 w-10 text-primary" /> <h1 className="text-4xl font-bold font-headline">Общий Обзор Успеваемости Класса</h1> </div>
        {errorMessages.length > 0 && !hasCriticalError && ( <Alert variant="destructive" className="my-4"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Ошибка при загрузке части данных</AlertTitle> <AlertDescription>{errorMessages.map((e, i) => <p key={i}>{e}</p>)}</AlertDescription> </Alert> )}
+
+      <AnnounceTestForm />
 
       {/* Online Progress Section */}
       <Card className="shadow-lg">

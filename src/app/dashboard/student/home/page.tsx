@@ -8,8 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowRight, BookOpen, Award, TrendingUp, CheckCircle, Sparkles, TestTube2, Users2, Sigma } from 'lucide-react';
+import { ArrowRight, BookOpen, Award, TrendingUp, CheckCircle, Sparkles, TestTube2, Users2, Sigma, Bell } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
 
 interface StudentStats {
   unitsCompleted: number;
@@ -20,39 +22,54 @@ interface StudentStats {
   totalRoundsInCurriculum: number;
 }
 
+interface UnitTestAnnouncement {
+  testDate: string;
+  id: string;
+  createdAt: string;
+}
+
 export default function StudentHomePage() {
-  const { user, isLoading: authIsLoading } = useAuth(); // isLoading from useAuth, aliased to authIsLoading
+  const { user, isLoading: authIsLoading } = useAuth();
   const [stats, setStats] = useState<StudentStats | null>(null);
-  const [pageIsLoading, setPageIsLoading] = useState(true); // Page-specific loading state
+  const [announcement, setAnnouncement] = useState<UnitTestAnnouncement | null>(null);
+  const [pageIsLoading, setPageIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authIsLoading) {
-      setPageIsLoading(true); // Keep page loading if auth is still resolving
+      setPageIsLoading(true);
       return;
     }
 
-    // Auth is done loading, now proceed based on user
     if (user && user.role === 'student') {
-      setPageIsLoading(true); // Indicate data fetching for student has started
+      setPageIsLoading(true);
       setError(null);
-      fetch(`/api/progress/student/${user.id}`)
-        .then(res => {
-          if (!res.ok) {
-            return res.json().then(errData => {
-              throw new Error(errData.error || `Не удалось загрузить прогресс. Статус: ${res.status}`);
-            });
+      
+      const fetchAllData = async () => {
+        try {
+          const [progressRes, announcementRes] = await Promise.all([
+            fetch(`/api/progress/student/${user.id}`),
+            fetch('/api/announcements/unit-test')
+          ]);
+
+          if (!progressRes.ok) {
+            const errData = await progressRes.json().catch(() => ({}));
+            throw new Error(errData.error || `Не удалось загрузить прогресс. Статус: ${progressRes.status}`);
           }
-          return res.json();
-        })
-        .then((progressData: StudentRoundProgress[]) => {
+          const progressData: StudentRoundProgress[] = await progressRes.json();
+
+          if (announcementRes.ok) {
+            const announcementData = await announcementRes.json();
+            setAnnouncement(announcementData);
+          } else {
+            setAnnouncement(null);
+          }
+
+          // --- Calculate stats ---
           const totalUnits = curriculum.length;
           let unitsCompleted = 0;
           let unitsInProgress = 0;
-
-          // Exclude remediation units from all calculations on this page
           const coreProgressData = progressData.filter(p => !p.unitId.startsWith('rem-unit-'));
-          
           let sumOfScoresCompletedRounds = 0;
           let completedRoundsCount = 0;
           let totalRoundsInCurriculum = 0;
@@ -90,25 +107,26 @@ export default function StudentHomePage() {
             completedRoundsCount,
             totalRoundsInCurriculum,
           });
-        })
-        .catch(err => {
-          console.error("Failed to load student progress for home page:", err);
+
+        } catch (err) {
+          console.error("Failed to load student data for home page:", err);
           setError((err as Error).message);
-          setStats(null); // Clear stats on error
-        })
-        .finally(() => {
-          setPageIsLoading(false); // Fetch attempt finished
-        });
+          setStats(null);
+        } finally {
+          setPageIsLoading(false);
+        }
+      };
+
+      fetchAllData();
+
     } else {
-      // Auth is done, but no user, or user is not a student
       setPageIsLoading(false);
       setStats(null);
       if (user && user.role !== 'student') {
         setError("Эта страница доступна только для студентов.");
       }
-      // If !user, error/redirect should be handled by DashboardLayout or DashboardPage
     }
-  }, [user, authIsLoading]); // Depend on user and authIsLoading from useAuth
+  }, [user, authIsLoading]);
 
   if (pageIsLoading) {
     return (
@@ -137,13 +155,10 @@ export default function StudentHomePage() {
   }
 
   if (!user || user.role !== 'student' || !stats) {
-    // This state implies that auth is done, page is not loading, but we don't have a valid student/stats
-    // This could be due to an error already displayed, or user is not a student
-    // Or if stats is null for some other reason after loading.
     return (
       <Alert>
         <AlertTitle>Нет данных</AlertTitle>
-        <AlertDescription>Информация для главной страницы студента отсутствует. Возможно, вы не авторизованы как студент или произошла ошибка при загрузке данных.</AlertDescription>
+        <AlertDescription>Информация для главной страницы студента отсутствует.</AlertDescription>
       </Alert>
     );
   }
@@ -156,6 +171,17 @@ export default function StudentHomePage() {
         <h1 className="text-4xl font-bold font-headline">Добро пожаловать, {user.name}!</h1>
         <p className="text-lg mt-2 text-muted-foreground">Готовы к новым знаниям? Давайте начнем!</p>
       </div>
+
+      {announcement && (
+        <Alert variant="destructive" className="shadow-lg">
+          <Bell className="h-4 w-4" />
+          <AlertTitle className="font-bold text-lg">Внимание: Объявлен тест!</AlertTitle>
+          <AlertDescription className="text-base">
+            Приготовьтесь к тесту по юнитам, который состоится{' '}
+            <strong className="text-destructive-foreground">{format(new Date(announcement.testDate), 'dd MMMM yyyy \'в\' HH:mm', { locale: ru })}</strong>.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
