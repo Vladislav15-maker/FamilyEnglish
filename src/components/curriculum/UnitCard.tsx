@@ -20,28 +20,20 @@ export default function UnitCard({ unit, progress = [], isRemediation = false, u
   const completedRoundsInUnit = progress.filter(p => p.unitId === unit.id && p.completed);
   const attemptedRoundsInUnit = progress.filter(p => p.unitId === unit.id && (p.attempts?.length > 0 || p.completed));
 
+  // --- ИСПРАВЛЕНА ЛОГИКА РАСЧЕТА ПРОГРЕССА ---
+  // Прогресс теперь показывает процент ЗАВЕРШЕННЫХ раундов, а не средний балл.
+  const unitCompletionPercentage = totalRoundsInUnit > 0
+    ? Math.round((completedRoundsInUnit.length / totalRoundsInUnit) * 100)
+    : 0;
 
-  let displayProgressPercentage = 0;
-  let progressLabelText = "0%";
   let unitStatusText = "Не начат";
-
   if (totalRoundsInUnit === 0) {
-    progressLabelText = "Нет раундов";
     unitStatusText = "Нет раундов";
-  } else if (completedRoundsInUnit.length > 0) {
-    const sumOfScores = completedRoundsInUnit.reduce((sum, p) => sum + p.score, 0);
-    displayProgressPercentage = Math.round(sumOfScores / completedRoundsInUnit.length);
-    progressLabelText = `${displayProgressPercentage}%`;
-    if (completedRoundsInUnit.length === totalRoundsInUnit) {
-        unitStatusText = `Завершен (${displayProgressPercentage}%)`;
-    } else {
-        unitStatusText = `В процессе (${displayProgressPercentage}%)`;
-    }
+  } else if (completedRoundsInUnit.length === totalRoundsInUnit) {
+    unitStatusText = "Завершен";
   } else if (attemptedRoundsInUnit.length > 0) {
-    progressLabelText = "0%";
     unitStatusText = "В процессе";
   }
-
 
   const roundsCountText = totalRoundsInUnit === 1 ? 'раунд' : 
                          (totalRoundsInUnit > 1 && totalRoundsInUnit < 5 ? 'раунда' : 'раундов');
@@ -93,10 +85,10 @@ export default function UnitCard({ unit, progress = [], isRemediation = false, u
       <CardContent className="flex-grow">
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Средний балл (заверш.)</span>
-            <span>{progressLabelText}</span>
+            <span>Прогресс</span>
+            <span>{unitCompletionPercentage}%</span>
           </div>
-          <Progress value={displayProgressPercentage} aria-label={`Средний балл по юниту ${unit.name}: ${displayProgressPercentage}%`} className={cn("h-2", isRemediation && "[&>div]:bg-accent")} />
+          <Progress value={unitCompletionPercentage} aria-label={`Прогресс по юниту ${unit.name}: ${unitCompletionPercentage}%`} className={cn("h-2", isRemediation && "[&>div]:bg-accent")} />
           <p className="text-xs text-muted-foreground text-center mt-1">Статус: {unitStatusText}</p>
         </div>
       </CardContent>
