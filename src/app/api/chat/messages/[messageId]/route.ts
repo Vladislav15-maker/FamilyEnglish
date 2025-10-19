@@ -34,7 +34,7 @@ export async function PUT(
       SET 
         content = ${content},
         updated_at = NOW()
-      WHERE id = ${messageId} AND sender_id = ${user.id}
+      WHERE id = ${messageId} AND sender_id = ${user.id}::uuid
       RETURNING id, sender_id, content, group_id, created_at, updated_at;
     `;
 
@@ -69,7 +69,7 @@ export async function DELETE(
     if (user.role === 'teacher') {
         query = sql`DELETE FROM messages WHERE id = ${messageId} RETURNING id;`;
     } else {
-        query = sql`DELETE FROM messages WHERE id = ${messageId} AND sender_id = ${user.id} RETURNING id;`;
+        query = sql`DELETE FROM messages WHERE id = ${messageId} AND sender_id = ${user.id}::uuid RETURNING id;`;
     }
 
     const result = await query;

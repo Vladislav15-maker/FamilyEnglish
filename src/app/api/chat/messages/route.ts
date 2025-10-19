@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
     // Security Check: Verify the user is a member of the group they're posting to
     const memberCheck = await sql`
-      SELECT 1 FROM chat_group_members WHERE group_id = ${groupId} AND user_id = ${user.id};
+      SELECT 1 FROM chat_group_members WHERE group_id = ${groupId}::uuid AND user_id = ${user.id}::uuid;
     `;
     if (memberCheck.rowCount === 0) {
       return NextResponse.json({ error: 'Forbidden: You are not a member of this group.' }, { status: 403 });
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
     const result = await sql`
       INSERT INTO messages (sender_id, content, group_id)
-      VALUES (${user.id}, ${content.trim()}, ${groupId})
+      VALUES (${user.id}::uuid, ${content.trim()}, ${groupId}::uuid)
       RETURNING id, sender_id, content, group_id, created_at, updated_at;
     `;
 
