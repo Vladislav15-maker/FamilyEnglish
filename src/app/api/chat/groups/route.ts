@@ -52,6 +52,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: validation.error.flatten().fieldErrors }, { status: 400 });
     }
     const { name, memberIds } = validation.data;
+    
+    // Step 0: Ensure tables exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS chat_groups (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(100) NOT NULL,
+        created_by UUID REFERENCES users(id),
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS chat_group_members (
+        group_id UUID REFERENCES chat_groups(id) ON DELETE CASCADE,
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        PRIMARY KEY (group_id, user_id)
+      );
+    `;
 
     // Ensure teacher is always part of the group
     const finalMemberIds = Array.from(new Set([...memberIds, teacher.id]));
