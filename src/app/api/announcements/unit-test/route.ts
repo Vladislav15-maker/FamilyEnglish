@@ -4,7 +4,7 @@ import { sql } from '@vercel/postgres';
 import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser } from '@/lib/types';
 
-// GET handler to fetch the latest unit test announcement
+// GET handler to fetch the latest unit test announcement for STUDENTS
 export async function GET(request: Request) {
   const session = await getAppSession();
   if (!session?.user) {
@@ -14,24 +14,20 @@ export async function GET(request: Request) {
   try {
     const result = await sql`
       SELECT id, test_date, created_at FROM unit_test_announcements
-      ORDER BY created_at DESC
-      LIMIT 1;
+      ORDER BY test_date DESC;
     `;
     
-    if (result.rows.length === 0) {
-      return NextResponse.json(null, { status: 200 }); // No announcement found
-    }
+    // Find the most recent announcement that is still in the future
+    const upcomingAnnouncement = result.rows.find(announcement => new Date(announcement.test_date) > new Date());
 
-    const announcement = result.rows[0];
-    // Check if the test date is in the future
-    if (new Date(announcement.test_date) < new Date()) {
-       return NextResponse.json(null, { status: 200 }); // Announcement is expired
+    if (!upcomingAnnouncement) {
+      return NextResponse.json(null, { status: 200 }); // No active announcement found
     }
 
     return NextResponse.json({
-        id: announcement.id,
-        testDate: announcement.test_date,
-        createdAt: announcement.created_at
+        id: upcomingAnnouncement.id,
+        testDate: upcomingAnnouncement.test_date,
+        createdAt: upcomingAnnouncement.created_at
     });
   } catch (error) {
     // If the table doesn't exist, it's not a critical error, just return null.
@@ -44,7 +40,7 @@ export async function GET(request: Request) {
   }
 }
 
-// POST handler to create or update the unit test announcement
+// POST handler to create a new unit test announcement
 export async function POST(request: Request) {
   const session = await getAppSession();
   if (!session?.user || (session.user as AuthenticatedUser).role !== 'teacher') {
@@ -69,10 +65,6 @@ export async function POST(request: Request) {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `;
-
-    // Simple approach: Delete old announcements and insert the new one.
-    // This keeps only the latest announcement.
-    await sql`DELETE FROM unit_test_announcements;`;
     
     const result = await sql`
       INSERT INTO unit_test_announcements (test_date)

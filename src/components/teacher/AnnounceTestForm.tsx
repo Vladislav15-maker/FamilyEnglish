@@ -43,7 +43,11 @@ const FormSchema = z.object({
   time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Неверный формат времени (HH:mm)'),
 });
 
-export default function AnnounceTestForm() {
+interface AnnounceTestFormProps {
+  onAnnouncementAdded: () => void;
+}
+
+export default function AnnounceTestForm({ onAnnouncementAdded }: AnnounceTestFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -75,6 +79,8 @@ export default function AnnounceTestForm() {
         title: 'Успех!',
         description: `Объявление о тесте на ${format(combinedDateTime, 'dd.MM.yyyy HH:mm')} сохранено.`,
       });
+      form.reset({ date: undefined, time: '10:00' });
+      onAnnouncementAdded();
     } catch (error) {
       toast({
         title: 'Ошибка',
@@ -99,62 +105,64 @@ export default function AnnounceTestForm() {
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Дата теста</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={'outline'}
-                          className={cn(
-                            'pl-3 text-left font-normal',
-                            !field.value && 'text-muted-foreground'
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, 'dd MMMM yyyy', { locale: ru })
-                          ) : (
-                            <span>Выберите дату</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) =>
-                          date < new Date(new Date().setHours(0, 0, 0, 0)) 
-                        }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <FormField
                 control={form.control}
-                name="time"
+                name="date"
                 render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Время теста (HH:mm)</FormLabel>
+                    <FormItem className="flex flex-col">
+                    <FormLabel>Дата теста</FormLabel>
+                    <Popover>
+                        <PopoverTrigger asChild>
                         <FormControl>
-                            <Input type="time" {...field} />
+                            <Button
+                            variant={'outline'}
+                            className={cn(
+                                'pl-3 text-left font-normal',
+                                !field.value && 'text-muted-foreground'
+                            )}
+                            >
+                            {field.value ? (
+                                format(field.value, 'dd MMMM yyyy', { locale: ru })
+                            ) : (
+                                <span>Выберите дату</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
                         </FormControl>
-                        <FormMessage />
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) =>
+                            date < new Date(new Date().setHours(0, 0, 0, 0)) 
+                            }
+                            initialFocus
+                        />
+                        </PopoverContent>
+                    </Popover>
+                    <FormMessage />
                     </FormItem>
                 )}
-            />
-            <Button type="submit" disabled={isLoading} className="h-10">
+                />
+                <FormField
+                    control={form.control}
+                    name="time"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Время теста (HH:mm)</FormLabel>
+                            <FormControl>
+                                <Input type="time" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+            <Button type="submit" disabled={isLoading} className="w-full h-10">
               {isLoading ? <Loader2 className="animate-spin" /> : 'Сохранить объявление'}
             </Button>
           </form>

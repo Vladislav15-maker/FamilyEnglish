@@ -5,7 +5,7 @@ import { curriculum } from '@/lib/curriculum-data';
 import type { User, StudentRoundProgress, OfflineTestScore, StudentUnitGrade } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, BookOpen, BarChart3, Users, ClipboardList, Sigma, Annoyed } from 'lucide-react';
+import { AlertCircle, BookOpen, BarChart3, Users, ClipboardList, Sigma } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AnnounceTestForm from '@/components/teacher/AnnounceTestForm';
+import AnnouncementHistory from '@/components/teacher/AnnouncementHistory';
 
 
 interface StudentOnlineOverviewItem {
@@ -30,6 +31,7 @@ export default function TeacherConsolidatedProgressOverviewPage() {
   const [classOnlineOverview, setClassOnlineOverview] = useState<StudentOnlineOverviewItem[]>([]);
   const [offlineScores, setOfflineScores] = useState<OfflineTestScore[]>([]);
   const [unitGrades, setUnitGrades] = useState<StudentUnitGrade[]>([]);
+  const [refreshHistory, setRefreshHistory] = useState(false);
   
   const [isLoadingOnline, setIsLoadingOnline] = useState(true);
   const [isLoadingOffline, setIsLoadingOffline] = useState(true);
@@ -38,6 +40,10 @@ export default function TeacherConsolidatedProgressOverviewPage() {
   const [errorMessages, setErrorMessages] = useState<string[]>([]);
 
   const totalRoundsInCurriculum = curriculum.reduce((acc, unit) => acc + unit.rounds.length, 0);
+
+  const handleAnnouncementAdded = () => {
+    setRefreshHistory(prev => !prev);
+  }
 
   useEffect(() => {
     if (user && user.role === 'teacher') {
@@ -162,7 +168,11 @@ export default function TeacherConsolidatedProgressOverviewPage() {
       <div className="flex items-center space-x-3"> <BarChart3 className="h-10 w-10 text-primary" /> <h1 className="text-4xl font-bold font-headline">Общий Обзор Успеваемости Класса</h1> </div>
        {errorMessages.length > 0 && !hasCriticalError && ( <Alert variant="destructive" className="my-4"> <AlertCircle className="h-4 w-4" /> <AlertTitle>Ошибка при загрузке части данных</AlertTitle> <AlertDescription>{errorMessages.map((e, i) => <p key={i}>{e}</p>)}</AlertDescription> </Alert> )}
 
-      <AnnounceTestForm />
+      <div className="grid lg:grid-cols-2 gap-8 items-start">
+        <AnnounceTestForm onAnnouncementAdded={handleAnnouncementAdded} />
+        <AnnouncementHistory refreshKey={refreshHistory} />
+      </div>
+
 
       {/* Online Progress Section */}
       <Card className="shadow-lg">
