@@ -17,7 +17,7 @@ export async function DELETE(
 
   try {
     const result = await sql`
-      DELETE FROM unit_test_announcements WHERE id = ${id};
+      DELETE FROM announcements WHERE id = ${id};
     `;
 
     if (result.rowCount === 0) {

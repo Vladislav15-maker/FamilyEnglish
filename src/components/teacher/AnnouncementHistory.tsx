@@ -32,12 +32,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { History, Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import { History, Trash2, AlertCircle, Bell } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface Announcement {
   id: number;
-  test_date: string;
+  content: string;
+  is_special: boolean;
   created_at: string;
 }
 
@@ -88,14 +89,7 @@ export default function AnnouncementHistory({ refreshKey }: AnnouncementHistoryP
       toast({ title: 'Ошибка', description: (err as Error).message, variant: 'destructive' });
     }
   };
-
-  const getStatus = (testDate: string): { text: string; variant: 'default' | 'secondary' | 'outline' } => {
-    if (new Date(testDate) > new Date()) {
-      return { text: 'Активно', variant: 'default' };
-    }
-    return { text: 'Прошло', variant: 'secondary' };
-  };
-
+  
   return (
     <>
       <Card className="shadow-lg">
@@ -105,7 +99,7 @@ export default function AnnouncementHistory({ refreshKey }: AnnouncementHistoryP
             История Объявлений
           </CardTitle>
           <CardDescription>
-            Список всех созданных объявлений о тестах.
+            Список всех созданных объявлений.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -125,28 +119,27 @@ export default function AnnouncementHistory({ refreshKey }: AnnouncementHistoryP
             <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Нет объявлений</AlertTitle>
-                <AlertDescription>Вы еще не создали ни одного объявления о тесте.</AlertDescription>
+                <AlertDescription>Вы еще не создали ни одного объявления.</AlertDescription>
             </Alert>
           ) : (
             <div className="max-h-60 overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Дата теста</TableHead>
-                    <TableHead>Статус</TableHead>
+                    <TableHead>Объявление</TableHead>
+                    <TableHead>Дата</TableHead>
                     <TableHead className="text-right">Действие</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {history.map((ann) => (
                     <TableRow key={ann.id}>
-                      <TableCell className="font-medium">
-                        {format(new Date(ann.test_date), 'dd MMMM yyyy, HH:mm', { locale: ru })}
+                      <TableCell className="font-medium max-w-xs truncate">
+                        {ann.is_special && <Badge variant="destructive" className="mr-2"><Bell className="h-3 w-3" /></Badge>}
+                        {ann.content}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatus(ann.test_date).variant}>
-                          {getStatus(ann.test_date).text}
-                        </Badge>
+                        {format(new Date(ann.created_at), 'dd.MM.yyyy HH:mm', { locale: ru })}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
@@ -171,9 +164,7 @@ export default function AnnouncementHistory({ refreshKey }: AnnouncementHistoryP
           <AlertDialogHeader>
             <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
             <AlertDialogDescription>
-              Это действие нельзя будет отменить. Объявление о тесте на {' '}
-              <strong>{announcementToDelete && format(new Date(announcementToDelete.test_date), 'dd.MM.yyyy HH:mm')}</strong>{' '}
-              будет удалено.
+              Это действие нельзя будет отменить. Объявление "{announcementToDelete?.content.substring(0, 30)}..." будет удалено.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

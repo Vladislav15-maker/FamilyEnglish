@@ -2,16 +2,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import type { StudentRoundProgress, Unit as CurriculumUnit } from '@/lib/types';
+import type { StudentRoundProgress } from '@/lib/types';
 import { curriculum } from '@/lib/curriculum-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowRight, BookOpen, Award, TrendingUp, CheckCircle, Sparkles, TestTube2, Users2, Sigma, Bell } from 'lucide-react';
+import { ArrowRight, BookOpen, Award, TrendingUp, CheckCircle, Sparkles, TestTube2, Users2, Sigma, Bell, Info } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface StudentStats {
   unitsCompleted: number;
@@ -22,16 +21,17 @@ interface StudentStats {
   totalRoundsInCurriculum: number;
 }
 
-interface UnitTestAnnouncement {
-  testDate: string;
+interface Announcement {
   id: string;
-  createdAt: string;
+  content: string;
+  is_special: boolean;
+  created_at: string;
 }
 
 export default function StudentHomePage() {
   const { user, isLoading: authIsLoading } = useAuth();
   const [stats, setStats] = useState<StudentStats | null>(null);
-  const [announcement, setAnnouncement] = useState<UnitTestAnnouncement | null>(null);
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [pageIsLoading, setPageIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +49,7 @@ export default function StudentHomePage() {
         try {
           const [progressRes, announcementRes] = await Promise.all([
             fetch(`/api/progress/student/${user.id}`),
-            fetch('/api/announcements/unit-test')
+            fetch('/api/announcements/unit-test') // This URL now fetches the latest generic announcement
           ]);
 
           if (!progressRes.ok) {
@@ -173,12 +173,11 @@ export default function StudentHomePage() {
       </div>
 
       {announcement && (
-        <Alert variant="destructive" className="shadow-lg">
-          <Bell className="h-4 w-4" />
-          <AlertTitle className="font-bold text-lg">Внимание: Объявлен тест!</AlertTitle>
-          <AlertDescription className="text-base">
-            Приготовьтесь к тесту по юнитам, который состоится{' '}
-            <strong className="text-green-500">{format(new Date(announcement.testDate), 'dd MMMM yyyy \'в\' HH:mm', { locale: ru })}</strong>.
+        <Alert variant={announcement.is_special ? "destructive" : "default"} className="shadow-lg">
+          {announcement.is_special ? <Bell className="h-4 w-4" /> : <Info className="h-4 w-4" />}
+          <AlertTitle className="font-bold text-lg">{announcement.is_special ? "Важное объявление!" : "Объявление от учителя"}</AlertTitle>
+          <AlertDescription className="text-base mt-2">
+            {announcement.content}
           </AlertDescription>
         </Alert>
       )}
