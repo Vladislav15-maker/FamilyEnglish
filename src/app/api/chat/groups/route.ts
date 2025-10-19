@@ -56,23 +56,27 @@ export async function POST(request: Request) {
     // Ensure teacher is always part of the group
     const finalMemberIds = Array.from(new Set([...memberIds, teacher.id]));
 
-    // Use a transaction to ensure atomicity
-    const newGroup = await sql.begin(async (sql) => {
-      const groupResult = await sql`
-        INSERT INTO chat_groups (name, created_by)
-        VALUES (${name}, ${teacher.id})
-        RETURNING id, name, created_by, created_at;
-      `;
-      const newGroupId = groupResult.rows[0].id;
+    // Step 1: Create the group
+    const groupResult = await sql`
+      INSERT INTO chat_groups (name, created_by)
+      VALUES (${name}, ${teacher.id})
+      RETURNING id, name, created_by, created_at;
+    `;
 
-      const memberInsertions = finalMemberIds.map(userId =>
-        sql`INSERT INTO chat_group_members (group_id, user_id) VALUES (${newGroupId}, ${userId});`
-      );
-      await Promise.all(memberInsertions);
-      
-      return groupResult.rows[0];
-    });
+    if (groupResult.rowCount === 0) {
+      throw new Error("Не удалось создать группу.");
+    }
+    const newGroup = groupResult.rows[0];
+    const newGroupId = newGroup.id;
 
+    // Step 2: Insert members
+    // Build a single query to insert all members at once for efficiency
+    const memberInsertions = finalMemberIds.map(userId => 
+      sql`INSERT INTO chat_group_members (group_id, user_id) VALUES (${newGroupId}, ${userId});`
+    );
+    
+    // Execute all insertion promises
+    await Promise.all(memberInsertions);
 
     return NextResponse.json(newGroup, { status: 201 });
 
