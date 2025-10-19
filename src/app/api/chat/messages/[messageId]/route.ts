@@ -8,12 +8,17 @@ const messageEditSchema = z.object({
   content: z.string().min(1, "Сообщение не может быть пустым.").max(2000),
 });
 
+async function resolveParam(paramsOrPromise: any, key: string) {
+  const params = typeof paramsOrPromise?.then === 'function' ? await paramsOrPromise : paramsOrPromise;
+  return params?.[key];
+}
+
 // PUT handler to edit a message
 export async function PUT(
   request: Request,
-  { params }: { params: { messageId: string } }
+  { params }: { params: any }
 ) {
-  const { messageId } = params;
+  const messageId = await resolveParam(params, 'messageId');
   const session = await getAppSession();
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -34,7 +39,7 @@ export async function PUT(
         content = ${content},
         updated_at = NOW()
       WHERE id = ${messageId} AND sender_id = ${user.id}
-      RETURNING id, sender_id, content, group_id, created_at, updated_at;
+      RETURNING *;
     `;
 
     if (!result || (result.rowCount !== undefined && result.rowCount === 0)) {
@@ -52,9 +57,9 @@ export async function PUT(
 // DELETE handler to delete a message
 export async function DELETE(
   request: Request,
-  { params }: { params: { messageId: string } }
+  { params }: { params: any }
 ) {
-  const { messageId } = params;
+  const messageId = await resolveParam(params, 'messageId');
   const session = await getAppSession();
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -62,12 +67,11 @@ export async function DELETE(
   const user = session.user as AuthenticatedUser;
 
   try {
-    // A teacher can delete any message. A student can only delete their own.
     let result;
     if (user.role === 'teacher') {
-        result = await sql`DELETE FROM messages WHERE id = ${messageId} RETURNING id;`;
+        result = await sql`DELETE FROM messages WHERE id = ${messageId} RETURNING *;`;
     } else {
-        result = await sql`DELETE FROM messages WHERE id = ${messageId} AND sender_id = ${user.id} RETURNING id;`;
+        result = await sql`DELETE FROM messages WHERE id = ${messageId} AND sender_id = ${user.id} RETURNING *;`;
     }
     
     if (!result || (result.rowCount !== undefined && result.rowCount === 0)) {

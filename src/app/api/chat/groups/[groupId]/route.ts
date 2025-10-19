@@ -3,12 +3,18 @@ import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser } from '@/lib/types';
 import { sql } from '@vercel/postgres';
 
+async function resolveParam(paramsOrPromise: any, key: string) {
+  // params может быть обещанием в некоторых версиях Next — поэтому безопасно await
+  const params = typeof paramsOrPromise?.then === 'function' ? await paramsOrPromise : paramsOrPromise;
+  return params?.[key];
+}
+
 // GET a single group's details, including members and messages
 export async function GET(
   request: Request,
-  { params }: { params: { groupId: string } }
+  { params }: { params: any } // keep as any to be tolerant
 ) {
-  const { groupId } = params;
+  const groupId = await resolveParam(params, 'groupId');
   const session = await getAppSession();
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -17,10 +23,8 @@ export async function GET(
 
   try {
     // Security check: user must be a member of the group
-    // НЕ кастим в ::uuid — если колонка в БД text/character varying, это приводило к ошибке
     const memberCheck = await sql`
-      SELECT 1 FROM chat_group_members WHERE group_id = ${groupId} AND user_id = ${user.id}
-      LIMIT 1;
+      SELECT 1 FROM chat_group_members WHERE group_id = ${groupId} AND user_id = ${user.id} LIMIT 1;
     `;
     if (!memberCheck || (memberCheck.rowCount !== undefined && memberCheck.rowCount === 0)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -40,7 +44,7 @@ export async function GET(
       return NextResponse.json({ error: 'Group not found' }, { status: 404 });
     }
 
-    // Получаем сообщения — тоже без жесткого ::uuid
+    // messages may not exist → catch and return empty list
     let messagesRes;
     try {
       messagesRes = await sql`
@@ -51,13 +55,10 @@ export async function GET(
         ORDER BY m.created_at ASC;
       `;
     } catch (e: any) {
-      // Если таблицы messages нет, возвращаем пустой список (не ломаем окончательный ответ)
-      // Код ошибки для undefined_table в Postgres — 42P01
       if (e?.code === '42P01' || e?.message?.includes('does not exist')) {
         console.warn('[API Chat Group] `messages` table not found, returning empty messages array.');
         messagesRes = { rows: [] };
       } else {
-        // Для других ошибок пробрасываем (они попадут в общий catch)
         throw e;
       }
     }
