@@ -34,14 +34,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden: You are not a member of this group.' }, { status: 403 });
     }
 
+    // Ensure the messages table exists before inserting
+    await sql`
+      CREATE TABLE IF NOT EXISTS messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        sender_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        group_id UUID REFERENCES chat_groups(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ,
+        is_deleted BOOLEAN DEFAULT FALSE
+      );
+    `;
+
     const result = await sql`
       INSERT INTO messages (sender_id, content, group_id)
       VALUES (${user.id}::uuid, ${content.trim()}, ${groupId}::uuid)
-      RETURNING id, sender_id, content, group_id, created_at, updated_at;
+      RETURNING id, sender_id, content, group_id, created_at, updated_at, is_deleted;
     `;
 
     const newMessage = result.rows[0];
 
+    // Return the full message object with sender details for immediate UI update
     const finalMessage = {
       ...newMessage,
       sender_name: user.name,

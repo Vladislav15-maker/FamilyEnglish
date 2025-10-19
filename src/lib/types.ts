@@ -56,10 +56,10 @@ export interface WordAttempt {
 
 // Progress and Score Types
 export interface StudentRoundProgress {
-  studentId: string;
+  studentId: string; // Corresponds to User.id
   unitId: string;
   roundId: string;
-  score: number;
+  score: number; // Percentage score, e.g., 80 for 80%
   attempts: WordAttempt[] | any; // 'any' for JSONB from DB, parse as needed
   completed: boolean;
   timestamp: number;
@@ -78,16 +78,16 @@ export interface StudentAttemptHistory {
 }
 
 export interface OfflineTestScore {
-  id: string;
-  studentId: string;
-  teacherId: string;
-  testId?: string | null;
-  testName?: string;
-  studentName?: string;
-  score: 2 | 3 | 4 | 5;
-  notes?: string | null;
-  date: string;
-  passed: boolean | null;
+  id: string; // Unique ID for the score entry
+  studentId: string; // Corresponds to User.id
+  teacherId: string; // Corresponds to User.id of the teacher who graded
+  testId?: string | null; // Identifier for the specific test, e.g., 'test-1'
+  testName?: string; // For display purposes, added programmatically
+  studentName?: string; // For display purposes, can be joined from users table
+  score: 2 | 3 | 4 | 5; // Fixed score values
+  notes?: string | null; // Optional notes from the teacher
+  date: string; // Date of the test/grading, stored as ISO string or similar
+  passed: boolean | null; // Teacher determines if the student passed
 }
 
 export interface StudentUnitGrade {
@@ -95,11 +95,11 @@ export interface StudentUnitGrade {
   studentId: string;
   teacherId: string;
   unitId: string;
-  unitName?: string;
-  studentName?: string;
+  unitName?: string; // For display purposes, can be joined or added programmatically
+  studentName?: string; // For display purposes on teacher's or public student's side
   grade: 2 | 3 | 4 | 5;
   notes?: string | null;
-  date: string;
+  date: string; // ISO string date
 }
 
 export interface OnlineTestResultAnswer {
@@ -131,7 +131,7 @@ export interface ChatGroup {
 }
 
 export interface Message {
-    id: number;
+    id: string; // Changed from number to string to match UUID
     sender_id: string;
     sender_name: string;
     sender_role: 'teacher' | 'student';

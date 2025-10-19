@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Send, Loader2, Users, MessageSquare, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -90,7 +90,7 @@ export default function ChatWindow({ selectedGroup }: ChatWindowProps) {
             setMessages(prev => prev.map(m => m.id === returnedMessage.id ? { ...m, ...returnedMessage, sender_name: user.name, sender_role: user.role } : m));
             setEditingMessage(null);
         } else {
-            setMessages(prev => [...prev, { ...returneddMessage, sender_name: user.name, sender_role: user.role }]);
+            setMessages(prev => [...prev, returnedMessage]);
         }
 
         setNewMessage('');
@@ -208,13 +208,14 @@ export default function ChatWindow({ selectedGroup }: ChatWindowProps) {
       </CardContent>
 
       <CardFooter className="p-4 border-t">
-        <form onSubmit={handleSendMessage} className="flex w-full items-center gap-2">
+        <form onSubmit={handleSendMessage} className="w-full">
            {editingMessage && (
-            <div className="w-full text-sm text-muted-foreground p-2 bg-muted/50 rounded-md border-l-4 border-primary">
-                Редактирование сообщения... <Button variant="link" size="sm" onClick={() => {setEditingMessage(null); setNewMessage('');}}>Отмена</Button>
+            <div className="text-sm text-muted-foreground p-2 mb-2 bg-muted/50 rounded-md border-l-4 border-primary flex justify-between items-center">
+                <span>Редактирование сообщения...</span>
+                <Button variant="link" size="sm" type="button" onClick={() => {setEditingMessage(null); setNewMessage('');}}>Отмена</Button>
             </div>
            )}
-           {!editingMessage && (
+           <div className="flex w-full items-center gap-2">
              <Input
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
@@ -223,10 +224,10 @@ export default function ChatWindow({ selectedGroup }: ChatWindowProps) {
                 autoComplete="off"
                 disabled={isSending}
             />
-           )}
-          <Button type="submit" size="icon" disabled={!newMessage.trim() || isSending}>
-            {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
+             <Button type="submit" size="icon" disabled={!newMessage.trim() || isSending}>
+                {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+             </Button>
+           </div>
         </form>
       </CardFooter>
     </Card>

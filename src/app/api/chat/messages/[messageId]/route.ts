@@ -34,7 +34,7 @@ export async function PUT(
       SET 
         content = ${content},
         updated_at = NOW()
-      WHERE id = ${messageId} AND sender_id = ${user.id}::uuid
+      WHERE id = ${messageId}::uuid AND sender_id = ${user.id}::uuid
       RETURNING id, sender_id, content, group_id, created_at, updated_at;
     `;
 
@@ -67,9 +67,9 @@ export async function DELETE(
     // A teacher can delete any message. A student can only delete their own.
     let query;
     if (user.role === 'teacher') {
-        query = sql`DELETE FROM messages WHERE id = ${messageId} RETURNING id;`;
+        query = sql`DELETE FROM messages WHERE id = ${messageId}::uuid RETURNING id;`;
     } else {
-        query = sql`DELETE FROM messages WHERE id = ${messageId} AND sender_id = ${user.id}::uuid RETURNING id;`;
+        query = sql`DELETE FROM messages WHERE id = ${messageId}::uuid AND sender_id = ${user.id}::uuid RETURNING id;`;
     }
 
     const result = await query;
