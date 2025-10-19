@@ -1,4 +1,4 @@
-// src/app/api/chat/groups/[groupId]/route.ts
+     // src/app/api/chat/groups/[groupId]/route.ts
 import { NextResponse } from 'next/server';
 import { getAppSession } from '@/lib/auth';
 import type { AuthenticatedUser } from '@/lib/types';
